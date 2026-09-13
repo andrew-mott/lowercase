@@ -17,9 +17,10 @@ import type { Subscription, Topic } from "@lcase/ports";
  * `assertDistinctTopics` is what makes that merge safe: two protocols reusing
  * one identity is the failure a union has to catch.
  *
- * Shaped identically to the router's `MessageRouterTopology` on purpose, so a
- * catalog can still be handed straight to a carrier while the two layers are
- * being separated.
+ * Reaches a carrier only through `resolveHostPlan`, which joins it to one
+ * role's plan. Nothing hands a whole catalog to a router: a catalog says what
+ * every identity means, and a process needs that only for the conversations its
+ * own role takes part in.
  */
 export type MessageCatalog = {
   topics: readonly Topic[];

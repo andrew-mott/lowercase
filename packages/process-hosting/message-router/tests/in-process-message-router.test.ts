@@ -6,8 +6,10 @@ import type {
   MessageHandler,
   SelectedTopics,
   SelectedTypes,
+  Topic,
 } from "@lcase/ports";
 import { defineTopic, defineTopicFor } from "@lcase/message-topology";
+import { planFor } from "./helpers/plan-for.js";
 import {
   createInProcessMessageRouter,
   type InProcessMessageRouter,
@@ -102,47 +104,37 @@ function binding<const Topics extends SelectedTopics>(
  * bindings, since these tests are about delivery rather than about declaring
  * a consumer and then failing to host it. */
 function sealedRouter(
-  config: Omit<InProcessMessageRouterConfig, "subscriptions"> & {
+  config: Omit<InProcessMessageRouterConfig, "plan"> & {
+    topics: readonly Topic[];
     bindings: readonly Bind[];
   },
 ): InProcessMessageRouter {
-  const { bindings, ...rest } = config;
+  const { bindings, topics, ...rest } = config;
   const router = createInProcessMessageRouter({
     ...rest,
-    subscriptions: bindings.map((b) => b.subscription),
+    plan: planFor({
+      topics,
+      subscriptions: bindings.map((b) => b.subscription),
+    }),
   });
   for (const bind of bindings) bind.apply(router);
   router.seal();
   return router;
 }
 
-describe("createInProcessMessageRouter — topology validation", () => {
+// Declaration checks are no longer this carrier's to make: a duplicate topic id
+// or a subscription selecting an undeclared topic fails in `resolveHostPlan`,
+// and a topic nothing consumes fails in `assertManifest`. Those live in
+// `@lcase/message-topology`'s tests now. What is left here is what only a
+// running process can settle.
+describe("createInProcessMessageRouter — host plan validation", () => {
   const noop: MessageHandler<EventType> = async () => {};
   const engineTerminal = subscription("engine.terminal.v1", [terminal]);
   const obsTerminal = subscription("obs.terminal.v1", [terminal]);
 
-  it("rejects duplicate topic ids at construction", () => {
-    expect(() =>
-      createInProcessMessageRouter({
-        topics: [terminal, { ...terminal }],
-        subscriptions: [engineTerminal],
-      }),
-    ).toThrow(/duplicate topic id 'job-terminal.v1'/);
-  });
-
-  it("rejects a declared subscription referencing an undeclared topic, at construction", () => {
-    expect(() =>
-      createInProcessMessageRouter({
-        topics: [terminal],
-        subscriptions: [subscription("obs.command.v1", [completedOnly])],
-      }),
-    ).toThrow(/references undeclared topic 'job-completed-only.v1'/);
-  });
-
   it("rejects a duplicate subscription id at bind", () => {
     const router = createInProcessMessageRouter({
-      topics: [terminal],
-      subscriptions: [engineTerminal],
+      plan: planFor({ topics: [terminal], subscriptions: [engineTerminal] }),
     });
     binding("engine.terminal.v1", [terminal], noop).apply(router);
 
@@ -151,57 +143,47 @@ describe("createInProcessMessageRouter — topology validation", () => {
     ).toThrow(/duplicate subscription id 'engine.terminal.v1'/);
   });
 
-  // The declaration is the authority on which consumers exist. A handler bound
-  // for something the topology never named is a wiring mistake even when the
-  // topic itself is real.
-  it("rejects binding a subscription the topology never declared", () => {
+  // The plan is the authority on which consumers this process is responsible
+  // for. A handler bound for something another role owns is a wiring mistake
+  // even when the topic itself is real, and it fails here rather than at seal
+  // so the message names the cause.
+  it("rejects binding a subscription this role was not assigned", () => {
     const router = createInProcessMessageRouter({
-      topics: [terminal],
-      subscriptions: [engineTerminal],
+      plan: planFor({ topics: [terminal], subscriptions: [engineTerminal] }),
     });
 
     expect(() =>
       binding("undeclared.terminal.v1", [terminal], noop).apply(router),
     ).toThrow(
-      /subscription 'undeclared.terminal.v1' was not declared in this topology/,
+      /subscription 'undeclared.terminal.v1' is not assigned to role 'test-host'/,
     );
   });
 
   // The failure a topic-level check cannot catch: one bound sibling on
   // the same topic would have satisfied it, so dropping the engine's
   // binding would have sealed cleanly and stalled every run.
-  it("rejects a declared subscription nobody bound, at seal", () => {
+  it("rejects an assigned subscription nobody bound, at seal", () => {
     const router = createInProcessMessageRouter({
-      topics: [terminal],
-      subscriptions: [engineTerminal, obsTerminal],
+      plan: planFor({
+        topics: [terminal],
+        subscriptions: [engineTerminal, obsTerminal],
+      }),
     });
     binding("obs.terminal.v1", [terminal], noop).apply(router);
 
     expect(() => router.seal()).toThrow(
-      /subscription 'engine.terminal.v1' was declared but never bound/,
+      /subscription 'engine.terminal.v1' is assigned to role 'test-host' but was never bound/,
     );
   });
 
-  it("rejects a declared topic nothing subscribes to, at seal", () => {
-    const router = createInProcessMessageRouter({
-      topics: [terminal, completedOnly],
-      subscriptions: [engineTerminal],
-    });
-    binding("engine.terminal.v1", [terminal], noop).apply(router);
-
-    expect(() => router.seal()).toThrow(
-      /topic 'job-completed-only.v1' has no logical subscriptions/,
-    );
-  });
-
-  it("rejects a publisher request for an undeclared topic", () => {
+  it("rejects a publisher request for a topic this role may not publish", () => {
     const router = sealedRouter({
       topics: [terminal],
       bindings: [binding("engine.terminal.v1", [terminal], noop)],
     });
 
     expect(() => router.publisher(completedOnly)).toThrow(
-      /undeclared topic 'job-completed-only.v1'/,
+      /role 'test-host' may not publish topic 'job-completed-only.v1'/,
     );
   });
 });
@@ -232,8 +214,10 @@ describe("createInProcessMessageRouter — sealing", () => {
   it("refuses to publish before seal", async () => {
     const engineTerminal = binding("engine.terminal.v1", [terminal], noop);
     const router = createInProcessMessageRouter({
-      topics: [terminal],
-      subscriptions: [engineTerminal.subscription],
+      plan: planFor({
+        topics: [terminal],
+        subscriptions: [engineTerminal.subscription],
+      }),
     });
     engineTerminal.apply(router);
 
@@ -252,8 +236,10 @@ describe("createInProcessMessageRouter — sealing", () => {
       },
     );
     const router = createInProcessMessageRouter({
-      topics: [terminal],
-      subscriptions: [engineTerminal.subscription],
+      plan: planFor({
+        topics: [terminal],
+        subscriptions: [engineTerminal.subscription],
+      }),
     });
 
     // Resolved first -- this is what lets a component be constructed with its
@@ -463,11 +449,13 @@ describe("createInProcessMessageRouter — whenIdle", () => {
     // before the handler that needs it exists, so no mutable late assignment
     // is required to close the cycle.
     const router = createInProcessMessageRouter({
-      topics: [terminal, completedOnly],
-      subscriptions: [
-        subscription("worker.terminal.v1", [terminal]),
-        subscription("engine.completed.v1", [completedOnly]),
-      ],
+      plan: planFor({
+        topics: [terminal, completedOnly],
+        subscriptions: [
+          subscription("worker.terminal.v1", [terminal]),
+          subscription("engine.completed.v1", [completedOnly]),
+        ],
+      }),
     });
     const secondPublisher = router.publisher(completedOnly);
 
@@ -557,53 +545,60 @@ describe("createInProcessMessageRouter — multi-topic subscriptions", () => {
     expect(started).toEqual(["job.httpjson.failed", "job.httpjson.completed"]);
   });
 
-  it("rejects a subscription selecting no topics, at construction", () => {
-    expect(() =>
-      createInProcessMessageRouter({
-        topics: [terminal],
+  // A binding is authorized by id, so the plan has to be what that id means.
+  // Otherwise a same-id object could route somewhere the declaration never
+  // named -- which matters far more now that a deployment is what assigns an
+  // id to a process.
+  it("rejects a binding whose selection disagrees with the plan for that id", () => {
+    const router = createInProcessMessageRouter({
+      plan: planFor({
+        topics: [terminal, completedOnly],
         subscriptions: [
-          {
-            id: "obs.empty.v1",
-            topics: [],
-          } as unknown as Subscription,
+          subscription("obs.job.v1", [terminal]),
+          subscription("obs.completed.v1", [completedOnly]),
         ],
       }),
-    ).toThrow(/subscription 'obs.empty.v1' selects no topics/);
-  });
-
-  it("rejects a subscription selecting the same topic twice, at construction", () => {
-    expect(() =>
-      createInProcessMessageRouter({
-        topics: [terminal],
-        subscriptions: [subscription("obs.dup.v1", [terminal, terminal])],
-      }),
-    ).toThrow(
-      /subscription 'obs.dup.v1' selects topic 'job-terminal.v1' more than once/,
-    );
-  });
-
-  // A binding is authorized by id, so the topology has to be what that id
-  // means. Otherwise a same-id object could route somewhere the declaration
-  // never named -- which matters far more once a deployment is what assigns an
-  // id to a process.
-  it("rejects a binding whose selection disagrees with the declaration of that id", () => {
-    const router = createInProcessMessageRouter({
-      topics: [terminal, completedOnly],
-      subscriptions: [subscription("obs.job.v1", [terminal])],
     });
 
     expect(() =>
       binding("obs.job.v1", [terminal, completedOnly], noop).apply(router),
     ).toThrow(
-      /subscription 'obs.job.v1' selects \[job-terminal.v1, job-completed-only.v1\], but this topology declares it as \[job-terminal.v1\]/,
+      /subscription 'obs.job.v1' selects \[job-terminal.v1, job-completed-only.v1\], but this role's plan declares it as \[job-terminal.v1\]/,
+    );
+  });
+
+  // The selection is not the whole contract. A same-id topic carrying a
+  // different type list would widen or narrow what this lane accepts, and the
+  // one cast each carrier makes when it invokes a handler is sound only
+  // because the declared list is the authority on what can arrive.
+  it("rejects a binding whose selected topic disagrees on the types it carries", () => {
+    const router = createInProcessMessageRouter({
+      plan: planFor({
+        topics: [terminal],
+        subscriptions: [subscription("obs.job.v1", [terminal])],
+      }),
+    });
+
+    expect(() =>
+      router.bind({
+        subscription: {
+          id: "obs.job.v1",
+          topics: [{ ...terminal, types: ["job.httpjson.completed"] }],
+        } as unknown as Subscription,
+        handler: noop,
+      }),
+    ).toThrow(
+      /subscription 'obs.job.v1' selects topic 'job-terminal.v1' carrying \[job.httpjson.completed\], but it is declared as carrying \[job.httpjson.completed, job.httpjson.failed\]/,
     );
   });
 
   it("routes from the declaration rather than from the object the caller handed in", async () => {
     const seen: string[] = [];
     const router = createInProcessMessageRouter({
-      topics: [terminal, completedOnly],
-      subscriptions: [subscription("obs.job.v1", [terminal, completedOnly])],
+      plan: planFor({
+        topics: [terminal, completedOnly],
+        subscriptions: [subscription("obs.job.v1", [terminal, completedOnly])],
+      }),
     });
 
     // Same id, same selection, but a distinct object graph: routing must come

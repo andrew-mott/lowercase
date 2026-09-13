@@ -25,12 +25,11 @@ import {
 import {
   engineJobTerminalSubscription,
   jobCommandTopic,
-  jobTopics,
-  jobSubscriptions,
   jobTerminalTopic,
   observabilityJobSubscription,
   workerJobCommandSubscription,
 } from "@lcase/message-topology/catalogs";
+import { localSystemPlan } from "./local-system-plan.js";
 
 // Enough of an ArtifactReadWritePort for a job with no refs and no exports:
 // one save of the response payload. Kept here rather than imported from
@@ -128,11 +127,7 @@ export type HttpJobGraphOptions = {
  */
 export function buildHttpJobGraph(options: HttpJobGraphOptions = {}) {
   const router =
-    options.router ??
-    createInProcessMessageRouter({
-      topics: jobTopics,
-      subscriptions: jobSubscriptions,
-    });
+    options.router ?? createInProcessMessageRouter({ plan: localSystemPlan() });
   const jobCommands = router.publisher(jobCommandTopic);
   const jobTerminals = router.publisher(jobTerminalTopic);
 

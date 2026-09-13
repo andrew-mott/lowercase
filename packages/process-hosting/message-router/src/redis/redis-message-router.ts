@@ -15,18 +15,21 @@ import {
   type ReportDeliveryFailure,
 } from "../delivery.types.js";
 import { DeliveryLane } from "../delivery-lane.js";
+import type { ResolvedHostPlan } from "@lcase/message-topology";
 import {
-  assertDeclaredSubscriptions,
-  assertDistinctTopics,
-} from "@lcase/message-topology";
-import {
-  assertTopologySealable,
+  assertPlanFullyBound,
   canonicalSubscriptionFor,
+  plannedPublisherFor,
   type MessageRouter,
-  type MessageRouterTopology,
 } from "../message-router.js";
 
-export type RedisMessageRouterConfig = MessageRouterTopology & {
+export type RedisMessageRouterConfig = {
+  /**
+   * This role's whole view of the deployment, resolved against the catalog this
+   * process imported. Nested rather than spread, so deployment data and this
+   * carrier's own knobs cannot collide.
+   */
+  plan: ResolvedHostPlan;
   /**
    * One connection per call. A blocking `XREADGROUP` occupies its connection
    * for the whole BLOCK window, so a read loop sharing a client with the
@@ -129,9 +132,9 @@ const sleep = (ms: number): Promise<void> =>
 export function createRedisMessageRouter(
   config: RedisMessageRouterConfig,
 ): RedisMessageRouter {
-  assertDistinctTopics(config.topics);
-  assertDeclaredSubscriptions(config);
-
+  // No declaration checks here. `resolveHostPlan` runs them once, where both
+  // the plan and the catalog are in scope, rather than each carrier repeating
+  // them on whatever it happens to be handed.
   const keyPrefix = config.keyPrefix ?? "lcase:";
   // Stable rather than per-boot: with every entry acknowledged there is no
   // pending backlog for a restarted process to inherit, so a fresh consumer
@@ -141,12 +144,11 @@ export function createRedisMessageRouter(
   const readFailureBackoffMs = config.readFailureBackoffMs ?? 1_000;
   const reportFailure = config.reportFailure ?? defaultReportFailure;
 
-  const streamFor = (topicId: string): string => `${keyPrefix}${topicId}`;
-
-  const topicsById = new Map(config.topics.map((topic) => [topic.id, topic]));
-  const subscriptionsById = new Map<string, Subscription>(
-    config.subscriptions.map((subscription) => [subscription.id, subscription]),
-  );
+  // Keyed by the route, not the topic. The two are equal in every deployment
+  // today, which is what makes adopting routes change no stream key and strand
+  // no existing consumer group; C23 is what first gives one topic a second
+  // route and so a second stream.
+  const streamFor = (routeId: string): string => `${keyPrefix}${routeId}`;
 
   const bindings = new Map<string, BoundSubscription>();
   let sealed = false;
@@ -273,8 +275,8 @@ export function createRedisMessageRouter(
           `[message-router] cannot bind '${binding.subscription.id}' after seal()`,
         );
       }
-      const subscription = canonicalSubscriptionFor(
-        subscriptionsById,
+      const { subscription, topicRoutes } = canonicalSubscriptionFor(
+        config.plan,
         binding.subscription,
       );
       if (bindings.has(subscription.id)) {
@@ -285,6 +287,9 @@ export function createRedisMessageRouter(
 
       const maxInFlight = binding.maxInFlight ?? 1;
       const readCount = config.readCount ?? maxInFlight;
+      const declaredTypes = new Map(
+        subscription.topics.map((topic) => [topic.id, topic.types]),
+      );
       bindings.set(subscription.id, {
         subscription,
         group: subscription.id,
@@ -304,30 +309,49 @@ export function createRedisMessageRouter(
           // for a settled delivery to decrement.
           onSettled: () => {},
         }),
-        readers: subscription.topics.map((topic) => ({
-          topicId: topic.id,
-          stream: streamFor(topic.id),
-          allowedTypes: new Set<EventType>(topic.types),
+        // One reader per delivery route rather than per selected topic. They
+        // are the same count today; they stop being once a topic reaches this
+        // subscription on more than one route.
+        readers: topicRoutes.map((route) => ({
+          topicId: route.topicId,
+          stream: streamFor(route.routeId),
+          // Present because `resolveHostPlan` proved the declared selection and
+          // the routed set name the same topics.
+          allowedTypes: new Set<EventType>(declaredTypes.get(route.topicId)!),
         })),
       });
     },
 
     seal(): void {
       if (sealed) throw new Error("[message-router] already sealed");
-      assertTopologySealable(config, new Set(bindings.keys()));
+      assertPlanFullyBound(config.plan, new Set(bindings.keys()));
       sealed = true;
     },
 
     publisher<Types extends readonly EventType[]>(
       topic: Topic<Types>,
     ): MessagePublisher<Types[number]> {
-      const declared = topicsById.get(topic.id);
-      if (!declared) {
-        throw new Error(`[message-router] undeclared topic '${topic.id}'`);
+      // A permission, and deliberately with no counterpart at seal(): a role
+      // that never resolves a publisher it was allowed is fine, where a
+      // subscription it never bound is not.
+      const { topic: declared, routeIds } = plannedPublisherFor(
+        config.plan,
+        topic,
+      );
+
+      // A carrier capability, not a rule of the representation. A publisher
+      // writes one stream, so a topic whose delivery edges resolve to several
+      // routes cannot be realized here without duplicating every entry across
+      // them. The plural is legal in the data; C23 is what teaches this carrier
+      // to admit it.
+      if (routeIds.length !== 1) {
+        throw new Error(
+          `[message-router] topic '${declared.id}' resolves to routes [${routeIds.join(", ")}]; this carrier publishes a topic onto exactly one stream`,
+        );
       }
 
       const allowedTypes = new Set<EventType>(declared.types);
-      const stream = streamFor(declared.id);
+      const stream = streamFor(routeIds[0]!);
 
       return {
         async publish(message) {
@@ -361,8 +385,14 @@ export function createRedisMessageRouter(
       if (running) throw new Error("[message-router] already started");
 
       publisherLog = await config.createLog();
-      for (const topic of config.topics) {
-        await publisherLog.ensureStream(streamFor(topic.id));
+      // Only the routes this role publishes, where it used to be every topic in
+      // the deployment. A route this role only reads needs no publisher to
+      // create it: ensureConsumerGroup passes MKSTREAM, so the consumer
+      // provisions its own stream.
+      for (const planned of config.plan.publishesTo) {
+        for (const routeId of planned.routeIds) {
+          await publisherLog.ensureStream(streamFor(routeId));
+        }
       }
 
       // Every group exists before any loop runs and before publishing is

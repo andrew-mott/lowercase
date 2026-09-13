@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildEvent } from "@lcase/events";
 import type { AnyEvent } from "@lcase/types";
-import type { Subscription } from "@lcase/ports";
+import type { Subscription, Topic } from "@lcase/ports";
 import { defineTopicFor, defineSubscription } from "@lcase/message-topology";
 import { createRedisMessageRouter } from "../src/redis/redis-message-router.js";
 import type { DeliveryFailure } from "../src/delivery.types.js";
 import { createFakeMessageLogStore } from "./helpers/fake-message-log.js";
+import { planFor } from "./helpers/plan-for.js";
 
 type TerminalType = "job.httpjson.completed" | "job.httpjson.failed";
 
@@ -59,7 +60,9 @@ type Options = {
   handler?: (message: AnyEvent) => Promise<void>;
   maxInFlight?: number;
   readCount?: number;
+  topics?: readonly Topic[];
   subscriptions?: readonly Subscription[];
+  routeIdFor?: (topicId: string, subscriptionId: string) => string;
 };
 
 function setup(options: Options = {}) {
@@ -68,8 +71,14 @@ function setup(options: Options = {}) {
   const seen: AnyEvent[] = [];
 
   const router = createRedisMessageRouter({
-    topics: [terminal],
-    subscriptions: options.subscriptions ?? [engineTerminal],
+    plan: planFor(
+      {
+        topics: options.topics ?? [terminal],
+        subscriptions: options.subscriptions ?? [engineTerminal],
+      },
+      "redis-streams",
+      options.routeIdFor,
+    ),
     createLog: store.createLog,
     keyPrefix: "test:",
     blockMs: 5,
@@ -106,19 +115,21 @@ async function sealedAndStarted(options: Options = {}) {
 describe("createRedisMessageRouter — topology", () => {
   const noop = async (): Promise<void> => {};
 
-  it("refuses to seal with a declared subscription nobody bound", async () => {
-    // Both declared, only the engine one bound by sealedAndStarted.
+  it("refuses to seal with an assigned subscription nobody bound", async () => {
+    // Both assigned to this role, only the engine one bound by sealedAndStarted.
     const ctx = await sealedAndStarted({
       subscriptions: [engineTerminal, obsTerminal],
     }).catch((e: unknown) => e);
 
     expect(ctx).toBeInstanceOf(Error);
     expect((ctx as Error).message).toMatch(
-      /subscription 'observability.job-terminal.v1' was declared but never bound/,
+      /subscription 'observability.job-terminal.v1' is assigned to role 'test-host' but was never bound/,
     );
   });
 
-  it("names the stream from the topic id and the group from the subscription id", async () => {
+  // The route id, not the topic id -- they are equal in every deployment today,
+  // which is exactly why adopting routes moved no stream key.
+  it("names the stream from the route id and the group from the subscription id", async () => {
     const { store, router } = await sealedAndStarted();
 
     expect(store.provisionedStreams).toEqual([STREAM]);
@@ -138,7 +149,7 @@ describe("createRedisMessageRouter — topology", () => {
     expect(store.closed).toHaveLength(2);
   });
 
-  it("refuses to bind a subscription the topology never declared", () => {
+  it("refuses to bind a subscription this role was not assigned", () => {
     const { router } = setup();
 
     expect(() =>
@@ -146,7 +157,9 @@ describe("createRedisMessageRouter — topology", () => {
         subscription: { id: "undeclared.v1", topics: [terminal] },
         handler: noop,
       }),
-    ).toThrow(/subscription 'undeclared.v1' was not declared in this topology/);
+    ).toThrow(
+      /subscription 'undeclared.v1' is not assigned to role 'test-host'/,
+    );
   });
 
   it("refuses to bind after seal, and to seal twice", () => {
@@ -158,6 +171,21 @@ describe("createRedisMessageRouter — topology", () => {
       router.bind({ subscription: engineTerminal, handler: noop }),
     ).toThrow(/cannot bind 'engine.job-terminal.v1' after seal\(\)/);
     expect(() => router.seal()).toThrow(/already sealed/);
+  });
+
+  // A carrier capability rather than a rule of the representation: the plan is
+  // allowed to say a topic travels two routes, and a publisher writing one
+  // stream cannot realize it. C23 is what teaches this carrier to admit it.
+  it("refuses to publish a topic that resolves to more than one route", () => {
+    const { router } = setup({
+      subscriptions: [engineTerminal, obsTerminal],
+      // Each consumer gets its own route off the same topic.
+      routeIdFor: (topicId, subscriptionId) => `${topicId}#${subscriptionId}`,
+    });
+
+    expect(() => router.publisher(terminal)).toThrow(
+      /topic 'job-terminal.v1' resolves to routes \[.+, .+\]; this carrier publishes a topic onto exactly one stream/,
+    );
   });
 
   it("refuses to publish before seal, and before start", async () => {
@@ -345,8 +373,10 @@ describe("createRedisMessageRouter — multi-topic subscriptions", () => {
     const started: AnyEvent[] = [];
 
     const router = createRedisMessageRouter({
-      topics: [command, terminal],
-      subscriptions: [obsJob],
+      plan: planFor(
+        { topics: [command, terminal], subscriptions: [obsJob] },
+        "redis-streams",
+      ),
       createLog: store.createLog,
       keyPrefix: "test:",
       blockMs: 5,

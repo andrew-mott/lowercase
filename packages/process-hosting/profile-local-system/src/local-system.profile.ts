@@ -27,13 +27,15 @@ import { managedResource, type ManagedRuntime } from "@lcase/assembly";
 import { assembleEmbeddedSystem } from "./assemble-embedded-system.js";
 import {
   engineJobTerminalSubscription,
+  jobCatalog,
   jobCommandTopic,
-  jobTopics,
-  jobSubscriptions,
   jobTerminalTopic,
   observabilityJobSubscription,
   workerJobCommandSubscription,
 } from "@lcase/message-topology/catalogs";
+import { hostPlanFor, resolveHostPlan } from "@lcase/message-topology";
+import { localSystemRole } from "@lcase/message-topology/deployments";
+import { manifestFor } from "./select-manifest.js";
 import { buildMessageRouter } from "./build-message-router.js";
 import { buildWorker } from "./build-worker.js";
 import { buildArtifactStore } from "./build-artifact-store.js";
@@ -94,10 +96,22 @@ export function createLocalSystem(config: LocalSystemConfig): LocalSystem {
   // Which carrier moves the Messages is config's business and appears nowhere
   // below: the declarations, the bindings, and the components are identical
   // either way.
-  const { router, hooks: routerHooks } = buildMessageRouter(config.messaging, {
-    topics: jobTopics,
-    subscriptions: jobSubscriptions,
-  });
+  // Deployment, then this role's slice of it, then that slice joined to the
+  // conversations this process imported. The manifest describes every
+  // cooperating role; the plan is only ours, which is what a second host would
+  // derive from the same manifest without either naming the other.
+  //
+  // The role id is this profile's identity, not configuration. A Worker host is
+  // a different profile naming `workerHost`, rather than this one with a flag.
+  const manifest = manifestFor(config.messaging.kind);
+  const plan = resolveHostPlan(
+    hostPlanFor(manifest, localSystemRole.id),
+    jobCatalog,
+  );
+  const { router, hooks: routerHooks } = buildMessageRouter(
+    config.messaging,
+    plan,
+  );
   const jobCommands = router.publisher(jobCommandTopic);
   const jobTerminals = router.publisher(jobTerminalTopic);
 

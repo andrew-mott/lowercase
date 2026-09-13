@@ -66,6 +66,21 @@ export function assertManifest(
     }
   }
 
+  // A topic no enabled subscription selects can never arrive anywhere. The
+  // router used to catch this locally at seal(), and cannot once roles split:
+  // a Worker host legitimately publishes terminals and consumes none of them,
+  // so only the whole deployment can see that nobody does.
+  const consumedTopics = new Set(
+    [...expectedEdges.values()].map((edge) => edge.topicId),
+  );
+  for (const topicId of manifestTopics) {
+    if (!consumedTopics.has(topicId)) {
+      err(
+        `${at} enables topic '${topicId}', which no enabled subscription selects`,
+      );
+    }
+  }
+
   // Exactly one route per enabled edge. Both directions are checked: a missing
   // route is an undeliverable edge, and an extra one is a route to a
   // conversation this deployment did not enable.
@@ -141,5 +156,30 @@ export function assertManifest(
         `${at} enables topic '${topicId}' but gives no role permission to publish it`,
       );
     }
+  }
+}
+
+/**
+ * Whether one process can realize this whole manifest.
+ *
+ * A single role is exactly equivalent to "everything is local" for a manifest
+ * `assertManifest` has already accepted: every enabled subscription is assigned
+ * to exactly one role and every enabled topic has a publishing role, so one
+ * role means both belong to it. That equivalence is why this needs no host
+ * plan -- and it could not use one, since a plan names no role but its own and
+ * so cannot see that another exists.
+ *
+ * A restriction of the current deployment model rather than of these shapes. A
+ * deployment picks one carrier for everything, so a split manifest realized in
+ * process would deliver to the lanes this process owns and silently drop every
+ * Message meant for another role. Routes are keyed per delivery edge, so a
+ * per-conversation carrier would live there if it were ever wanted.
+ */
+export function assertInProcessRealizable(manifest: MessagingManifest): void {
+  if (manifest.roles.length !== 1) {
+    const names = manifest.roles.map((r) => r.id).join(", ");
+    err(
+      `manifest '${manifest.id}' declares roles [${names}]; an in-process carrier realizes only a single-role manifest, because one deployment picks one carrier and every Message this one moves stays in this process`,
+    );
   }
 }

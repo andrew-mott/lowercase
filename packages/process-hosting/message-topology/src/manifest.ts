@@ -52,9 +52,10 @@ export type TopicRoute = {
  * deployment which splits Engine out produces a different role rather than the
  * same name quietly meaning less than it did.
  *
- * `publishesTo` is a permission and `consumesFrom` is an obligation. A role
- * that consumes nothing is legitimate: a gateway may publish commands and read
- * no Messages at all.
+ * `publishesTo` is a permission and `consumesFrom` is a responsibility: a
+ * deployment assigns each subscription to exactly one role, so naming it here
+ * is ownership rather than compulsion. A role that consumes nothing is
+ * legitimate: a gateway may publish commands and read no Messages at all.
  *
  * The two hold different kinds of identity, and the verbs are what say which.
  * You publish to a topic and consume from a subscription, so `publishesTo`

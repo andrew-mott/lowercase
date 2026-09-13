@@ -6,26 +6,11 @@ import type {
   Topic,
   SelectedTopics,
 } from "@lcase/ports";
-
-/**
- * The deployment-wide topology a router enforces: every topic anything
- * may publish onto, and every logical subscription expected to consume one.
- *
- * Subscriptions are declared here rather than existing only by being bound,
- * which is what lets `seal()` catch an expected consumer that nobody wired.
- * A topic-level check cannot: one bound sibling satisfies it, so a
- * missing engine terminal binding would seal cleanly and stall every run.
- *
- * Structurally a `MessageCatalog`, and deliberately still its own name: this
- * is what one process is handed, and a catalog is what a whole product
- * declares. They coincide only while one host covers every conversation. C22
- * replaces this with a host plan derived from a deployment manifest, at which
- * point the two stop being interchangeable.
- */
-export type MessageRouterTopology = {
-  topics: readonly Topic[];
-  subscriptions: readonly Subscription[];
-};
+import type {
+  ResolvedHostPlan,
+  ResolvedPublisher,
+  ResolvedSubscription,
+} from "@lcase/message-topology";
 
 /**
  * What composition needs from a carrier, and the whole of it.
@@ -57,61 +42,106 @@ export interface MessageRouter {
 }
 
 /**
- * Resolves the binding's subscription to the topology's own declaration.
+ * Whether this role may publish the topic at all, and the declaration that says
+ * what it carries.
+ *
+ * A permission check rather than a declaration lookup. The plan is what a
+ * deployment assigned to this process, so a topic missing from it is one
+ * another role owns -- a wiring mistake with a different cause than an
+ * identity nobody declared, which `resolveHostPlan` has already ruled out.
+ *
+ * Scanned rather than indexed: a role publishes a handful of topics and
+ * resolves each once at composition, never per Message.
+ */
+export function plannedPublisherFor(
+  plan: ResolvedHostPlan,
+  topic: Topic,
+): ResolvedPublisher {
+  const planned = plan.publishesTo.find((p) => p.topic.id === topic.id);
+  if (!planned) {
+    const permitted = plan.publishesTo.map((p) => p.topic.id).join(", ");
+    throw new Error(
+      `[message-router] role '${plan.roleId}' may not publish topic '${topic.id}'; it may publish [${permitted}]`,
+    );
+  }
+  return planned;
+}
+
+/**
+ * Resolves the binding's subscription to the one this role was assigned.
  *
  * Both carriers used to authorize a binding by id and then read its routing off
  * the object the caller handed in, so a same-id object selecting somewhere else
- * routed somewhere else. The topology is the authority on what an id means, so
- * routing comes from the declaration and a disagreeing copy is refused rather
- * than quietly honoured. This matters more once an id is what a deployment
- * assigns to a process role.
+ * routed somewhere else. The plan is the authority on what an id means, so
+ * routing comes from it and a disagreeing copy is refused rather than quietly
+ * honoured.
+ *
+ * The selection and the Message types are both compared, because both decide
+ * what a handler receives: a same-id topic declaring a wider type list would
+ * otherwise widen what a lane accepts, and the one cast each carrier makes on
+ * delivery is sound only because the declared list is the authority.
  */
 export function canonicalSubscriptionFor(
-  declaredById: ReadonlyMap<string, Subscription>,
+  plan: ResolvedHostPlan,
   subscription: Subscription,
-): Subscription {
-  const declared = declaredById.get(subscription.id);
-  if (!declared) {
+): ResolvedSubscription {
+  const planned = plan.consumesFrom.find(
+    (s) => s.subscription.id === subscription.id,
+  );
+  if (!planned) {
+    const assigned = plan.consumesFrom.map((s) => s.subscription.id).join(", ");
     throw new Error(
-      `[message-router] subscription '${subscription.id}' was not declared in this topology`,
+      `[message-router] subscription '${subscription.id}' is not assigned to role '${plan.roleId}'; it consumes [${assigned}]`,
     );
   }
 
   const asked = subscription.topics.map((p) => p.id).join(", ");
-  const known = declared.topics.map((p) => p.id).join(", ");
+  const known = planned.subscription.topics.map((p) => p.id).join(", ");
   if (asked !== known) {
     throw new Error(
-      `[message-router] subscription '${subscription.id}' selects [${asked}], but this topology declares it as [${known}]`,
+      `[message-router] subscription '${subscription.id}' selects [${asked}], but this role's plan declares it as [${known}]`,
     );
   }
 
-  return declared;
-}
-
-/**
- * The completeness checks `seal()` runs, shared so both carriers refuse the
- * same topologies. Kept separate from binding so the message names what is
- * missing rather than where it was noticed.
- */
-export function assertTopologySealable(
-  topology: MessageRouterTopology,
-  boundSubscriptionIds: ReadonlySet<string>,
-): void {
-  for (const subscription of topology.subscriptions) {
-    if (!boundSubscriptionIds.has(subscription.id)) {
+  for (const topic of subscription.topics) {
+    const declared = planned.subscription.topics.find(
+      (t) => t.id === topic.id,
+    )!;
+    const askedTypes = [...topic.types].join(", ");
+    const knownTypes = [...declared.types].join(", ");
+    if (askedTypes !== knownTypes) {
       throw new Error(
-        `[message-router] subscription '${subscription.id}' was declared but never bound`,
+        `[message-router] subscription '${subscription.id}' selects topic '${topic.id}' carrying [${askedTypes}], but it is declared as carrying [${knownTypes}]`,
       );
     }
   }
 
-  const subscribedTopicIds = new Set(
-    topology.subscriptions.flatMap((s) => s.topics.map((p) => p.id)),
-  );
-  for (const topic of topology.topics) {
-    if (!subscribedTopicIds.has(topic.id)) {
+  return planned;
+}
+
+/**
+ * The completeness check `seal()` runs, shared so both carriers refuse the same
+ * plans. Kept separate from binding so the message names what is missing rather
+ * than where it was noticed.
+ *
+ * Only one direction is checked here, and that is the whole of exact equality:
+ * a binding this role was not assigned cannot reach seal, because
+ * `canonicalSubscriptionFor` refuses it at bind. What is left is a subscription
+ * this process is responsible for and nobody wired, which nothing earlier can
+ * see.
+ *
+ * A topic no subscription consumes used to fail here too. It cannot once roles
+ * split -- a Worker host publishes terminals and consumes none of them -- so
+ * `assertManifest` makes that claim about the whole deployment instead.
+ */
+export function assertPlanFullyBound(
+  plan: ResolvedHostPlan,
+  boundSubscriptionIds: ReadonlySet<string>,
+): void {
+  for (const planned of plan.consumesFrom) {
+    if (!boundSubscriptionIds.has(planned.subscription.id)) {
       throw new Error(
-        `[message-router] topic '${topic.id}' has no logical subscriptions`,
+        `[message-router] subscription '${planned.subscription.id}' is assigned to role '${plan.roleId}' but was never bound`,
       );
     }
   }

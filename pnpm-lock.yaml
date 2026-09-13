@@ -720,10 +720,6 @@ importers:
         version: 3.2.4(@types/debug@4.1.12)(@types/node@25.9.3)(jiti@2.6.1)(lightningcss@1.30.2)(msw@2.12.9(@types/node@25.9.3)(typescript@5.9.3))(tsx@4.20.6)
 
   packages/process-hosting/message-router:
-    dependencies:
-      '@lcase/message-topology':
-        specifier: workspace:*
-        version: link:../message-topology
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
@@ -731,6 +727,9 @@ importers:
       '@lcase/events':
         specifier: workspace:*
         version: link:../../events
+      '@lcase/message-topology':
+        specifier: workspace:*
+        version: link:../message-topology
       '@lcase/ports':
         specifier: workspace:*
         version: link:../../ports

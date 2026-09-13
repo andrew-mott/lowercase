@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assertManifest } from "../src/assert-manifest.js";
+import {
+  assertInProcessRealizable,
+  assertManifest,
+} from "../src/assert-manifest.js";
 import type { MessagingManifest } from "../src/manifest.js";
 import {
   syntheticCatalog,
@@ -158,5 +161,60 @@ describe("assertManifest", () => {
         }),
       ),
     ).toContain("no role permission to publish it");
+  });
+
+  // The claim the router used to make at seal(), which cannot stay local once
+  // roles split: a Worker host publishes terminals and consumes none of them,
+  // so only the whole deployment can see that nobody does.
+  it("rejects a topic no enabled subscription selects", () => {
+    expect(
+      reject(
+        broken({
+          subscriptionIds: [engineRequests.id],
+          routes: syntheticDeployment.routes.filter(
+            (r) => r.subscriptionId === engineRequests.id,
+          ),
+          roles: [
+            {
+              id: "synthetic-gateway-host",
+              publishesTo: [requests.id],
+              consumesFrom: [],
+            },
+            {
+              id: "synthetic-engine-host",
+              publishesTo: [outcomes.id],
+              consumesFrom: [engineRequests.id],
+            },
+          ],
+        }),
+      ),
+    ).toContain(
+      "enables topic 'synthetic-outcomes.v1', which no enabled subscription selects",
+    );
+  });
+});
+
+describe("assertInProcessRealizable", () => {
+  it("accepts a manifest whose one role hosts everything", () => {
+    const embedded = broken({
+      roles: [
+        {
+          id: "synthetic-everything-host",
+          publishesTo: [requests.id, outcomes.id],
+          consumesFrom: [engineRequests.id, reporterOutcomes.id, auditAll.id],
+        },
+      ],
+    });
+
+    expect(() => assertManifest(syntheticCatalog, embedded)).not.toThrow();
+    expect(() => assertInProcessRealizable(embedded)).not.toThrow();
+  });
+
+  // The split manifest is what an in-process carrier would otherwise seal as an
+  // object graph, silently dropping every Message meant for another role.
+  it("rejects a manifest with more than one role", () => {
+    expect(() => assertInProcessRealizable(syntheticDeployment)).toThrow(
+      /declares roles \[synthetic-gateway-host, synthetic-cli-host, synthetic-engine-host, synthetic-observer-host\]; an in-process carrier realizes only a single-role manifest/,
+    );
   });
 });
