@@ -1,6 +1,6 @@
 /**
  * Generic Message router hosting: the two carriers, the delivery lane behind
- * both of them, and the topology checks they share.
+ * both of them, and the host-plan checks they share.
  *
  * Named for what it hosts rather than for messaging in general, because
  * neither Message *types* nor topology declarations are here. The envelope

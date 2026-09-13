@@ -5,8 +5,8 @@ import {
   createInProcessMessageRouter,
   createRedisMessageRouter,
   type MessageRouter,
-  type MessageRouterTopology,
 } from "@lcase/message-router";
+import type { ResolvedHostPlan } from "@lcase/message-topology";
 import type { LifecycleHooks } from "@lcase/assembly";
 
 export type BuiltMessageRouter = {
@@ -22,14 +22,25 @@ export type BuiltMessageRouter = {
 // of the profile's wiring, matching buildArtifactStore.
 export function buildMessageRouter(
   config: MessagingConfig,
-  topology: MessageRouterTopology,
+  plan: ResolvedHostPlan,
 ): BuiltMessageRouter {
+  // Switched on the config rather than on `plan.carrier`, because the config is
+  // a discriminated union whose Redis arm carries `url` and `keyPrefix` -- only
+  // narrowing it reaches those. The plan is still the authority, so the two are
+  // asserted equal instead of one silently winning. They cannot diverge today:
+  // `manifestFor` derives the manifest from this same value.
+  if (plan.carrier !== config.kind) {
+    throw new Error(
+      `[profile-local-system] messaging config selects '${config.kind}' but host plan '${plan.manifestId}' is carried by '${plan.carrier}'`,
+    );
+  }
+
   switch (config.kind) {
     case "in-process":
-      return { router: createInProcessMessageRouter(topology), hooks: {} };
+      return { router: createInProcessMessageRouter({ plan }), hooks: {} };
     case "redis-streams": {
       const router = createRedisMessageRouter({
-        ...topology,
+        plan,
         // One connected client per call: each blocking read loop needs a
         // connection of its own, and so does publishing.
         createLog: async () => {

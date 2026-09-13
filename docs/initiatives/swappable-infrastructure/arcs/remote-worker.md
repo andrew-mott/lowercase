@@ -377,7 +377,7 @@ second how many handlers run at once. Nothing reclaims a pending entry, so
 claiming more than the lane can work through only widens the window a crash
 loses.
 
-## Change C21 - Declare deployment topology as standalone static data - in review
+## Change C21 - Declare deployment topology as standalone static data - merged (PR #380)
 
 ### Discussion
 
@@ -613,7 +613,7 @@ manifest, which is the point: the profile still composes from
 `MessageRouterTopology`, and the unchanged slice tests are the evidence that
 C21 changed no delivery behavior.
 
-## Change C22 - Bind each process to its host plan rather than the full topology - not started
+## Change C22 - Bind each process to its host plan rather than the full topology - in review
 
 ### Discussion
 
@@ -701,6 +701,84 @@ before implementation.** Expect 225–380 semantic changed or new lines.
 - Every process derives compatible route identity from the same deployment
   definition, while no component imports topology, carrier, Redis, mailbox,
   consumer-group, or deployment-manifest mechanics.
+
+### What actually landed
+
+A host plan holds IDs so a process can read a manifest without importing
+protocol families it takes no part in. Both carriers need `Topic.types` --
+publish-side to refuse a foreign Message, which is what makes the one cast each
+of them performs on delivery sound, and Redis read-side for `BoundReader`. Those
+live only in a catalog, and `assertManifest` proves a manifest agrees with one
+without copying anything out of it. So a third static shape was needed:
+`ResolvedHostPlan`, produced by `resolveHostPlan(plan, catalog)`, mirroring the
+plan field for field with the declaration swapped in where the ID was. The
+manifest stays IDs; the join happens once, carrier-neutrally, in the one place
+both halves are in scope.
+
+That join is also where the declaration checks moved. `assertDistinctTopics` and
+`assertDeclaredSubscriptions` no longer run inside each carrier on whatever it
+was handed. The error worth having is the first direction of the check: a host
+assigned a subscription whose protocol module it never imported now fails naming
+the missing declaration, where before the same mistake surfaced much later at
+`seal()` as a consumer nobody wired.
+
+**The package split holds, and for a different reason than expected.** The
+carrier-capability checks were the predicted strain and produced none: the
+plan-to-carrier join is carrier-neutral by construction, and the in-process
+restriction turned out to be a manifest predicate. Meanwhile the two assertions
+were the only values `message-router` imported from `message-topology`, so
+absorbing them left nothing but types -- and the production dependency C21
+introduced went back to a devDependency. The two packages now share types and no
+runtime code at all. What the boundary buys remains compiler-enforced direction
+rather than independent consumers: nothing in the repo reads topology without
+also building a carrier, and nothing planned will. The signal to revisit is a
+consumer that does -- preflight validation, a deployment linter, a diagram
+generator.
+
+The in-process compatibility check was the structural surprise. The Change
+description assumed a carrier would make it, and a `ResolvedHostPlan` cannot: it
+names no role but its own, which is the property that lets two ends live in
+different processes. It is a manifest question, and for a manifest
+`assertManifest` has accepted it collapses to `roles.length === 1` -- every
+enabled subscription is already assigned to exactly one role and every enabled
+topic already has a publishing role, so one role means both belong to it. It
+runs in the profile where a carrier choice and a manifest are both in scope,
+before a router exists.
+
+One guarantee had to change owner rather than disappear. `seal()` used to reject
+a topic nothing subscribes to, which cannot stay local once roles split -- a
+Worker host publishes terminals and consumes none of them. Nothing in
+`assertManifest` covered it either, since its edges are built by iterating
+subscriptions, so a topic nobody selects contributed no edge and passed every
+route check. It is now a deployment-level loop paired with the existing
+publisher one: a topic nobody may publish can never start, a topic nobody
+consumes can never arrive.
+
+Exact equality is enforced at two points rather than one. A binding this role
+was not assigned is refused at `bind()`, so it cannot reach `seal()`, which
+leaves `seal()` with the only claim nothing earlier can see. Publish permission
+deliberately has no counterpart there: an unused permission is legitimate where
+an unbound subscription is not, and that asymmetry is commented rather than left
+to read as an oversight. Canonicalization also grew past selection to compare
+the Message types each selected topic declares, since a same-ID topic carrying a
+wider list would otherwise widen what a lane accepts.
+
+Stream keys are derived from the route ID rather than the topic ID, and
+`ensureStream` narrowed from every topic in the deployment to the routes this
+role publishes -- safe because `ensureConsumerGroup` passes `MKSTREAM`, so a
+consumer provisions its own stream. A real Redis run produced byte-identical
+stream keys and consumer group names to a run recorded before the Change, which
+is the direct evidence that no dev data was stranded. The Redis carrier now
+refuses a topic resolving to more than one route, which is a carrier capability
+rather than a limit of the representation: the plural is legal in the plan, and
+C23 is what teaches this carrier to admit it.
+
+Carrier tests build a single-role deployment through `assertManifest`,
+`hostPlanFor`, and `resolveHostPlan` rather than hand-building a resolved plan,
+so a carrier is only ever handed something the projection could actually emit.
+Five tests migrated to `@lcase/message-topology` with the checks they cover. The
+slice tests kept their assertions, which is again the evidence that delivery
+behavior did not move.
 
 ## Change C23 - Add one ordered Redis route for Observability - not started
 

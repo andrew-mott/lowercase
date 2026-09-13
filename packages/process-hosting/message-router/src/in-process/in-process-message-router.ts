@@ -1,6 +1,5 @@
 import type { EventType } from "@lcase/types";
 import type {
-  Subscription,
   MessageBinding,
   MessageOf,
   MessagePublisher,
@@ -14,19 +13,22 @@ import {
   type ReportDeliveryFailure,
 } from "../delivery.types.js";
 import { DeliveryLane } from "../delivery-lane.js";
+import type { ResolvedHostPlan } from "@lcase/message-topology";
 import {
-  assertDeclaredSubscriptions,
-  assertDistinctTopics,
-} from "@lcase/message-topology";
-import {
-  assertTopologySealable,
+  assertPlanFullyBound,
   canonicalSubscriptionFor,
+  plannedPublisherFor,
   type MessageRouter,
-  type MessageRouterTopology,
 } from "../message-router.js";
 import { snapshotMessage } from "./snapshot-message.js";
 
-export type InProcessMessageRouterConfig = MessageRouterTopology & {
+export type InProcessMessageRouterConfig = {
+  /**
+   * This role's whole view of the deployment, resolved against the catalog this
+   * process imported. Nested rather than spread, so deployment data and this
+   * carrier's own knobs cannot collide.
+   */
+  plan: ResolvedHostPlan;
   reportFailure?: ReportDeliveryFailure;
 };
 
@@ -69,14 +71,10 @@ export interface InProcessMessageRouter extends MessageRouter {
 export function createInProcessMessageRouter(
   config: InProcessMessageRouterConfig,
 ): InProcessMessageRouter {
-  assertDistinctTopics(config.topics);
-  assertDeclaredSubscriptions(config);
-
+  // No declaration checks here. `resolveHostPlan` runs them once, where both
+  // the plan and the catalog are in scope, rather than each carrier repeating
+  // them on whatever it happens to be handed.
   const reportFailure = config.reportFailure ?? defaultReportFailure;
-  const topicsById = new Map(config.topics.map((topic) => [topic.id, topic]));
-  const subscriptionsById = new Map<string, Subscription>(
-    config.subscriptions.map((subscription) => [subscription.id, subscription]),
-  );
 
   let outstanding = 0;
   let idleWaiters: (() => void)[] = [];
@@ -103,14 +101,13 @@ export function createInProcessMessageRouter(
         );
       }
 
-      // Binding is hosting a declared subscription, never inventing one: the
-      // topology is the authority on which consumers are expected to exist and
-      // on what each id selects, which is what lets seal() name one that
-      // nobody wired. Splitting these host bindings from the declarations
-      // across *several* processes only becomes meaningful with more than one
-      // hosting process.
-      const subscription = canonicalSubscriptionFor(
-        subscriptionsById,
+      // Binding is hosting an assigned subscription, never inventing one: the
+      // plan is the authority on which consumers this process is responsible
+      // for and on what each id selects, which is what lets seal() name one
+      // that nobody wired. A subscription another role owns is refused here
+      // rather than at seal, so the message names the cause.
+      const { subscription } = canonicalSubscriptionFor(
+        config.plan,
         binding.subscription,
       );
       if (boundSubscriptionIds.has(subscription.id)) {
@@ -160,21 +157,20 @@ export function createInProcessMessageRouter(
     seal(): void {
       if (sealed) throw new Error("[message-router] already sealed");
 
-      // The checks that need the whole picture: a declared subscription
-      // nobody bound is a silently broken consumer, and a topic nothing
-      // listens to is a topology mistake rather than a quiet no-op delivery.
-      assertTopologySealable(config, boundSubscriptionIds);
+      // The check that needs the whole picture: a subscription this role is
+      // responsible for and nobody bound is a silently broken consumer.
+      assertPlanFullyBound(config.plan, boundSubscriptionIds);
       sealed = true;
     },
 
     publisher<Types extends readonly EventType[]>(
       topic: Topic<Types>,
     ): MessagePublisher<Types[number]> {
-      const declared = topicsById.get(topic.id);
-      if (!declared) {
-        throw new Error(`[message-router] undeclared topic '${topic.id}'`);
-      }
-
+      // A permission, and deliberately with no counterpart at seal(): a role
+      // that never resolves a publisher it was allowed is fine, where a
+      // subscription it never bound is not. Publishing is what this role *may*
+      // do; consuming is what it is responsible for.
+      const { topic: declared } = plannedPublisherFor(config.plan, topic);
       const allowedTypes = new Set<EventType>(declared.types);
 
       return {

@@ -3,16 +3,13 @@ import type { AnyEvent } from "@lcase/types";
 import { describe, expect, it } from "vitest";
 import { buildHttpJobGraph } from "./helpers/http-job-graph.js";
 import { createInProcessMessageRouter } from "@lcase/message-router";
-import { jobTopics, jobSubscriptions } from "@lcase/message-topology/catalogs";
+import { localSystemPlan } from "./helpers/local-system-plan.js";
 
 // Constructed here rather than inside the helper so this test keeps the
 // in-process router's concrete type -- whenIdle() is a local diagnostic that
 // no log-backed carrier can answer, so it is not on the shared interface.
 function inProcessRouter() {
-  return createInProcessMessageRouter({
-    topics: jobTopics,
-    subscriptions: jobSubscriptions,
-  });
+  return createInProcessMessageRouter({ plan: localSystemPlan() });
 }
 
 function submitted(): AnyEvent<"job.httpjson.submitted"> {

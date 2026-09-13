@@ -18,12 +18,10 @@
     "clean-node-modules": "rm -rf ./node_modules"
   },
   "packageManager": "pnpm@10.17.1",
-  "dependencies": {
-    "@lcase/message-topology": "workspace:*"
-  },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@lcase/events": "workspace:*",
+    "@lcase/message-topology": "workspace:*",
     "@lcase/ports": "workspace:*",
     "@lcase/types": "workspace:*",
     "eslint": "^9.39.1",

@@ -5,7 +5,7 @@ import { createClient, type RedisClientType } from "redis";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildHttpJobGraph } from "./helpers/http-job-graph.js";
 import { createRedisMessageRouter } from "@lcase/message-router";
-import { jobTopics, jobSubscriptions } from "@lcase/message-topology/catalogs";
+import { localSystemPlan } from "./helpers/local-system-plan.js";
 
 // Real integration test against a live Redis instance -- gated on
 // REDIS_TEST_URL, since the claim being made here is that consumer-group
@@ -54,8 +54,7 @@ describe.skipIf(!url)("HTTP JSON job vertical slice (real Redis)", () => {
   function redisRouter() {
     const keyPrefix = `lcase-test:${Date.now()}-${Math.random().toString(36).slice(2)}:`;
     const router = createRedisMessageRouter({
-      topics: jobTopics,
-      subscriptions: jobSubscriptions,
+      plan: localSystemPlan("redis-streams"),
       createLog: async () => {
         const client: RedisClientType = createClient({ url });
         await client.connect();

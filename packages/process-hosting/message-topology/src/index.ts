@@ -36,3 +36,4 @@ export * from "./catalog.js";
 export * from "./manifest.js";
 export * from "./assert-manifest.js";
 export * from "./host-plan.js";
+export * from "./resolve-host-plan.js";
