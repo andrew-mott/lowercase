@@ -8,8 +8,8 @@ import type { MessagingManifest } from "../../src/manifest.js";
  * The job catalog has one pair of hosts and one conversation, so on its own it
  * cannot show whether these shapes describe a deployment topology or just that
  * one arrangement. This fixture answers that: four roles, a topic two roles
- * publish, a subscription spanning two topics, and a role that consumes nothing
- * at all.
+ * publish, a subscription spanning two topics onto one converged route, and a
+ * role that consumes nothing at all.
  *
  * Event types are borrowed from the real map because `Topic` requires real
  * ones. Nothing here corresponds to a real conversation.
@@ -58,26 +58,29 @@ export const syntheticDeployment: MessagingManifest = {
   carrier: "redis-streams",
   topicIds: [requests.id, outcomes.id],
   subscriptionIds: [engineRequests.id, reporterOutcomes.id, auditAll.id],
+  // Work routes per topic, plus one route both of the audit subscription's
+  // edges converge onto -- the same shape the real deployment gives
+  // Observability, reached here through four roles instead of one.
   routes: [
     {
       topicId: requests.id,
       subscriptionId: engineRequests.id,
-      routeId: requests.id,
+      routeId: "synthetic.requests-work.v1",
     },
     {
       topicId: requests.id,
       subscriptionId: auditAll.id,
-      routeId: requests.id,
+      routeId: "synthetic.audit.v1",
     },
     {
       topicId: outcomes.id,
       subscriptionId: reporterOutcomes.id,
-      routeId: outcomes.id,
+      routeId: "synthetic.outcomes-work.v1",
     },
     {
       topicId: outcomes.id,
       subscriptionId: auditAll.id,
-      routeId: outcomes.id,
+      routeId: "synthetic.audit.v1",
     },
   ],
   roles: [

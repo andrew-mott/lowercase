@@ -204,6 +204,10 @@ export function buildHttpJobGraph(options: HttpJobGraphOptions = {}) {
   router.bind({
     subscription: observabilityJobSubscription,
     handler: (message) => tap.ingest(message),
+    // Matching the profile, because the order these tests assert depends on it:
+    // the deployment's shared observation route provides arrival order, and one
+    // handler at a time is what preserves it through delivery.
+    maxInFlight: 1,
   });
   router.seal();
 

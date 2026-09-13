@@ -11,13 +11,22 @@ describe("hostPlanFor", () => {
   it("gives the worker host its own conversation and no knowledge of the other end", () => {
     const plan = hostPlanFor(remoteWorker, "worker-host");
 
+    // Two routes for the one topic it publishes: the work path Engine reads and
+    // the observation path. Which is which, and who reads either, is absent --
+    // a publisher is told where its Messages travel and nothing about the far
+    // end of any of it.
     expect(plan.publishesTo).toEqual([
-      { topicId: "job-terminal.v1", routeIds: ["job-terminal.v1"] },
+      {
+        topicId: "job-terminal.v1",
+        routeIds: ["job.terminal-work.v1", "job.observation.v1"],
+      },
     ]);
     expect(plan.consumesFrom).toEqual([
       {
         subscriptionId: "worker.job-command.v1",
-        topicRoutes: [{ topicId: "job-command.v1", routeId: "job-command.v1" }],
+        topicRoutes: [
+          { topicId: "job-command.v1", routeId: "job.command-work.v1" },
+        ],
       },
     ]);
 
@@ -32,14 +41,15 @@ describe("hostPlanFor", () => {
       "engine.job-terminal.v1",
       "observability.job.v1",
     ]);
-    // Observability is one subscription reading both routes, which is what
-    // keeps a command and the terminal it produced on one delivery lane.
+    // Observability is one subscription whose two topics reach it on one route,
+    // which is what puts a command and the terminal it produced on one log in
+    // the order they were admitted.
     expect(
       plan.consumesFrom.find((s) => s.subscriptionId === "observability.job.v1")
         ?.topicRoutes,
     ).toEqual([
-      { topicId: "job-command.v1", routeId: "job-command.v1" },
-      { topicId: "job-terminal.v1", routeId: "job-terminal.v1" },
+      { topicId: "job-command.v1", routeId: "job.observation.v1" },
+      { topicId: "job-terminal.v1", routeId: "job.observation.v1" },
     ]);
   });
 
@@ -77,7 +87,10 @@ describe("hostPlanFor", () => {
 
     expect(plan.consumesFrom).toEqual([]);
     expect(plan.publishesTo).toEqual([
-      { topicId: "synthetic-requests.v1", routeIds: ["synthetic-requests.v1"] },
+      {
+        topicId: "synthetic-requests.v1",
+        routeIds: ["synthetic.requests-work.v1", "synthetic.audit.v1"],
+      },
     ]);
   });
 

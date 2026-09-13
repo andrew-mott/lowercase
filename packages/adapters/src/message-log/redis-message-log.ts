@@ -67,9 +67,46 @@ export class RedisMessageLog implements MessageLogPort {
     }
   }
 
-  async publish(stream: string, message: AnyEvent): Promise<string> {
-    return this.client.xAdd(stream, "*", {
-      [PAYLOAD_FIELD]: JSON.stringify(message),
+  async publish(
+    streams: readonly string[],
+    message: AnyEvent,
+  ): Promise<string[]> {
+    if (streams.length === 0) {
+      throw new Error(
+        "[redis-message-log] publish needs at least one stream to append to",
+      );
+    }
+
+    const payload = { [PAYLOAD_FIELD]: JSON.stringify(message) };
+    if (streams.length === 1) {
+      return [await this.client.xAdd(streams[0], "*", payload)];
+    }
+
+    // MULTI/EXEC for the non-interleaving the port asks for: Redis runs a
+    // queued transaction to completion without serving another client in
+    // between, so no consumer can read one of these entries while the rest do
+    // not yet exist. It is explicitly not rollback -- Redis does not undo a
+    // queued command that fails at runtime, and an XADD has no such failure
+    // worth undoing.
+    const multi = this.client.multi();
+    for (const stream of streams) multi.xAdd(stream, "*", payload);
+    const replies = (await multi.exec()) as unknown[];
+
+    // Checked rather than assumed. exec() rejects on an error reply, but a
+    // short or non-id result would otherwise be returned as if every append had
+    // landed, which is the one outcome a caller must never act on.
+    if (replies.length !== streams.length) {
+      throw new Error(
+        `[redis-message-log] appending to [${streams.join(", ")}] returned ${replies.length} results; the transaction was not confirmed`,
+      );
+    }
+    return replies.map((reply, index) => {
+      if (typeof reply !== "string") {
+        throw new Error(
+          `[redis-message-log] appending to '${streams[index]}' returned no entry id; the transaction was not confirmed`,
+        );
+      }
+      return reply;
     });
   }
 

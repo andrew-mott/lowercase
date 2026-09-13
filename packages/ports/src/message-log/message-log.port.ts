@@ -23,7 +23,22 @@ export interface MessageLogPort {
     group: string,
     options: ConsumerGroupOptions,
   ): Promise<void>;
-  publish(stream: string, message: AnyEvent): Promise<string>;
+  /**
+   * Appends one message to every named stream as a single admission, returning
+   * the entry id it received on each, in order.
+   *
+   * The guarantee is non-interleaving: no other client may observe one of these
+   * appends without the others. That is what lets one publication reach several
+   * destinations without a consumer of the first acting on it -- and publishing
+   * something derived from it -- before the rest exist.
+   *
+   * Deliberately not rollback. A log append has no failure mode worth undoing,
+   * and promising atomicity in that sense would claim more than Redis
+   * transactions, Kafka, or JetStream actually offer. An implementation that
+   * cannot deliver non-interleaving across several streams should reject more
+   * than one rather than append them in sequence.
+   */
+  publish(streams: readonly string[], message: AnyEvent): Promise<string[]>;
   readGroup(
     stream: string,
     group: string,

@@ -47,29 +47,33 @@ export const workerHost: MessagingRole = {
   consumesFrom: [workerJobCommandSubscription.id],
 };
 
-// One route per topic, route ID equal to topic ID, matching the embedded
+// Two work routes and one shared observation route, matching the embedded
 // presets. Both hosts derive the same stream keys from this one source rather
-// than agreeing by convention.
+// than agreeing by convention -- which is what the split deployment needs most,
+// since neither host can see the other's half of the table.
+//
+// The Worker host publishes terminals onto both the terminal work route and the
+// observation route without that telling it anything about who reads either.
 const routes: readonly DeliveryRoute[] = [
   {
     topicId: jobCommandTopic.id,
     subscriptionId: workerJobCommandSubscription.id,
-    routeId: jobCommandTopic.id,
+    routeId: "job.command-work.v1",
   },
   {
     topicId: jobCommandTopic.id,
     subscriptionId: observabilityJobSubscription.id,
-    routeId: jobCommandTopic.id,
+    routeId: "job.observation.v1",
   },
   {
     topicId: jobTerminalTopic.id,
     subscriptionId: engineJobTerminalSubscription.id,
-    routeId: jobTerminalTopic.id,
+    routeId: "job.terminal-work.v1",
   },
   {
     topicId: jobTerminalTopic.id,
     subscriptionId: observabilityJobSubscription.id,
-    routeId: jobTerminalTopic.id,
+    routeId: "job.observation.v1",
   },
 ];
 

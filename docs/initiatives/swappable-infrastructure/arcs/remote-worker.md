@@ -613,7 +613,7 @@ manifest, which is the point: the profile still composes from
 `MessageRouterTopology`, and the unchanged slice tests are the evidence that
 C21 changed no delivery behavior.
 
-## Change C22 - Bind each process to its host plan rather than the full topology - in review
+## Change C22 - Bind each process to its host plan rather than the full topology - merged (PR #381)
 
 ### Discussion
 
@@ -780,7 +780,7 @@ Five tests migrated to `@lcase/message-topology` with the checks they cover. The
 slice tests kept their assertions, which is again the evidence that delivery
 behavior did not move.
 
-## Change C23 - Add one ordered Redis route for Observability - not started
+## Change C23 - Add one ordered Redis route for Observability - in review
 
 ### Discussion
 
@@ -849,6 +849,80 @@ work.
 - Transaction errors fail publishing visibly, while tests and documentation do
   not claim reconciliation, retry, or exactly-once behavior.
 - The in-process carrier and complete embedded profile retain C20's behavior.
+
+### What actually landed
+
+**Every route ID changed, not just Observability's.** The Change was scoped to
+give one subscription its own path, which needs only two values edited. All four
+moved instead, because nothing is deployed and no stream key was worth
+preserving: while `routeId === topicId`, carrier code reaching for a topic where
+it meant a route passed every test by coincidence. Keeping them distinct
+everywhere is the only thing that exercises the distinction C21 introduced, and
+it retires two standing comments that existed to explain the equality rather
+than leaving them in a stranger half-form. The presets now read
+`job.command-work.v1`, `job.terminal-work.v1`, and `job.observation.v1`, with
+the observation route named for the event family so a later family can converge
+there or not without the name already having decided.
+
+**The transaction is an ordering requirement, not a durability one.** The
+obvious reason to append atomically -- don't lose the observation copy -- is the
+weaker one. The real reason is that the command's work-stream and
+observation-stream appends have to commit together, or Worker can read the
+command off the work stream and publish its terminal to the observation stream
+_before_ the command's own observation entry lands, inverting cause and effect
+on the one stream whose purpose is causal order. Two sequential appends permit
+that inversion even when both succeed. So `MessageLogPort.publish` widened to
+take several streams and promises **non-interleaving**, explicitly not rollback:
+Redis does not undo a queued command that fails at runtime, an `XADD` has no
+such failure worth undoing, and promising atomicity in that sense would claim
+more than Redis, Kafka, or JetStream actually offer.
+
+**Convergence would have been silently broken by the reader loop.** Readers were
+built one per topic route, which is correct only while routes are distinct. Two
+of a subscription's topics on one route would have produced two readers on one
+stream under one group and consumer name, each narrowed to one topic, so roughly
+half of what arrived would be rejected as undeclared and acknowledged away.
+Readers are now per distinct route, accepting the union of what that route's
+topics declare. The union is the right strength rather than a concession: the
+guard exists to make the delivery cast sound, and the handler is typed over the
+union of everything the subscription selects. What is lost is a per-topic
+diagnostic that only ever existed because routes happened to be per-topic.
+
+**A new manifest invariant, only expressible now.** Several edges sharing a
+route is the mechanism; it is also the only way to express a route carrying a
+topic one of its own readers does not consume, whose readers would receive
+entries they can only discard on a manifest every other rule accepts.
+`assertManifest` now requires that every subscription on a route consume
+everything that route carries -- a pure route-table check needing no catalog,
+placed after the per-edge loop so a missing or duplicated route is still
+reported first. It pairs with C22's unconsumed-topic loop: both are claims only
+the whole deployment can see.
+
+**The ordering claim had an unstated dependency on a default.** One ordered
+stream buys arrival order; `maxInFlight: 1` is what carries it into the handler.
+Nothing set it -- Observability relied on the default, and raising it would have
+kept the arrival order while losing the observed one. It is now explicit at the
+binding site, with the comment saying which half of the guarantee lives there.
+
+**Reader counts after this Change, as measured fact.** Every subscription in
+both shipped presets now reads exactly one stream: Worker and Engine were
+single-route already, and Observability went from two readers to one. That
+strengthens the case for revisiting Redis's use of `DeliveryLane`, but this
+Change records the evidence rather than removing it. Redis must still preserve
+aggregate `maxInFlight` if a future plan gives one subscription several readers,
+and it must acknowledge only after handling settles. Those requirements may
+belong in Redis-specific machinery; they do not require Redis to retain
+in-process-only queueing, microtask, or idle-bookkeeping behavior merely for
+carrier symmetry.
+
+**Proof.** Under live Redis the three streams exist with the expected names, one
+consumer group each, and Observability's group on the observation stream alone.
+A two-step flow through `apps/http-server` put eight Messages on that one stream
+in exact causal order -- submitted, terminal, submitted, terminal across two
+runs -- while each work stream held only its own four. The Redis slice's
+observation assertion changed from sorted to ordered, which is the test-level
+form of the same claim; the in-process slice is unchanged, which is what shows
+the semantics are shared rather than coincidental.
 
 ## Change C24 - Give Worker truthful managed lifecycle and controlled ingress - not started
 

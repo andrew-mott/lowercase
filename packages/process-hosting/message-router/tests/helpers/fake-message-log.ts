@@ -24,6 +24,8 @@ export function createFakeMessageLogStore() {
   const groups = new Map<string, Group>();
   const provisionedStreams: string[] = [];
   const provisionedGroups: string[] = [];
+  /** The streams named by each publish call, one entry per admission. */
+  const admissions: string[][] = [];
   const acked: string[] = [];
   const closed: number[] = [];
   let sequence = 0;
@@ -58,15 +60,23 @@ export function createFakeMessageLogStore() {
           });
         }
       },
-      async publish(stream: string, message: AnyEvent) {
-        const id = `${++sequence}-0`;
-        if (!streams.has(stream)) streams.set(stream, []);
-        // Round-tripped through JSON like the real adapter, so a test cannot
-        // accidentally assert on object identity the wire could never keep.
-        streams
-          .get(stream)!
-          .push({ id, message: JSON.parse(JSON.stringify(message)) });
-        return id;
+      async publish(targets: readonly string[], message: AnyEvent) {
+        // Recorded per call rather than per stream, so a test can tell one
+        // admission across two routes from two separate publications. That is
+        // the only part of the real transaction a fake can speak to: appends
+        // here cannot interleave because nothing else runs between them, which
+        // makes the guarantee true and unproven.
+        admissions.push([...targets]);
+        return targets.map((stream) => {
+          const id = `${++sequence}-0`;
+          if (!streams.has(stream)) streams.set(stream, []);
+          // Round-tripped through JSON like the real adapter, so a test cannot
+          // accidentally assert on object identity the wire could never keep.
+          streams
+            .get(stream)!
+            .push({ id, message: JSON.parse(JSON.stringify(message)) });
+          return id;
+        });
       },
       async readGroup(
         stream: string,
@@ -117,6 +127,7 @@ export function createFakeMessageLogStore() {
     streams,
     provisionedStreams,
     provisionedGroups,
+    admissions,
     acked,
     closed,
     pendingFor: (stream: string, group: string): string[] => [

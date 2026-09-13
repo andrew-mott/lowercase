@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { assertCatalog } from "../src/catalog.js";
 import { assertManifest } from "../src/assert-manifest.js";
-import { jobCatalog } from "../src/catalogs/job.catalog.js";
+import {
+  jobCatalog,
+  engineJobTerminalSubscription,
+  observabilityJobSubscription,
+  workerJobCommandSubscription,
+} from "../src/catalogs/job.catalog.js";
 import {
   localSystemInProcess,
   localSystemRedis,
@@ -38,18 +43,44 @@ describe("shipped deployments", () => {
     ).toHaveLength(2);
   });
 
-  // Route IDs equal topic IDs everywhere today, which is what lets C22 adopt
-  // routes without changing a single Redis stream key or stranding a consumer
-  // group. C23 is what first breaks this equality, deliberately.
+  // No route ID is a topic ID. While they were equal, code that reached for a
+  // topic where it meant a route passed every test by coincidence; keeping them
+  // distinct is what makes a stream key a physical path rather than a
+  // conversation.
+  it.each([
+    ["local-system-redis", localSystemRedis],
+    ["remote-worker", remoteWorker],
+  ])("gives every %s route an identity no topic has", (_name, manifest) => {
+    const topicIds = new Set<string>(manifest.topicIds);
+    for (const route of manifest.routes) {
+      expect(topicIds.has(route.routeId)).toBe(false);
+    }
+  });
+
+  // The shape C23 exists for, asserted on the presets rather than only on a
+  // fixture: Observability's two edges name one route, and the two work routes
+  // stay separate so Worker and Engine are unaffected by it.
   it.each([
     ["local-system-redis", localSystemRedis],
     ["remote-worker", remoteWorker],
   ])(
-    "routes every %s edge to a route named for its topic",
+    "converges both %s observation edges onto one route",
     (_name, manifest) => {
-      for (const route of manifest.routes) {
-        expect(route.routeId).toBe(route.topicId);
-      }
+      const routeFor = (subscriptionId: string): string[] =>
+        manifest.routes
+          .filter((r) => r.subscriptionId === subscriptionId)
+          .map((r) => r.routeId);
+
+      const observation = routeFor(observabilityJobSubscription.id);
+      expect(observation).toHaveLength(2);
+      expect(new Set(observation).size).toBe(1);
+
+      const work = [
+        ...routeFor(workerJobCommandSubscription.id),
+        ...routeFor(engineJobTerminalSubscription.id),
+      ];
+      expect(new Set(work).size).toBe(2);
+      expect(work).not.toContain(observation[0]);
     },
   );
 

@@ -95,20 +95,23 @@ describe.skipIf(!url)("HTTP JSON job vertical slice (real Redis)", () => {
       },
     });
 
-    // One subscription across both topics, so this group name exists on
-    // both streams and both readers feed one local lane.
+    // One subscription across both topics, both of them routed onto the one
+    // observation stream, so this group name exists once and one reader feeds
+    // the local lane.
     //
-    // Sorted rather than in order, unlike the in-process slice. Each stream has
-    // its own group instance and its own cursor, and Redis provides no order
-    // across separate streams, so asserting one here would be asserting a
-    // guarantee this carrier does not make. What the lane provides remotely is
-    // that these two never run at once, not that they arrive in this order.
+    // In order, and that is the whole of C23. Until both topics shared a route
+    // this was asserted sorted, because two streams have two group instances
+    // and two cursors and Redis orders nothing across them -- the command and
+    // the terminal it produced could be observed either way round. One log
+    // makes the order a property of admission: the command's observation entry
+    // is written in the same transaction as the one Worker read, so Worker
+    // cannot publish a terminal before it exists.
     await vi.waitFor(() => expect(graph.observed).toHaveLength(2), {
       timeout: 5_000,
     });
-    expect(graph.observed.map((e) => e.type).sort()).toEqual([
-      "job.httpjson.completed",
+    expect(graph.observed.map((e) => e.type)).toEqual([
       "job.httpjson.submitted",
+      "job.httpjson.completed",
     ]);
 
     // Not one of the migrated types touched the bus, over this carrier either.
@@ -143,8 +146,9 @@ describe.skipIf(!url)("HTTP JSON job vertical slice (real Redis)", () => {
     await vi.waitFor(
       async () => {
         for (const [stream, group] of [
-          [`${keyPrefix}job-command.v1`, "worker.job-command.v1"],
-          [`${keyPrefix}job-terminal.v1`, "engine.job-terminal.v1"],
+          [`${keyPrefix}job.command-work.v1`, "worker.job-command.v1"],
+          [`${keyPrefix}job.terminal-work.v1`, "engine.job-terminal.v1"],
+          [`${keyPrefix}job.observation.v1`, "observability.job.v1"],
         ]) {
           const pending = await client.xPending(stream, group);
           expect(pending.pending).toBe(0);

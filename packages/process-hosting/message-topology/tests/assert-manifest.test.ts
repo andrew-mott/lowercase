@@ -192,6 +192,42 @@ describe("assertManifest", () => {
       "enables topic 'synthetic-outcomes.v1', which no enabled subscription selects",
     );
   });
+
+  // Only expressible once routes converge, which is what the fixture's audit
+  // subscription now does. Moving the reporter onto that same route makes it a
+  // reader of a path carrying a topic it never selected -- entries it could
+  // only discard, on a manifest every other rule accepts.
+  it("rejects a route carrying a topic one of its readers does not consume", () => {
+    expect(
+      reject(
+        broken({
+          routes: syntheticDeployment.routes.map((route) =>
+            route.subscriptionId === reporterOutcomes.id
+              ? { ...route, routeId: "synthetic.audit.v1" }
+              : route,
+          ),
+        }),
+      ),
+    ).toContain(
+      "carries topic 'synthetic-requests.v1' on route 'synthetic.audit.v1', which subscription 'synthetic-reporter.outcomes.v1' also reads without consuming that topic",
+    );
+  });
+
+  // The converged case that is fine, stated on its own rather than left to the
+  // fixture passing: one subscription, both its topics, one route.
+  it("accepts several topics converged onto one route for one subscription", () => {
+    const audit = syntheticDeployment.routes.filter(
+      (r) => r.subscriptionId === auditAll.id,
+    );
+    expect(audit.map((r) => r.routeId)).toEqual([
+      "synthetic.audit.v1",
+      "synthetic.audit.v1",
+    ]);
+    expect(audit.map((r) => r.topicId)).toEqual([requests.id, outcomes.id]);
+    expect(() =>
+      assertManifest(syntheticCatalog, syntheticDeployment),
+    ).not.toThrow();
+  });
 });
 
 describe("assertInProcessRealizable", () => {

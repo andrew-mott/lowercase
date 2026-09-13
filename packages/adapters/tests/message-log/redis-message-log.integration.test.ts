@@ -64,7 +64,7 @@ describe.skipIf(!url)("RedisMessageLog (real Redis)", () => {
     });
 
     const event = fixtureEvent("evt-1");
-    const publishedId = await messageLog.publish(stream, event);
+    const [publishedId] = await messageLog.publish([stream], event);
 
     const entries = await messageLog.readGroup(stream, group, "consumer-1", {
       batchSize: 10,
@@ -83,7 +83,7 @@ describe.skipIf(!url)("RedisMessageLog (real Redis)", () => {
       startAt: "beginning",
     });
 
-    await messageLog.publish(stream, fixtureEvent("evt-ack"));
+    await messageLog.publish([stream], fixtureEvent("evt-ack"));
     const [entry] = await messageLog.readGroup(stream, group, "consumer-1", {
       batchSize: 10,
       blockMs: 100,
@@ -107,7 +107,7 @@ describe.skipIf(!url)("RedisMessageLog (real Redis)", () => {
     });
 
     const event = fixtureEvent("evt-recovery");
-    await messageLog.publish(stream, event);
+    await messageLog.publish([stream], event);
 
     // Consumer A reads but never acks -- simulates a crash mid-processing.
     const [delivered] = await messageLog.readGroup(
@@ -137,5 +137,36 @@ describe.skipIf(!url)("RedisMessageLog (real Redis)", () => {
       blockMs: 50,
     });
     expect(freshRead).toHaveLength(0);
+  });
+
+  // One admission across several streams, which is how a deployment gives a
+  // subscription its own path through a conversation without the publisher
+  // knowing. The non-interleaving half of the guarantee is not observable from
+  // a single client; what is checkable here is that one call lands everywhere
+  // and reports an id per stream, in the order asked for.
+  it("appends one message to several streams and returns an id per stream", async () => {
+    const base = `test-stream-${Date.now()}-fanout`;
+    const work = `${base}-work`;
+    const observation = `${base}-observation`;
+    const group = "group-a";
+    for (const stream of [work, observation]) {
+      await messageLog.ensureConsumerGroup(stream, group, {
+        startAt: "beginning",
+      });
+    }
+
+    const event = fixtureEvent("evt-fanout");
+    const ids = await messageLog.publish([work, observation], event);
+    expect(ids).toHaveLength(2);
+
+    for (const [index, stream] of [work, observation].entries()) {
+      const entries = await messageLog.readGroup(stream, group, "consumer-1", {
+        batchSize: 10,
+        blockMs: 100,
+      });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].id).toBe(ids[index]);
+      expect(entries[0].message).toEqual(event);
+    }
   });
 });

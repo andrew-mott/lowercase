@@ -15,7 +15,7 @@ import {
   type ReportDeliveryFailure,
 } from "../delivery.types.js";
 import { DeliveryLane } from "../delivery-lane.js";
-import type { ResolvedHostPlan } from "@lcase/message-topology";
+import type { ResolvedHostPlan, TopicRoute } from "@lcase/message-topology";
 import {
   assertPlanFullyBound,
   canonicalSubscriptionFor,
@@ -73,26 +73,35 @@ export interface RedisMessageRouter extends MessageRouter {
 }
 
 /**
- * One selected topic's physical side of a subscription: the stream it
- * reads, the types that stream is allowed to carry, and its own connection,
- * because a blocking read occupies one.
+ * One route's physical side of a subscription: the stream it reads, the topics
+ * that route carries, the types they are allowed to carry between them, and its
+ * own connection, because a blocking read occupies one.
+ *
+ * Per route rather than per selected topic. Several of a subscription's topics
+ * can converge onto one route -- that convergence is what gives a shared
+ * observation path its order -- and two readers on one stream under one group
+ * and consumer name would split those entries between them, each rejecting what
+ * the other was narrowed to.
  */
 type BoundReader = {
-  topicId: string;
+  routeId: string;
+  topicIds: readonly string[];
   stream: string;
   allowedTypes: ReadonlySet<EventType>;
   log?: MessageLogPort;
 };
 
 /**
- * One hosted subscription: several readers feeding one lane.
+ * One hosted subscription: one reader per route it reads, feeding one lane.
  *
- * The group name is the subscription id on every selected stream. A Redis
+ * The group name is the subscription id on every route's stream. A Redis
  * consumer group belongs to one stream, so that reuse gives each stream its own
  * independent group instance and cursor -- not a shared checkpoint, and not an
- * order between them. What the single lane provides is that this process
- * invokes the handler for one delivery at a time up to `maxInFlight`, whichever
- * stream it arrived on.
+ * order across them. Order comes from topics converging onto one route, where
+ * one log and one cursor carry them; the lane serializes what it is given and
+ * does not create that order. What it does provide is that this process invokes
+ * the handler for one delivery at a time up to `maxInFlight`, whichever stream
+ * it arrived on.
  */
 type BoundSubscription = {
   subscription: Subscription;
@@ -107,19 +116,38 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * The topics a subscription reads, collected by the route that carries them.
+ *
+ * Insertion-ordered, so a reader list follows the manifest's route order rather
+ * than an arbitrary one -- the same reason `resolveHostPlan` keeps arrays.
+ */
+function groupByRoute(
+  topicRoutes: readonly TopicRoute[],
+): Map<string, string[]> {
+  const byRoute = new Map<string, string[]>();
+  for (const route of topicRoutes) {
+    const topicIds = byRoute.get(route.routeId) ?? [];
+    topicIds.push(route.topicId);
+    byRoute.set(route.routeId, topicIds);
+  }
+  return byRoute;
+}
+
+/**
  * A log-backed carrier for the same declarations the in-process router
  * consumes, mapping them onto Redis Streams with nothing invented in between:
- * a topic is a stream, a logical subscription is a consumer group on each
- * stream it selects, and a hosting process is one consumer within each group.
+ * a delivery route is a stream, a logical subscription is a consumer group on
+ * each route it reads, and a hosting process is one consumer within each group.
  * Fan-out across groups is what reproduces "every subscription independently
  * receives every Message"; load balancing within a group is what a second
  * hosting process would get.
  *
- * A subscription selecting several topics reads several streams under one
- * group name and funnels them into one local lane. That bounds how many of its
- * handlers this process runs at once and settles their order here; it does not
- * give Redis a checkpoint or an entry order across those streams, which no
- * consumer group spans.
+ * A topic is not a stream. One publication is appended to every route its topic
+ * travels, as a single admission, so a deployment can give one subscription its
+ * own path through the same conversation without the publisher knowing. Where
+ * that path carries several topics, one log and one cursor carry them in the
+ * order they were admitted -- which is the only ordering this carrier offers,
+ * since no consumer group spans two streams.
  *
  * Delivery is deliberately at-most-once, matching the in-process mailbox
  * rather than exceeding it. Every entry is acknowledged once its handler
@@ -144,10 +172,10 @@ export function createRedisMessageRouter(
   const readFailureBackoffMs = config.readFailureBackoffMs ?? 1_000;
   const reportFailure = config.reportFailure ?? defaultReportFailure;
 
-  // Keyed by the route, not the topic. The two are equal in every deployment
-  // today, which is what makes adopting routes change no stream key and strand
-  // no existing consumer group; C23 is what first gives one topic a second
-  // route and so a second stream.
+  // Keyed by the route, never the topic. A topic can travel several routes and
+  // several topics can share one, so a stream is a physical path through this
+  // deployment rather than a conversation -- which is why nothing below reaches
+  // for a topic id to name one.
   const streamFor = (routeId: string): string => `${keyPrefix}${routeId}`;
 
   const bindings = new Map<string, BoundSubscription>();
@@ -207,7 +235,7 @@ export function createRedisMessageRouter(
         new Error(
           `[message-router] stream '${reader.stream}' carried '${String(
             decoded?.type,
-          )}', which topic '${reader.topicId}' does not declare`,
+          )}', which no topic on route '${reader.routeId}' declares; it carries [${reader.topicIds.join(", ")}]`,
         ),
       );
       // Acknowledged rather than left pending: it is not this subscription's
@@ -309,15 +337,24 @@ export function createRedisMessageRouter(
           // for a settled delivery to decrement.
           onSettled: () => {},
         }),
-        // One reader per delivery route rather than per selected topic. They
-        // are the same count today; they stop being once a topic reaches this
-        // subscription on more than one route.
-        readers: topicRoutes.map((route) => ({
-          topicId: route.topicId,
-          stream: streamFor(route.routeId),
+        // One reader per distinct route, not per selected topic. Topics that
+        // converge onto one route share a reader, a group instance and a
+        // cursor, which is what makes their relative order a property of the
+        // log rather than of whichever local read finished first.
+        //
+        // A reader accepts the union of what its route's topics declare. That
+        // is the right strength rather than a concession: the guard exists to
+        // make the cast at delivery sound, and the handler is typed over the
+        // union of everything this subscription selects.
+        readers: [...groupByRoute(topicRoutes)].map(([routeId, topicIds]) => ({
+          routeId,
+          topicIds,
+          stream: streamFor(routeId),
           // Present because `resolveHostPlan` proved the declared selection and
           // the routed set name the same topics.
-          allowedTypes: new Set<EventType>(declaredTypes.get(route.topicId)!),
+          allowedTypes: new Set<EventType>(
+            topicIds.flatMap((topicId) => [...declaredTypes.get(topicId)!]),
+          ),
         })),
       });
     },
@@ -339,19 +376,11 @@ export function createRedisMessageRouter(
         topic,
       );
 
-      // A carrier capability, not a rule of the representation. A publisher
-      // writes one stream, so a topic whose delivery edges resolve to several
-      // routes cannot be realized here without duplicating every entry across
-      // them. The plural is legal in the data; C23 is what teaches this carrier
-      // to admit it.
-      if (routeIds.length !== 1) {
-        throw new Error(
-          `[message-router] topic '${declared.id}' resolves to routes [${routeIds.join(", ")}]; this carrier publishes a topic onto exactly one stream`,
-        );
-      }
-
       const allowedTypes = new Set<EventType>(declared.types);
-      const stream = streamFor(routeIds[0]!);
+      // Every route this topic travels, resolved once here rather than per
+      // Message. A publisher still publishes once; how many destinations that
+      // reaches is the deployment's business and not this component's.
+      const streams = routeIds.map(streamFor);
 
       return {
         async publish(message) {
@@ -373,7 +402,11 @@ export function createRedisMessageRouter(
             );
           }
 
-          await publisherLog.publish(stream, message as AnyEvent);
+          // One admission across every route, so no consumer of one of them can
+          // act on this Message -- and publish what it produced -- before the
+          // others exist. Two sequential appends would permit exactly that
+          // inversion even when both succeed.
+          await publisherLog.publish(streams, message as AnyEvent);
         },
       };
     },
@@ -389,10 +422,15 @@ export function createRedisMessageRouter(
       // the deployment. A route this role only reads needs no publisher to
       // create it: ensureConsumerGroup passes MKSTREAM, so the consumer
       // provisions its own stream.
-      for (const planned of config.plan.publishesTo) {
-        for (const routeId of planned.routeIds) {
-          await publisherLog.ensureStream(streamFor(routeId));
-        }
+      //
+      // Distinct routes rather than one pass per topic: several of this role's
+      // topics can converge onto one route, and provisioning it once per topic
+      // would be repeating work whose only effect is to look like more.
+      const publishedRoutes = new Set(
+        config.plan.publishesTo.flatMap((planned) => planned.routeIds),
+      );
+      for (const routeId of publishedRoutes) {
+        await publisherLog.ensureStream(streamFor(routeId));
       }
 
       // Every group exists before any loop runs and before publishing is

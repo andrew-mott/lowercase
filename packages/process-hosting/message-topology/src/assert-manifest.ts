@@ -84,7 +84,9 @@ export function assertManifest(
   // Exactly one route per enabled edge. Both directions are checked: a missing
   // route is an undeliverable edge, and an extra one is a route to a
   // conversation this deployment did not enable.
-  const routed = new Set<string>();
+  const routed = new Map<string, string>();
+  const routeTopics = new Map<string, Set<string>>();
+  const routeSubs = new Map<string, Set<string>>();
   for (const route of manifest.routes) {
     const key = edgeKey(route.topicId, route.subscriptionId);
     if (!expectedEdges.has(key)) {
@@ -95,11 +97,39 @@ export function assertManifest(
     if (routed.has(key)) {
       err(`${at} routes '${key}' more than once`);
     }
-    routed.add(key);
+    routed.set(key, route.routeId);
+
+    const topics = routeTopics.get(route.routeId) ?? new Set<string>();
+    topics.add(route.topicId);
+    routeTopics.set(route.routeId, topics);
+    const subs = routeSubs.get(route.routeId) ?? new Set<string>();
+    subs.add(route.subscriptionId);
+    routeSubs.set(route.routeId, subs);
   }
   for (const key of expectedEdges.keys()) {
     if (!routed.has(key)) {
       err(`${at} enables delivery edge '${key}' but binds it to no route`);
+    }
+  }
+
+  // Every subscription on a route has to consume everything that route carries.
+  // Several edges sharing a route ID is the mechanism behind a shared
+  // observation path, and it is also the only way to express a route carrying a
+  // topic one of its own readers does not want: that reader would receive
+  // entries it can only discard, on a manifest that otherwise validates.
+  //
+  // Checked after the per-edge loop so a missing or duplicated route is still
+  // reported first -- this message would otherwise describe a route table that
+  // was never complete.
+  for (const [routeId, topics] of routeTopics) {
+    for (const subscriptionId of routeSubs.get(routeId)!) {
+      for (const topicId of topics) {
+        if (routed.get(edgeKey(topicId, subscriptionId)) !== routeId) {
+          err(
+            `${at} carries topic '${topicId}' on route '${routeId}', which subscription '${subscriptionId}' also reads without consuming that topic`,
+          );
+        }
+      }
     }
   }
 
