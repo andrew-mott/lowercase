@@ -163,6 +163,12 @@ export function createLocalSystem(config: LocalSystemConfig): LocalSystem {
     // than racing in two. A closure only to keep `ingest` bound to its tap --
     // it owns no policy, state, or translation of its own.
     handler: (message) => tap.ingest(message),
+    // Explicit rather than left to the default, because this is the half of the
+    // ordering guarantee that lives here. The deployment routes both topics
+    // onto one path, which is what makes arrival order meaningful; running one
+    // handler at a time is what carries that order into the tap. Raising this
+    // would keep the arrival order and lose the observed one.
+    maxInFlight: 1,
   });
 
   // Nothing can add a route after this point, and nothing published before it

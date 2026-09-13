@@ -26,14 +26,17 @@ describe("resolveHostPlan", () => {
       "job.httpjson.completed",
       "job.httpjson.failed",
     ]);
-    expect(resolved.publishesTo[0]?.routeIds).toEqual(["job-terminal.v1"]);
+    expect(resolved.publishesTo[0]?.routeIds).toEqual([
+      "job.terminal-work.v1",
+      "job.observation.v1",
+    ]);
 
     expect(resolved.consumesFrom).toHaveLength(1);
     expect(resolved.consumesFrom[0]?.subscription.id).toBe(
       "worker.job-command.v1",
     );
     expect(resolved.consumesFrom[0]?.topicRoutes).toEqual([
-      { topicId: "job-command.v1", routeId: "job-command.v1" },
+      { topicId: "job-command.v1", routeId: "job.command-work.v1" },
     ]);
   });
 

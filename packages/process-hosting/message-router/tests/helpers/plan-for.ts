@@ -18,8 +18,8 @@ export const TEST_ROLE_ID = "test-host";
  * A carrier's subject is delivery, not deployment, so its tests declare the
  * conversation they care about and let this derive the rest: everything
  * enabled, one role publishing and consuming all of it, one route per delivery
- * edge with the route id equal to the topic id. That is exactly the embedded
- * shape, which is the one a carrier test should be exercising.
+ * edge. That is exactly the embedded shape, which is the one a carrier test
+ * should be exercising.
  *
  * It goes through `assertManifest` and `hostPlanFor` rather than hand-building
  * a resolved plan, so a carrier is always handed something production could
@@ -33,12 +33,14 @@ export function planFor(
   catalog: MessageCatalog,
   carrier: MessagingCarrierKind = "in-process",
   /**
-   * How each delivery edge is routed. The default is the equality every
-   * deployment ships today; overriding it is how a test reaches the shape C23
-   * introduces, where one topic travels more than one route.
+   * How each delivery edge is routed. The default gives every topic its own
+   * route under a name no topic has, so a carrier reaching for a topic id where
+   * it means a route id fails here rather than passing by coincidence.
+   * Overriding it is how a test reaches a shape the shipped presets do not have
+   * -- one topic on several routes, or several topics converged onto one.
    */
   routeIdFor: (topicId: string, subscriptionId: string) => string = (topicId) =>
-    topicId,
+    `route.${topicId}`,
 ): ResolvedHostPlan {
   const routes: DeliveryRoute[] = catalog.subscriptions.flatMap(
     (subscription) =>

@@ -34,33 +34,45 @@ export const localSystemRole: MessagingRole = {
 };
 
 /**
- * One route per topic, with the route ID equal to the topic ID.
+ * Three routes over two topics: each topic's work path, and one observation
+ * path both topics converge onto.
  *
- * That equality is not decoration. The Redis carrier derives its stream key
- * from the topic ID today, so keeping them identical means adopting routes
- * changes no stream keys and strands no existing consumer group. C23 is what
- * first gives one topic a second route ID.
+ * The convergence is the whole of C23. Observability is an ordinary
+ * subscription and stays one; what makes its Redis realization ordered is that
+ * both of its delivery edges name the same route, so one log carries the
+ * command and the terminal it produced in the order they were admitted.
+ * Nothing here says "observability" to a carrier -- a carrier sees two edges
+ * sharing a route ID and nothing more.
+ *
+ * No route ID equals a topic ID, deliberately. While they were equal, carrier
+ * code that reached for a topic ID where it meant a route ID would have passed
+ * every test by coincidence; keeping them distinct everywhere is what actually
+ * exercises the difference between what a Message is and where it travels.
+ *
+ * These strings are this deployment's, not the product's. Another manifest over
+ * the same catalog is free to route the same conversation differently, which is
+ * why they are written out here rather than shared with the other presets.
  */
 const routes: readonly DeliveryRoute[] = [
   {
     topicId: jobCommandTopic.id,
     subscriptionId: workerJobCommandSubscription.id,
-    routeId: jobCommandTopic.id,
+    routeId: "job.command-work.v1",
   },
   {
     topicId: jobCommandTopic.id,
     subscriptionId: observabilityJobSubscription.id,
-    routeId: jobCommandTopic.id,
+    routeId: "job.observation.v1",
   },
   {
     topicId: jobTerminalTopic.id,
     subscriptionId: engineJobTerminalSubscription.id,
-    routeId: jobTerminalTopic.id,
+    routeId: "job.terminal-work.v1",
   },
   {
     topicId: jobTerminalTopic.id,
     subscriptionId: observabilityJobSubscription.id,
-    routeId: jobTerminalTopic.id,
+    routeId: "job.observation.v1",
   },
 ];
 

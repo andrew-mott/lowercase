@@ -78,20 +78,18 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C19    | Split runtime package responsibilities                                         | merged (PR #378) | [6]   |          |
 | C20    | Multi-topic logical subscriptions through one delivery lane                    | merged (PR #379) | [6]   |          |
 | C21    | Declare deployment topology as standalone static data                          | merged (PR #380) | [6]   |          |
-| C22    | Bind each process to its host plan rather than the full topology               | in review        | [6]   |          |
-| C23    | Add one ordered Redis route for Observability                                  | not started      | [6]   |          |
+| C22    | Bind each process to its host plan rather than the full topology               | merged (PR #381) | [6]   |          |
+| C23    | Add one ordered Redis route for Observability                                  | in review        | [6]   |          |
 | C24    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
 | C25    | Prove a separately deployed Worker host                                        | not started      | [6]   |          |
 
 ## Next up
 
-1. **C22:** make the routers, carriers, and profile read that manifest, so each
-   process binds exactly the handlers it hosts.
-2. **C23:** route the selected job Messages into one ordered Redis
+1. **C23:** route the selected job Messages into one ordered Redis
    Observability stream while preserving their independent work routes.
-3. **C24:** make Worker a truthful managed resource and coordinate command
+2. **C24:** make Worker a truthful managed resource and coordinate command
    intake with active-work settlement.
-4. **C25:** add the Worker-host and companion non-Worker process profiles and
+3. **C25:** add the Worker-host and companion non-Worker process profiles and
    prove the real two-process path over Redis, S3/MinIO, and Postgres.
 
 These are planned review seams, not fixed size targets. An unstarted Change

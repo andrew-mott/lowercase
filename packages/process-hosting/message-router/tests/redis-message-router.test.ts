@@ -36,8 +36,11 @@ const obsJob = defineSubscription({
   topics: [command, terminal],
 });
 
-const STREAM = "test:job-terminal.v1";
-const COMMAND_STREAM = "test:job-command.v1";
+// Named for the routes planFor derives, not for the topics: a stream is a
+// physical path, and these tests would not notice the difference if they were
+// spelled the same.
+const STREAM = "test:route.job-terminal.v1";
+const COMMAND_STREAM = "test:route.job-command.v1";
 
 function completedEvent(jobid = "job-1"): AnyEvent<"job.httpjson.completed"> {
   return buildEvent(
@@ -127,8 +130,9 @@ describe("createRedisMessageRouter — topology", () => {
     );
   });
 
-  // The route id, not the topic id -- they are equal in every deployment today,
-  // which is exactly why adopting routes moved no stream key.
+  // The route id, not the topic id. A topic can travel several routes and
+  // several topics can share one, so nothing here may name a stream after a
+  // conversation.
   it("names the stream from the route id and the group from the subscription id", async () => {
     const { store, router } = await sealedAndStarted();
 
@@ -173,19 +177,41 @@ describe("createRedisMessageRouter — topology", () => {
     expect(() => router.seal()).toThrow(/already sealed/);
   });
 
-  // A carrier capability rather than a rule of the representation: the plan is
-  // allowed to say a topic travels two routes, and a publisher writing one
-  // stream cannot realize it. C23 is what teaches this carrier to admit it.
-  it("refuses to publish a topic that resolves to more than one route", () => {
-    const { router } = setup({
+  // One publication, several destinations, and the component that published it
+  // still named only a topic. Which routes exist is the deployment's, and the
+  // publisher below is handed the same object either way.
+  it("appends one publication to every route its topic travels", async () => {
+    const ctx = setup({
       subscriptions: [engineTerminal, obsTerminal],
-      // Each consumer gets its own route off the same topic.
+      // Each consumer reads its own route off the same topic.
       routeIdFor: (topicId, subscriptionId) => `${topicId}#${subscriptionId}`,
     });
+    ctx.bind();
+    ctx.router.bind({ subscription: obsTerminal, handler: noop });
+    ctx.router.seal();
+    await ctx.router.start();
 
-    expect(() => router.publisher(terminal)).toThrow(
-      /topic 'job-terminal.v1' resolves to routes \[.+, .+\]; this carrier publishes a topic onto exactly one stream/,
-    );
+    await ctx.router.publisher(terminal).publish(completedEvent());
+
+    // One admission naming both streams, not two publish calls. A consumer of
+    // the first must not be able to act on this Message before the second
+    // exists.
+    expect(ctx.store.admissions).toEqual([
+      [
+        "test:job-terminal.v1#engine.job-terminal.v1",
+        "test:job-terminal.v1#observability.job-terminal.v1",
+      ],
+    ]);
+    expect(
+      ctx.store.streams.get("test:job-terminal.v1#engine.job-terminal.v1"),
+    ).toHaveLength(1);
+    expect(
+      ctx.store.streams.get(
+        "test:job-terminal.v1#observability.job-terminal.v1",
+      ),
+    ).toHaveLength(1);
+
+    await ctx.router.stop();
   });
 
   it("refuses to publish before seal, and before start", async () => {
@@ -270,7 +296,9 @@ describe("createRedisMessageRouter — delivery", () => {
 
     expect(seen).toEqual([]);
     expect(failures[0]?.error).toBeInstanceOf(Error);
-    expect((failures[0]?.error as Error).message).toMatch(/does not declare/);
+    expect((failures[0]?.error as Error).message).toMatch(
+      /no topic on route 'route.job-terminal.v1' declares/,
+    );
     await vi.waitFor(() =>
       expect(store.pendingFor(STREAM, engineTerminal.id)).toEqual([]),
     );
@@ -473,6 +501,115 @@ describe("createRedisMessageRouter — multi-topic subscriptions", () => {
     await vi.waitFor(() => expect(started).toHaveLength(2));
     expect(new Set(started.map((m) => m.type))).toEqual(
       new Set(["job.httpjson.submitted", "job.httpjson.completed"]),
+    );
+
+    await router.stop();
+  });
+});
+
+// Several of a subscription's topics routed onto one path. This is what an
+// ordered observation route is made of, and the carrier knows nothing about
+// observability -- it sees two edges naming one route id.
+describe("createRedisMessageRouter — converged routes", () => {
+  const OBSERVATION = "test:job.observation.v1";
+
+  function submittedEvent(jobid = "job-1"): AnyEvent<"job.httpjson.submitted"> {
+    return buildEvent(
+      "job.httpjson.submitted",
+      { url: "https://example.test/jobs", method: "POST", refs: [] },
+      {
+        flowid: "flow-1",
+        flowversionid: "flowversion-1",
+        runid: "run-1",
+        stepid: "step-1",
+        jobid,
+        capid: "httpjson",
+        toolid: "tool-1",
+        source: "lowercase://engine/test",
+      },
+    );
+  }
+
+  async function converged() {
+    const store = createFakeMessageLogStore();
+    const failures: DeliveryFailure[] = [];
+    const seen: AnyEvent[] = [];
+
+    const router = createRedisMessageRouter({
+      plan: planFor(
+        { topics: [command, terminal], subscriptions: [obsJob] },
+        "redis-streams",
+        // Both of this subscription's edges onto one route, which is the whole
+        // mechanism: the manifest says where Messages travel, and two edges
+        // naming one place is how they end up on one log.
+        () => "job.observation.v1",
+      ),
+      createLog: store.createLog,
+      keyPrefix: "test:",
+      blockMs: 5,
+      reportFailure: (failure) => failures.push(failure),
+    });
+
+    router.bind({
+      subscription: obsJob,
+      handler: async (message) => {
+        seen.push(message);
+      },
+    });
+    router.seal();
+    await router.start();
+
+    return { store, router, failures, seen };
+  }
+
+  it("reads one stream through one group and one connection", async () => {
+    const { store, router } = await converged();
+
+    expect(store.provisionedStreams).toEqual([OBSERVATION]);
+    expect(store.provisionedGroups).toEqual([
+      `${OBSERVATION}|observability.job.v1`,
+    ]);
+    // One publisher connection plus one reader, where the same subscription on
+    // separate routes opens two. Two readers here would be two consumers of one
+    // group splitting the entries between them.
+    expect(store.logCount).toBe(2);
+
+    await router.stop();
+  });
+
+  it("delivers what the log ordered, not what arrived first", async () => {
+    const { router, seen } = await converged();
+
+    // Published in causal order the way the real graph produces them: a command
+    // first, then the terminal it leads to.
+    await router.publisher(command).publish(submittedEvent());
+    await router.publisher(terminal).publish(completedEvent());
+
+    await vi.waitFor(() => expect(seen).toHaveLength(2));
+    // Asserted in order, unlike the separate-routes case above. One log and one
+    // cursor carry both topics, so there is no race for the lane to resolve.
+    expect(seen.map((m) => m.type)).toEqual([
+      "job.httpjson.submitted",
+      "job.httpjson.completed",
+    ]);
+
+    await router.stop();
+  });
+
+  it("accepts every type its route carries and reports one it does not", async () => {
+    const { router, store, seen, failures } = await converged();
+
+    store.inject(OBSERVATION, { ...completedEvent(), type: "run.completed" });
+    await router.publisher(command).publish(submittedEvent());
+
+    // The command still arrives: a reader's allowed list is the union of what
+    // the topics on its route declare, not one topic's.
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]!.type).toBe("job.httpjson.submitted");
+
+    expect(failures).toHaveLength(1);
+    expect(String(failures[0]!.error)).toMatch(
+      /carried 'run.completed', which no topic on route 'job.observation.v1' declares; it carries \[job-command.v1, job-terminal.v1\]/,
     );
 
     await router.stop();
