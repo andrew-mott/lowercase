@@ -1,4 +1,4 @@
-# Prove Swappable Infrastructure Initiative — Arc: Remote Worker (Changes C19–C25)
+# Prove Swappable Infrastructure Initiative — Arc: Remote Worker (Changes C19–C28)
 
 **Previous:** [SQL Adapter](./sql-adapter.md) (Changes C15–C18)
 
@@ -15,17 +15,23 @@ constructs Engine, Worker, and every handler in one process. This Arc first
 separates the package responsibilities that would otherwise make a Worker
 deployable install the whole system, then gives one logical subscription a
 shared delivery lane across several topics, separates deployment topology
-from process-local bindings, gives Observability one ordered Redis route, gives
-Worker truthful lifecycle and ingress control, and finally runs the two roles
-apart.
+from process-local bindings, gives Observability one ordered Redis route, runs
+the two roles apart, and only then gives Worker truthful lifecycle and ingress
+control.
 
-The seven Changes below are the current best review seams, not a quota. Before
-each Change starts, its expected moved and changed lines should be inventoried.
-If one is too large to review comfortably, split it at the named responsibility
-boundary and renumber the unstarted work. C21 and C22 are one such split,
-taken at the seam the original Change named. Do not preserve the current count
-by combining unrelated behavior or by hiding a large mechanical move inside a
-semantic Change.
+Lifecycle comes last deliberately. Its stop contract is least legible in the
+embedded profile, where one router resource serves Worker, Engine, and
+Observability at once; in a process hosting Worker alone the phases are
+actually separable. The contract is designed there and brought back, rather
+than designed against the topology that obscures it.
+
+The Changes below are the current best review seams, not a quota. Before each
+Change starts, its expected moved and changed lines should be inventoried. If
+one is too large to review comfortably, split it at the named responsibility
+boundary and renumber the unstarted work. C21 and C22 are one such split, taken
+at the seam the original Change named, and C24 and C25 are another. Do not
+preserve the current count by combining unrelated behavior or by hiding a large
+mechanical move inside a semantic Change.
 
 ## Target shape
 
@@ -155,7 +161,7 @@ while still preventing generic router code from depending on the whole profile.
 
 Do not split `@lcase/adapters` pre-emptively in this Change. A Worker host is
 expected to need its Redis Streams, S3, and Postgres implementations, so the
-present grouping may not inflate that artifact materially. C25 must inspect the
+present grouping may not inflate that artifact materially. C27 must inspect the
 actual deployable dependency closure; only observed unrelated dependencies are
 evidence for a further package split.
 
@@ -674,7 +680,7 @@ current split and worth re-reading before deciding.
 This Change does not add Worker lifecycle, application entry points, remote
 liveness, or delivery hardening. Although the manifest makes every Redis
 route/group pair derivable, provisioning and the publisher-before-group startup
-race remain remote-host startup work and must be settled in C25 before that
+race remain remote-host startup work and must be settled in C27 before that
 host accepts external intake.
 
 **Inventory, estimated from the
@@ -780,7 +786,7 @@ Five tests migrated to `@lcase/message-topology` with the checks they cover. The
 slice tests kept their assertions, which is again the evidence that delivery
 behavior did not move.
 
-## Change C23 - Add one ordered Redis route for Observability - in review
+## Change C23 - Add one ordered Redis route for Observability - merged (PR #382)
 
 ### Discussion
 
@@ -924,125 +930,221 @@ observation assertion changed from sorted to ordered, which is the test-level
 form of the same claim; the in-process slice is unchanged, which is what shows
 the semantics are shared rather than coincidental.
 
-## Change C24 - Give Worker truthful managed lifecycle and controlled ingress - not started
+## Change C24 - Scaffold the Worker-host app - not started
 
 ### Discussion
 
-Worker is a long-lived autonomous component with real capacity and execution
-state, so the remote process must not manage it through no-op lifecycle hooks.
-Give the same Worker used by embedded and remote profiles meaningful
-`start()`, `stop()`, and `health()` control. Its lifecycle state should express
-whether it is accepting work, draining, or stopped, while preserving the
-component's existing capacity and terminal-topic ownership.
+Create `apps/worker-host` as a workspace package with its own build, typecheck,
+lint, and test tasks, and one module: the resolution of this role's slice of the
+deployment. No profile, no carrier, no infrastructure, no Worker.
 
-Worker lifecycle and carrier lifecycle remain separate responsibilities.
-Worker owns whether it accepts work and how its active executions settle. The
-process host owns whether a subscription is polling or presenting deliveries.
-Worker must not learn about Redis, consumer groups, mailboxes, or deployment
-placement merely to coordinate those controls.
+Separated from building the profile because the reviewable content is different.
+This Change's surface is the app's _boundaries_ — which tasks it runs and which
+dependencies it is allowed to hold — and those are easiest to judge before any
+dependency exists to argue about. Its only production dependency is
+`@lcase/message-topology`. No adapters, Prisma, S3, or Redis, because nothing
+imports them yet, and adding them ahead of use would make C27's dependency
+closure inspection report a closure this app does not have.
 
-A truthful stop requires an ordered host policy rather than simply adding
-methods to the class:
+The tasks follow `profile-local-system` rather than the other apps: real
+`eslint .` instead of `apps/http-server`'s `echo lint` stub, and typecheck
+through a `tsconfig.typecheck.json` that widens to `tests`. `test:integration`
+is an `echo` stub, because `vitest` fails outright when no file matches its
+include; the config and the `.env.test.local` setup file are in place so the
+first real suite only has to be written.
 
-1. quiesce that host's Worker-command ingress so it presents no new work;
-2. define honestly what happens to work already admitted or waiting for Worker
-   capacity;
-3. let active work reach its chosen finish-or-cancel boundary while terminal
-   topic remains available;
-4. stop Worker only after the executions covered by that policy settle; and
-5. stop remaining messaging egress and infrastructure dependencies afterward.
+The entrypoint is deliberately not runnable. It resolves the plan, prints it,
+and exits non-zero, so nothing mistakes a scaffold for a running host.
 
-The current managed runtime provides ordered start and reverse-order stop, but
-the current router groups topic and several subscription loops into one
-resource. C22's host-binding split supplies the right point to decide whether a
-Worker subscription becomes an independently controlled managed ingress or
-whether shared lifecycle needs an explicit quiesce/drain phase. Do not claim a
-graceful drain while an embedded terminal consumer can stop before a draining
-Worker publishes its result.
+One behavioral claim is available at this size and is worth asserting now: this
+process can derive its own view of the deployment without any carrier existing.
+`workerHostPlan()` resolves the `remote-worker` manifest for the `worker-host`
+role against the job catalog, and the test asserts it is carried by
+`redis-streams`, consumes exactly `worker.job-command.v1`, and publishes
+`job-terminal.v1` onto both `job.terminal-work.v1` and `job.observation.v1` —
+with the consuming subscription erased from both, which is the asymmetry the
+whole Arc rests on made checkable in a unit test.
 
-Redis entries not yet presented may remain in Redis for a later process; an
-in-process carrier has no durable equivalent. C24 must state and test the
-minimum common stop guarantee and each carrier's stronger behavior rather than
-making the local carrier imitate Redis recovery. A delivery refused because
-Worker is no longer accepting must not be silently acknowledged as successful.
-
-Local Worker health reports only the component instance this process owns.
-Whether a separately deployed Worker process is reachable or whether enough
-Worker instances exist is deployment health, not a fake remote
-`ManagedResource<Worker>` inside an Engine or gateway process.
-
-Keep this Change independent of the new app and deployment proof. It should be
-exercised through the existing embedded profile over both carriers first, then
-the Worker-host profile in C25 can consume an already truthful lifecycle.
+The README states the positions this app has to hold before it holds them: that
+it may not depend on `@lcase/profile-local-system`, that its infrastructure is
+Redis, Postgres and S3/MinIO rather than the lightweight branches, and that it
+makes no drain or stop guarantee.
 
 **Completion evidence.**
 
-- The retained Worker instance exposes tested accepting, draining/stopping,
-  stopped, and health behavior rather than no-op symmetry methods.
-- Both local-system carrier branches start Worker before its command ingress
-  and stop new ingress before Worker settles active work.
-- Terminal topic needed by settling work remains available for the
-  duration promised by the stop contract.
-- Redis work not yet presented follows an explicit retained-entry policy, and
-  in-process admitted work follows an explicit ephemeral policy.
-- The `local-system` profile includes Worker as a real managed resource, while
-  profiles that do not host Worker include no remote placeholder resource.
-- Worker remains free of carrier, topology, deployment, and process-supervisor
-  dependencies.
+- `apps/worker-host` builds, typechecks, lints, and tests as its own package
+  under turbo, with real ESLint rather than a stub.
+- Its only production dependency is `@lcase/message-topology`, and it does not
+  depend on `@lcase/profile-local-system`.
+- `workerHostPlan()` resolves `remote-worker` for the `worker-host` role, with
+  tests covering the carrier, the single consumed subscription, and the two
+  routes its published topic travels.
+- The entrypoint exits non-zero and says it is not wired, rather than starting
+  a process that does nothing.
+- The README records the dependency prohibition, the infrastructure
+  requirement, and the absence of a lifecycle guarantee.
 
-## Change C25 - Run and prove a separately deployed Worker host - not started
+## Change C25 - Build the Worker-host process - not started
 
 ### Discussion
 
-Add `apps/worker-host` as a real deployable package with an app-local process
-profile. It constructs the Worker and its required first-party collaborators,
-selects Redis-backed Message delivery, and selects the shared artifact and SQL
-infrastructure needed to resolve inputs and publish outputs that the Engine can
-observe from another process. It must not import the complete local-system
-profile or install unrelated Engine, app-service, Observability, Replay, or
-Limiter graphs through a convenience package.
+Give the app C24 scaffolded an app-local process profile and a real entrypoint,
+turning it into a deployable package. Starting from the host plan that already
+resolves, it constructs the Redis carrier and the shared artifact and SQL
+infrastructure Worker needs, builds Worker, and binds only the Worker command
+subscription. It must not import `@lcase/profile-local-system`, which would
+install Engine, Observability, Limiter, Replay, and the app-services graph
+through a convenience package.
 
-The other side of the proof is a companion non-Worker process profile using the
-same deployment definition and shared Redis, S3/MinIO, and Postgres identities.
-Initially it retains application services, Engine, Observability, Limiter,
-Replay, and the other behavior not yet given an independent process boundary.
-For the first proof, keep that profile local to its executable. Its explicit
-entrypoint may live in the existing HTTP-server app package; a separate thin
-companion app package is required only if C25 deliberately includes that
-deployable-closure proof. Preserve `@lcase/profile-local-system` as the complete
-embedded graph; do not add a local/remote Worker placement switch to it,
-construct a hidden Worker, or add a local fallback. Promote the companion
-profile only when a second real executable needs the same composition policy. A
-CLI acting only as a thin HTTP client is not such a consumer; whether a CLI that
-runs directly against the distributed services becomes one remains deliberately
-open. The existing HTTP server and CLI continue to be supported through the
-unchanged shared `local-system` profile.
+The Change is deliberately provable alone. A command appended directly onto the
+command work route must be consumed by this process and answered with a terminal
+on the terminal work route, with no companion process, no HTTP, and no Engine
+anywhere. That keeps the first process boundary a claim about one process rather
+than a claim about choreography, which is C27's.
 
-Both process entry points own configuration parsing, lifecycle start and
-rollback, signals, application of C24's stop contract, process identity, and
-truthful readiness for the resources they require. Deployment configuration
-makes shared protocol and physical-route values one source of truth rather than
-parallel environment-variable conventions.
+Most of what this needs already exists. C21 and C22 supply the `remote-worker`
+manifest, the `workerHost` role, and `hostPlanFor`/`resolveHostPlan`, so this
+role's plan derives with no new topology code. `createRedisMessageRouter`
+already consumes a `ResolvedHostPlan` and provisions only the routes its role
+publishes. `createManagedRuntime` is already role-neutral; only
+`assembleEmbeddedSystem` is specific to the embedded graph. Nothing in Worker,
+the carrier, the topology, or `assembly` has to change for this Change.
 
-C25 must also close the publisher-before-group startup race deferred by C22.
-Before the companion process reports ready and accepts external intake, the
-selected provisioning or startup policy must ensure every required Redis
-route/group pair exists. The acceptance test submits work immediately after
-readiness so a first entry cannot be skipped merely because its consumer group
-was created later.
+**The infrastructure selection is forced, not a deployment nicety.** Worker
+resolves input refs from CAS and writes its output and declared exports back as
+new artifacts, so the artifact metadata it produces has to land where the Engine
+process can read it. That rules out the lightweight branches: two processes
+cannot share an `FsArtifactStore` directory or a SQLite file in a way that
+proves anything about a deployment. This profile therefore selects Postgres,
+S3/MinIO, and Redis, which also makes this the first time all three run
+together — each has been exercised on its own against the embedded profile, but
+never as one set. Doing that here isolates any surprise to a process hosting one
+component and one subscription.
 
-The acceptance proof runs at least the two application processes against real
-Redis, MinIO/S3-compatible storage, and Postgres. Submit one HTTP JSON job to the
-companion side, observe the Worker consume it with no in-process Worker
-instance, persist and retrieve its shared artifacts, consume the terminal
-Message back at Engine, and reach the expected completed run state. The proof
-must fail if the Worker host is absent or misconfigured instead of succeeding
-through a local fallback.
+Worker's SQL need is narrower than the embedded profile's: the only repository
+it constructs is `PrismaArtifactRepository`, because
+`createArtifactReadWritePort(store, repository)` is Worker's entire storage
+surface. No run, flow, sim, eval, or projection repository belongs in this
+process.
 
-Inspect the built or `pnpm deploy` dependency closure for each app and record
-which unexpected production dependencies remain. Split a broad provider
-package only when that evidence shows a material deployable cost or coupling;
-the Worker legitimately needs the three remote infrastructure implementations.
+**Duplicating the builders is deliberate.** `buildSqlClient`,
+`buildArtifactStore`, `buildMessageRouter`, and `buildWorker` all live in
+`profile-local-system`, which this app cannot import, so this profile gets its
+own. Do not extract a shared package as part of this Change. Two copies is not
+yet evidence of the right boundary, and the extraction question has a real
+design fork inside it recorded in `docs/todo.md`.
+
+**Claim no drain.** This Change adds no lifecycle contract; C28 does. The Redis
+carrier's `stop()` already ends intake, awaits its read loops, and only then
+closes connections, and a loop awaits handler settlement through the lane, so
+in-flight jobs do finish and publish their terminals before the publisher
+connection closes. That is adequate for the proof and it is all that may be
+claimed. Nothing in this app's entrypoint, configuration, or documentation may
+describe a graceful drain, a stop guarantee, or a retained-entry policy.
+
+Keep configuration minimal. The single source of truth for shared protocol and
+physical values is C27's concern, because a convention cannot be unified with
+one participant. Containerization and a readiness endpoint likewise belong to
+C27. If the Change runs long, the seam is that the profile is provable by an
+integration test before an entrypoint exists at all.
+
+**Completion evidence.**
+
+- `apps/worker-host` resolves the `remote-worker` manifest for the `worker-host`
+  role and builds a process that hosts Worker and no other component.
+- It has no dependency on `@lcase/profile-local-system`, and the embedded
+  profile is unchanged.
+- Its profile selects Redis, Postgres, and S3/MinIO together, and reports
+  truthful startup failure when a required backend is unreachable.
+- A command placed directly on the command work route is consumed by this
+  process and answered with a terminal on the terminal work route, with its
+  output and exports readable from shared CAS and its artifact metadata from
+  shared SQL.
+- Binding only the Worker command subscription is enforced rather than
+  conventional: `assertPlanFullyBound` rejects both a missing binding and a
+  binding this role's plan does not contain.
+- No lifecycle, drain, or retained-entry guarantee is stated anywhere in the
+  app.
+
+## Change C26 - Build the companion non-Worker process - not started
+
+### Discussion
+
+Add an app-local distributed profile inside `apps/http-server` that resolves the
+same `remote-worker` manifest for the `api-engine-observer-host` role. It
+constructs everything the embedded profile does except Worker, and binds the
+Engine terminal subscription and the Observability subscription.
+
+`@lcase/profile-local-system` and the existing embedded server path stay exactly
+as they are. This profile is not promoted to a shared package: a second real
+consumer has to need the same composition policy first, and a CLI acting as a
+thin HTTP client is not one. Whether a CLI running directly against the
+distributed services becomes such a consumer stays deliberately open.
+
+**This Change's proof is partial by construction, and should say so.** With no
+Worker process running, a submitted run cannot complete. The honest evidence is
+that the process starts, binds both subscriptions, publishes a command onto the
+command work route where it can be observed directly, and then does not advance
+— because nothing consumed it. That the run stalls is the evidence, not a
+defect: it is what shows no local Worker fallback exists. Completing a run is
+C27's claim.
+
+The third copy of the infrastructure selectors arrives here. Record what the
+triplication actually shows rather than reacting to it: the selectors
+(`buildSqlClient`, `buildArtifactStore`, `buildMessageRouter`) are identical
+across all three profiles and will stay identical, while the component builders
+(`buildWorker`, `buildEngine`, `buildObservability`) are where profiles
+legitimately differ — a worker-host would not want the embedded profile's
+console lifecycle sink. Whether the extraction lands inside this Change or as
+its own depends on whether it stays mechanical; see `docs/todo.md`.
+
+**Completion evidence.**
+
+- The distributed profile is app-local to `apps/http-server`, constructs no
+  Worker and no remote placeholder resource, and leaves
+  `@lcase/profile-local-system` and the embedded entrypoint untouched.
+- It resolves the same manifest as C25 for the other role, with neither role
+  naming the other.
+- A run submitted over HTTP publishes a command onto the command work route,
+  observable on that stream, and the run does not reach a terminal state.
+- The embedded profile and its filesystem, SQLite, and in-process branches
+  remain green.
+- The deployable dependency inventory of both profiles is recorded, without yet
+  acting on it.
+
+## Change C27 - Run and prove the distributed deployment - not started
+
+### Discussion
+
+Run both application processes against real Redis, MinIO/S3-compatible storage,
+and Postgres, submit one HTTP JSON job to the companion side, and observe the
+Worker process consume it with no in-process Worker instance, persist and
+retrieve shared artifacts, publish the terminal back across Redis, and reach the
+expected completed run state at Engine. The proof must fail if the Worker host
+is absent or misconfigured rather than succeeding through a local fallback.
+
+With C25 and C26 each proven alone, this Change's own content is the three
+things neither could supply:
+
+**The provisioning and readiness race deferred by C22.** Before the companion
+process reports ready and accepts external intake, the selected provisioning or
+startup policy must ensure every required Redis route and group pair exists. A
+group created at `$` sees nothing published before it existed, so a first
+submission accepted before the Worker host's group exists is silently lost. The
+acceptance test submits work immediately after readiness so that a skipped first
+entry fails the test rather than passing by timing.
+
+**One deployment configuration rather than parallel conventions.** Both
+entrypoints own configuration parsing, lifecycle start and rollback, signals,
+process identity, and truthful readiness for the resources they require. Shared
+protocol and physical route values come from one source, which is only
+expressible now that two participants exist.
+
+**The deployable dependency closures.** Inspect the built or `pnpm deploy`
+closure for each app and record which unexpected production dependencies remain.
+Split a broad provider package only when that evidence shows a material
+deployable cost or coupling; the Worker legitimately needs all three remote
+infrastructure implementations.
 
 The first remote deployment does not need to solve every distributed-systems
 policy. Cancellation across the boundary, crash recovery and pending-entry
@@ -1053,24 +1155,120 @@ truthful without one of them.
 
 **Completion evidence.**
 
-- `apps/worker-host` builds and deploys independently with no complete-system
-  profile dependency.
-- The companion non-Worker profile remains app-local, constructs no Worker or
-  remote placeholder, and does not alter the complete embedded `local-system`
-  profile.
+- Both applications build and run independently against the shared
+  infrastructure, and each reports truthful startup failure for unreachable
+  required backends.
+- A real end-to-end flow crosses Redis in both directions, shares artifacts and
+  SQL state through MinIO/S3 and Postgres, and reaches a completed run with no
+  in-process Worker fallback anywhere.
+- Removing or misconfiguring the Worker host fails the proof rather than
+  degrading to local execution.
+- Every required Redis route and group pair exists before companion readiness,
+  and a submission made immediately after readiness is consumed rather than
+  skipped.
 - Companion and Worker processes load compatible values from one deployment
-  definition and report truthful startup failure for unreachable required
-  infrastructure.
-- The selected startup or provisioning policy creates every required Redis
-  route/group pair before companion readiness, and a submission made immediately
-  after readiness is consumed rather than skipped.
-- A real end-to-end flow crosses Redis in both directions and shares artifacts
-  and SQL state through MinIO/S3 and Postgres, with no in-process Worker
-  fallback.
-- The existing embedded profile and its lightweight filesystem, SQLite, and
-  in-process branches remain green.
+  definition rather than parallel environment-variable conventions.
 - The recorded deployable dependency inventories either justify the current
   provider package boundary or create a concrete follow-on Change to narrow it.
+
+## Change C28 - Give Worker truthful managed lifecycle and controlled ingress - not started
+
+### Discussion
+
+Worker is a long-lived autonomous component with real capacity and execution
+state, so the remote process must not manage it through no-op lifecycle hooks.
+Give the same Worker used by embedded and remote profiles meaningful `start()`,
+`stop()`, and `health()` control. Its lifecycle state should express whether it
+is accepting work, draining, or stopped, while preserving the component's
+existing capacity and terminal-topic ownership.
+
+This sits after the deployment proof rather than before it. The stop contract is
+least legible in the embedded profile, where one router resource serves Worker,
+Engine, and Observability at once; in the Worker host it is a process reading one
+subscription and publishing one topic, which is where the phases are actually
+separable. Design the contract there, then bring it back to the embedded profile
+and the companion.
+
+**Starting position, as measured during C25's discussion.**
+
+- Worker is not a managed resource at all today, and has no `start`, `stop`, or
+  `health`. `assembleEmbeddedSystem` takes sql, bus, sinks, tap, engine,
+  limiter, and router; the profile retains Worker only so its handler can be
+  bound. There are no no-op hooks to correct — this is additive.
+- The cancellation producer was pre-built for this Change. `executeSubmission`'s
+  `callerSignal` is threaded through capacity and permits and has no producer,
+  with a comment saying a shutdown source can be added without reopening that
+  path. `WorkerCapacity.acquire` already answers what happens to work waiting
+  for capacity: it returns cancelled and records no lifecycle facts, because
+  execution never reached started.
+- A `cancelledResult()` still returns through `handleHttpJsonSubmitted` and
+  publishes a terminal. So cancel-on-shutdown currently means emitting a
+  terminal, which needs egress alive, and that collides with the retained-entry
+  policy this Change wants under Redis. Those are two different answers to the
+  same event and the Change has to choose.
+- The Redis carrier already settles in-flight handlers — `stop()` clears
+  `running`, awaits the read loops, and only then closes connections, while a
+  loop awaits handler settlement and acknowledgement through the lane. The
+  in-process carrier drains nothing: its hooks are empty by design, and
+  `whenIdle()` is explicitly not a drain and is unwired from lifecycle. The gap
+  is the opposite way round from the intuition.
+- A blocked `XREADGROUP` is not interrupted by clearing `running`, so one final
+  batch is admitted and run after stop is requested. Not a leak, but not
+  quiescence either.
+
+**The structural obstacle.** The ordered stop policy cannot be expressed by the
+current runtime. `stopAll` walks one flat list strictly in reverse of start, and
+the router is a single resource owning both ingress and egress, so Worker has no
+position in that list that is both after ingress ends and before egress closes.
+Placing Worker before the router loses egress while it drains; placing it after
+starts the carrier ahead of the component it delivers to. Either the router
+resource splits — which is what C22's host-binding split was meant to enable — or
+`ManagedRuntime` gains an explicit quiesce phase, which changes a generic
+contract four other resources already satisfy.
+
+Worker lifecycle and carrier lifecycle remain separate responsibilities. Worker
+owns whether it accepts work and how its active executions settle. The process
+host owns whether a subscription is polling or presenting deliveries. Worker
+must not learn about Redis, consumer groups, mailboxes, or deployment placement
+merely to coordinate those controls.
+
+The ordered host policy is:
+
+1. quiesce that host's Worker-command ingress so it presents no new work;
+2. define honestly what happens to work already admitted or waiting for Worker
+   capacity;
+3. let active work reach its chosen finish-or-cancel boundary while terminal
+   topic remains available;
+4. stop Worker only after the executions covered by that policy settle; and
+5. stop remaining messaging egress and infrastructure dependencies afterward.
+
+Redis entries not yet presented may remain in Redis for a later process; an
+in-process carrier has no durable equivalent. This Change must state and test the
+minimum common stop guarantee and each carrier's stronger behavior rather than
+making the local carrier imitate Redis recovery. A delivery refused because
+Worker is no longer accepting must not be silently acknowledged as successful.
+
+Local Worker health reports only the component instance this process owns.
+Whether a separately deployed Worker process is reachable or whether enough
+Worker instances exist is deployment health, not a fake remote
+`ManagedResource<Worker>` inside an Engine or gateway process.
+
+**Completion evidence.**
+
+- The retained Worker instance exposes tested accepting, draining/stopping,
+  stopped, and health behavior rather than no-op symmetry methods.
+- Every profile hosting Worker starts it before its command ingress and stops
+  new ingress before Worker settles active work, over both carriers.
+- Terminal topic needed by settling work remains available for the duration
+  promised by the stop contract.
+- Redis work not yet presented follows an explicit retained-entry policy, and
+  in-process admitted work follows an explicit ephemeral policy.
+- Every profile hosting Worker includes it as a real managed resource, while
+  profiles that do not host Worker include no remote placeholder resource.
+- Worker remains free of carrier, topology, deployment, and process-supervisor
+  dependencies.
+- The claims C25 was forbidden from making are now made and tested, in the apps
+  that were forbidden from making them.
 
 **Deliberately deferred beyond this Arc.**
 

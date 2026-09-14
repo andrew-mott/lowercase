@@ -79,18 +79,26 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C20    | Multi-topic logical subscriptions through one delivery lane                    | merged (PR #379) | [6]   |          |
 | C21    | Declare deployment topology as standalone static data                          | merged (PR #380) | [6]   |          |
 | C22    | Bind each process to its host plan rather than the full topology               | merged (PR #381) | [6]   |          |
-| C23    | Add one ordered Redis route for Observability                                  | in review        | [6]   |          |
-| C24    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
-| C25    | Prove a separately deployed Worker host                                        | not started      | [6]   |          |
+| C23    | Add one ordered Redis route for Observability                                  | merged (PR #382) | [6]   |          |
+| C24    | Scaffold the Worker-host app                                                   | not started      | [6]   |          |
+| C25    | Build the Worker-host process                                                  | not started      | [6]   |          |
+| C26    | Build the companion non-Worker process                                         | not started      | [6]   |          |
+| C27    | Run and prove the distributed deployment                                       | not started      | [6]   |          |
+| C28    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
 
 ## Next up
 
-1. **C23:** route the selected job Messages into one ordered Redis
-   Observability stream while preserving their independent work routes.
-2. **C24:** make Worker a truthful managed resource and coordinate command
-   intake with active-work settlement.
-3. **C25:** add the Worker-host and companion non-Worker process profiles and
-   prove the real two-process path over Redis, S3/MinIO, and Postgres.
+1. **C24:** scaffold `apps/worker-host` with its own tasks and one module that
+   resolves this role's slice of the deployment, and nothing else.
+2. **C25:** build its app-local profile over Redis, Postgres, and S3/MinIO, and
+   prove it answers a directly submitted command alone.
+3. **C26:** add the companion non-Worker profile inside `apps/http-server`,
+   leaving the embedded profile and server path unchanged.
+4. **C27:** run both processes together, settle consumer-group readiness, and
+   prove the real two-process path end to end.
+5. **C28:** make Worker a truthful managed resource and coordinate command
+   intake with active-work settlement, now designed against a process that
+   hosts Worker alone.
 
 These are planned review seams, not fixed size targets. An unstarted Change
 should split before implementation if its rename-aware inventory or semantic
@@ -104,7 +112,7 @@ surface is too large for one review.
   configurable co-location appears, a deployment definition could assign
   components to named host roles and project a process-local host plan instead
   of adding a profile name for every permutation. This is deliberately distant
-  work rather than part of C19–C24; the constraints, migration path, and open
+  work rather than part of C19–C28; the constraints, migration path, and open
   questions are sketched in
   [`research/configurable-component-placement.md`](./research/configurable-component-placement.md).
 - **The engine's own step/run self-loop (subscribing to events it publishes itself, purely to advance its own internal state)** — a real, precedented, low-risk fix (mirroring how `ExecuteHttpJsonJobFx` already avoids this), but decoupled from every Change in this initiative: nothing here depends on it, and it doesn't ease anything here either, since the self-loop never touches `MessageLogPort`/Redis at all. Deferred to whenever the engine gets its real core/inbound-outbound refactor. See `arcs/queue-adapter.md`'s Changes C5, C7–C9, and C11–C14 discussion for the full reasoning.
