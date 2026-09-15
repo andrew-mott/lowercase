@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -67,7 +68,9 @@ describe("GET .../curated-artifacts", () => {
     );
 
     const app = Fastify();
-    app.decorate("services", { artifact: artifactService });
+    app.decorate("services", {
+      artifact: artifactService,
+    } as unknown as ServicesPort);
     await app.register(getCuratedArtifactsForParamRoute, {
       prefix: "/api/flows",
     });

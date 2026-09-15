@@ -1,4 +1,4 @@
-import { FlowAnalysis } from "@lcase/types";
+import type { FlowAnalysis } from "@lcase/types";
 
 export function graphLayout(fa: FlowAnalysis) {
   if (!fa.toposort) return;
@@ -28,8 +28,9 @@ export function graphLayout(fa: FlowAnalysis) {
         pendingNodes.delete(node);
 
         (grid[currentRow] ??= []).push(node);
-      } else {
       }
+      // No else: a node whose in-edges are not all placed stays in
+      // pendingNodes and is reconsidered on a later row.
     }
     currentRow++;
     if (currentRow > 200) break; // just a safety value to stop things going forever while in alpha

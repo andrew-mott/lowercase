@@ -15,8 +15,8 @@
  * docs/initiatives/swappable-infrastructure/research/prisma-provider-type-seam-spike.md.
  *
  * This is not a test file -- vitest's `tests/{@literal **}/*.test.[jt]s` glob skips it and it
- * has no runtime behaviour to run. It is picked up by tsconfig.typecheck.json,
- * which includes `tests`, and excluded from the build, which includes only
+ * has no runtime behaviour to run. It is picked up by tsconfig.json, which
+ * includes `tests`, and excluded by tsconfig.build.json, which includes only
  * `src`. It fails `pnpm typecheck`, naming the offending seam.
  */
 

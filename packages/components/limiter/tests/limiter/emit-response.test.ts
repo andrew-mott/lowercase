@@ -1,32 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import { Limiter, LimiterDeps } from "../../src/limiter.js";
+import type { LimiterDeps } from "../../src/limiter.js";
+import { Limiter } from "../../src/limiter.js";
 import type {
   ConcurrencyLimiterPort,
   EmitterFactoryPort,
   EventBusPort,
   SlotAccessDecision,
 } from "@lcase/ports";
-import type { AnyEvent } from "@lcase/types";
 
 const toolId = "test-toolid";
-const event = {
-  id: "test-id",
-  source: "",
-  specversion: "1.0",
-  time: "",
-  type: "worker.slot.finished",
-  data: {
-    jobId: "test-jobid",
-    runId: "test-runid",
-    toolId: toolId,
-  },
-  domain: "worker",
-  action: "finished",
-  traceparent: "",
-  traceid: "test-traceid",
-  spanid: "",
-  workerid: "test-workerid",
-} satisfies AnyEvent<"worker.slot.finished">;
 
 describe("Limiter emitResponse()", () => {
   it("emits limiter.slot.granted or limiter.slot.denied correctly for each decision", async () => {

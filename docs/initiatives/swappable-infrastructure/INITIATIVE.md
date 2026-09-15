@@ -51,6 +51,108 @@ is recorded in the
 [Remote Worker Arc](./arcs/remote-worker.md) and remains splittable when
 implementation inventory shows a review is too large.
 
+## Deployment shapes
+
+The shapes this initiative is ultimately aiming at. Recorded because they are
+what makes an individual Change's process boundary legible as a step rather than
+a destination. Long-term targets rather than a schedule: only shapes 1 and 3
+exist today.
+
+| #   | Frontend     | App services                 | Engine / Worker / Observability | Infrastructure |
+| --- | ------------ | ---------------------------- | ------------------------------- | -------------- |
+| 1   | HTTP server  | in process                   | in process                      | swappable      |
+| 2   | HTTP gateway | in process                   | remote                          | remote only    |
+| 3   | CLI          | in process                   | in process                      | swappable      |
+| 4   | CLI          | none — HTTP client of 1 or 2 | none                            | none           |
+| 5   | CLI          | in process                   | remote                          | remote only    |
+
+**Five shapes, two compositions.** Shapes 1 and 3 are one composition behind two
+frontends, which is already true today: `@lcase/profile-local-system` serves both
+`apps/http-server` and `apps/cli`. Shapes 2 and 5 are one composition behind two
+frontends for the same reason. Shape 4 composes nothing — it is an API client,
+and belongs to whichever frontend wants it rather than to a profile. The frontend
+is therefore not an axis of the composition. What varies is only whether the
+components run in this process, and that single question separates the two
+groups.
+
+**The distributed shapes are distinct deployments, whether or not they turn out
+to be distinct application packages.** A gateway carries no Engine or Worker code and selects exactly one
+backend per infrastructure axis; an embedded server carries all of it and selects
+among several. Separate apps make that boundary enforced rather than observed: an
+app whose manifest omits `@lcase/engine` cannot import it, and the failure is a
+resolution error rather than something found by inspecting an artifact.
+
+What separate apps do **not** buy today is a narrow installed closure, and the
+distinction is worth stating because it is easy to assume otherwise.
+`apps/worker-host` lists only the three backends it uses, yet its production
+closure already contains `@prisma/adapter-better-sqlite3` and native
+`better-sqlite3`, because `@lcase/db-prisma` carries both generated clients as
+production dependencies. An application manifest bounds what an app may import;
+it does not bound what gets installed underneath. Narrowing that is a separate
+question about the granularity of `@lcase/db-prisma` and `@lcase/adapters`, and
+it is the same question whether the distributed shapes are apps or modes.
+
+**A bundler is a real answer to the closure question and a weaker answer to the
+boundary question.** Rollup drops unreached modules, so an artifact built from
+the Worker host's entry point would shed `FsArtifactStore`, the SQLite client,
+and every repository it never imports — which package granularity does not do
+today. It can also emit several entry points from one source tree, each shaken
+against its own import graph, so a single application could produce an embedded
+artifact and a gateway artifact with no runtime flag and no configuration branch:
+the entry point becomes the selection. Where it stops is what static analysis
+cannot see. A runtime `config.sql.kind` switch leaves both branches reachable and
+both imports retained unless the value is folded at build time, which yields one
+artifact per configuration. Native modules do not bundle, so `better-sqlite3`
+travels beside any artifact that reaches SQLite — though Prisma's own generated
+assets do not, because its driver-adapter mode ships the query compiler as base64
+WASM inside a module. And the boundary stops being enforced: nothing prevents a
+gateway entry point from
+importing Engine, so the guarantee becomes a lint rule or a bundle-composition
+check rather than a resolution failure. No Node application here uses a bundler
+today — `apps/http-server`, `apps/cli`, and `apps/worker-host` all build with
+`tsc` and run `dist/main.js` — so adopting one is its own decision, independent
+of how these shapes are split into applications.
+
+The candidate is one application package emitting several artifacts from static
+entry points instead of one package per shape, and it has now been measured:
+both the Worker host and the embedded server bundle and run outside the
+workspace, the Worker host with no `node_modules` at all and no trace of SQLite.
+Deploying the bundle does not narrow the installed closure so much as remove it,
+since the artifact carries no manifest. What a profile statically imports is what
+the artifact contains, which is the whole mechanism. See
+[`research/deployment-artifacts-from-static-entrypoints.md`](./research/deployment-artifacts-from-static-entrypoints.md)
+for the measurements, the four obstacles found, and two prerequisites — a
+workspace coupling in `@lcase/db-prisma` that breaks any out-of-workspace
+deployment today, and a CI assertion to replace the enforcement that separate
+packages would have given for free.
+
+Everything above about what distinguishes the shapes holds whether they end up as
+separate applications or as separate entry points of one.
+
+**What blocks the distributed shapes is a missing conversation, not a missing
+profile.** Engine consumes `run.requested` from the in-process bus and
+`runFlow()` emits it there, and `job.catalog.ts` is the only catalog that exists.
+Engine cannot leave the process until run ingress has topics of its own, and
+Observability taps the bus the same way. These shapes are therefore reached by
+migrating event families onto the router — the per-slice work already recorded
+under "Not yet scoped" — after which a profile follows. Extracting a profile
+first advances neither.
+
+**C27's role is a waypoint between shapes 1 and 2, not one of them.**
+`api-engine-observer-host` keeps Engine and Observability in the API process and
+moves only Worker out, which is what lets the service layer come across unchanged
+and keeps C28's end-to-end proof reachable. The manifest naming it already says
+as much: `remote-worker.deployment.ts` calls itself the transitional split and
+states that moving Engine out is a different manifest rather than a variant of
+this one. Shared composition machinery built around this role would be built
+around a shape that is not a target.
+
+**Electron is a sixth shape, deliberately untouched.** It would be
+all-in-process, plausibly with swappable infrastructure — shape 1's composition
+behind a desktop frontend — and an out-of-process Electron variant is not
+currently expected to be worth building. Long-term, outside every Change in this
+initiative, and `apps/desktop` is unmaintained today.
+
 ## Change index
 
 Reordered from the original scaffold after runtime-composition research (see `arcs/cas-adapter.md`'s Change C2 discussion) replaced the original single "wire CAS into runtime" step with a bigger, more honest sequence. This is expected — the original list was a best-effort scaffold, not a commitment; incrementing as real scope becomes clear is the normal process, not a sign of drift.
@@ -81,20 +183,24 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C22    | Bind each process to its host plan rather than the full topology               | merged (PR #381) | [6]   |          |
 | C23    | Add one ordered Redis route for Observability                                  | merged (PR #382) | [6]   |          |
 | C24    | Scaffold the Worker-host app                                                   | merged (PR #383) | [6]   |          |
-| C25    | Build the Worker-host process                                                  | in review        | [6]   |          |
-| C26    | Build the companion non-Worker process                                         | not started      | [6]   |          |
-| C27    | Run and prove the distributed deployment                                       | not started      | [6]   |          |
-| C28    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
+| C25    | Build the Worker-host process                                                  | merged (PR #384) | [6]   |          |
+| C26    | Portability pass: cross-platform cleans, build config inversion, couplings     | in progress      | [5]   |          |
+| C27    | Build the API host process                                                     | not started      | [6]   |          |
+| C28    | Run and prove the distributed deployment                                       | not started      | [6]   |          |
+| C29    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
 
 ## Next up
 
-1. **C25:** build `apps/worker-host`'s app-local profile over Redis, Postgres,
-   and S3/MinIO, and prove it answers a directly submitted command alone.
-2. **C26:** add the companion non-Worker profile inside `apps/http-server`,
-   leaving the embedded profile and server path unchanged.
-3. **C27:** run both processes together, settle consumer-group readiness, and
+1. **C26:** finish the portability pass — cross-platform clean scripts, the
+   `tsconfig.build.json` inversion for the packages that already typecheck
+   tests, ESLint for the two packages this work edits, and the two couplings
+   that stop a built artifact running outside the workspace.
+2. **C27:** give `apps/http-server` a second host under `src/hosts/` — today's
+   embedded entry point moved, plus an API host composing an app-local profile
+   with no Worker — sharing one Fastify layer between them.
+3. **C28:** run both processes together, settle consumer-group readiness, and
    prove the real two-process path end to end.
-4. **C28:** make Worker a truthful managed resource and coordinate command
+4. **C29:** make Worker a truthful managed resource and coordinate command
    intake with active-work settlement, now designed against a process that
    hosts Worker alone.
 
@@ -110,7 +216,7 @@ surface is too large for one review.
   configurable co-location appears, a deployment definition could assign
   components to named host roles and project a process-local host plan instead
   of adding a profile name for every permutation. This is deliberately distant
-  work rather than part of C19–C28; the constraints, migration path, and open
+  work rather than part of C19–C29; the constraints, migration path, and open
   questions are sketched in
   [`research/configurable-component-placement.md`](./research/configurable-component-placement.md).
 - **The engine's own step/run self-loop (subscribing to events it publishes itself, purely to advance its own internal state)** — a real, precedented, low-risk fix (mirroring how `ExecuteHttpJsonJobFx` already avoids this), but decoupled from every Change in this initiative: nothing here depends on it, and it doesn't ease anything here either, since the self-loop never touches `MessageLogPort`/Redis at all. Deferred to whenever the engine gets its real core/inbound-outbound refactor. See `arcs/queue-adapter.md`'s Changes C5, C7–C9, and C11–C14 discussion for the full reasoning.

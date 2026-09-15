@@ -4,7 +4,6 @@ import type {
   FlowDefinition,
   StepBranch,
   FlowAnalysis,
-  InEdges,
   OutEdges,
   SelfReferencedProblem,
   UnknownStepReferenceProblem,

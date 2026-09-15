@@ -5,7 +5,7 @@ import type { GetArtifactReq, GetArtifactRes } from "@lcase/types";
 export const getArtifactRoute = async (app: FastifyInstance) => {
   app.get<{ Params: GetArtifactReq }>(
     "/:hash",
-    async (req, reply): Promise<GetArtifactRes> => {
+    async (req): Promise<GetArtifactRes> => {
       const { hash } = req.params;
       if (!isHash(hash)) return { ok: false, error: "Invalid hash" };
       const artifact = await app.services.artifact.getArtifact(hash);

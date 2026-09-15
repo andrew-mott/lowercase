@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --incremental false",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "build": "node ../../scripts/clean-dist.mjs && tsc --incremental false -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
     "lint": "eslint .",
     "start": "node ./dist/main.js",
     "dev": "npx tsx ./src/main.ts",
     "test:integration": "vitest run -c vitest.integration.config.ts",
-    "clean-dist": "rm -rf ./dist",
-    "clean-node-modules": "rm -rf ./node_modules"
+    "clean:dist": "node ../../scripts/clean-dist.mjs",
+    "clean:node-modules": "node ../../scripts/clean-node-modules.mjs"
   },
   "packageManager": "pnpm@10.17.1",
   "dependencies": {

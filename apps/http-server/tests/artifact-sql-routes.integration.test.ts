@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -73,7 +74,7 @@ describe("artifact sql routes", () => {
     await app.register(import("@fastify/multipart"));
     app.decorate("services", {
       artifact: artifactService,
-    });
+    } as unknown as ServicesPort);
 
     await app.register(listArtifactsRoute, { prefix: "/api/artifacts" });
     await app.register(getArtifactRoute, { prefix: "/api/artifacts" });
@@ -186,7 +187,9 @@ describe("artifact sql routes", () => {
     );
 
     const app = Fastify();
-    app.decorate("services", { artifact: artifactService });
+    app.decorate("services", {
+      artifact: artifactService,
+    } as unknown as ServicesPort);
     await app.register(import("@fastify/multipart"));
     await app.register(postArtifactRoute, { prefix: "/api/artifacts" });
     await app.register(patchArtifactRoute, { prefix: "/api/artifacts" });
@@ -241,7 +244,9 @@ describe("artifact sql routes", () => {
     );
 
     const app = Fastify();
-    app.decorate("services", { artifact: artifactService });
+    app.decorate("services", {
+      artifact: artifactService,
+    } as unknown as ServicesPort);
     await app.register(listArtifactsRoute, { prefix: "/api/artifacts" });
 
     const flow = await prisma.flow.create({ data: { name: "Test Flow" } });
@@ -314,7 +319,9 @@ describe("artifact sql routes", () => {
     );
 
     const app = Fastify();
-    app.decorate("services", { artifact: artifactService });
+    app.decorate("services", {
+      artifact: artifactService,
+    } as unknown as ServicesPort);
     await app.register(listArtifactsRoute, { prefix: "/api/artifacts" });
     await app.register(patchArtifactRoute, { prefix: "/api/artifacts" });
 

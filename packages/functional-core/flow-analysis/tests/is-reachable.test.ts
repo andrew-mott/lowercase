@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isReachable } from "../src/analyze-references.js";
-import { FlowAnalysis } from "@lcase/types";
+import type { FlowAnalysis } from "@lcase/types";
 
 describe("isReachable()", () => {
   it("is reachable for a simple case", () => {

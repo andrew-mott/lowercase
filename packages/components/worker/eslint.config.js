@@ -3,7 +3,9 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  // coverage/ is gitignored istanbul output; linting generated files reports
+  // problems in code nobody here can edit.
+  globalIgnores(["dist", "coverage"]),
   {
     files: ["**/*.ts"],
     extends: [js.configs.recommended, tseslint.configs.recommended],

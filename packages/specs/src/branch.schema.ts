@@ -1,4 +1,4 @@
-import { StepBranch } from "@lcase/types";
+import type { StepBranch } from "@lcase/types";
 import { z } from "zod";
 
 export const StepBranchSchema = z

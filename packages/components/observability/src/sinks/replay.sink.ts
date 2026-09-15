@@ -1,6 +1,6 @@
-import { EventSink } from "@lcase/ports";
-import { EventStorePort } from "@lcase/ports/event-store";
-import { AnyEvent } from "@lcase/types";
+import type { EventSink } from "@lcase/ports";
+import type { EventStorePort } from "@lcase/ports/event-store";
+import type { AnyEvent } from "@lcase/types";
 
 export class ReplaySink implements EventSink {
   id = "replay-sink";

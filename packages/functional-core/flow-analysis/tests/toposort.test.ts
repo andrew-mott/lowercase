@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { analyzeFlow } from "../src/analyze-flow.js";
 import { toposort } from "../src/toposort.js";
-import type {
-  FlowAnalysis,
-  FlowDefinition,
-  StepHttpJson,
-  StepJoin,
-  StepParallel,
-} from "@lcase/types";
+import type { FlowAnalysis } from "@lcase/types";
 
 describe("toposort()", () => {
   it("creates a correct toposort", () => {

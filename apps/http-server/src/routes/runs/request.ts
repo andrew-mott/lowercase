@@ -1,53 +1,44 @@
-import { FastifyInstance } from "fastify";
-import { PostRunsReq, PostRunsRes } from "@lcase/types";
+import type { FastifyInstance } from "fastify";
+import type { PostRunsReq, PostRunsRes } from "@lcase/types";
 
 export const requestRunsRoute = async (app: FastifyInstance) => {
-  app.post<{ Body: PostRunsReq }>(
-    "/",
-    async (req, rep): Promise<PostRunsRes> => {
-      const {
+  app.post<{ Body: PostRunsReq }>("/", async (req): Promise<PostRunsRes> => {
+    const { flowId, flowVersionId, flowDefHash, simId, forkSpecHash, params } =
+      req.body;
+    if (!isNonEmptyString(flowId)) {
+      return { ok: false, error: "Invalid flowId" };
+    }
+    if (!isNonEmptyString(flowVersionId)) {
+      return { ok: false, error: "Invalid flowVersionId" };
+    }
+    const validFlowDefHash = validateFlowHash(flowDefHash);
+
+    if (!validFlowDefHash) return { ok: false, error: "Invalid flowDefHash" };
+    if (simId !== undefined && !isNonEmptyString(simId)) {
+      return { ok: false, error: "Invalid simId" };
+    }
+
+    const runId = app.services.run.makeRunId();
+
+    try {
+      await app.services.run.requestRun({
         flowId,
         flowVersionId,
-        flowDefHash,
-        simId,
+        flowDefHash: validFlowDefHash,
+        source: "lowercase://http-server",
+        runId,
+        ...(simId ? { simId } : {}),
         forkSpecHash,
         params,
-      } = req.body;
-      if (!isNonEmptyString(flowId)) {
-        return { ok: false, error: "Invalid flowId" };
-      }
-      if (!isNonEmptyString(flowVersionId)) {
-        return { ok: false, error: "Invalid flowVersionId" };
-      }
-      const validFlowDefHash = validateFlowHash(flowDefHash);
-
-      if (!validFlowDefHash) return { ok: false, error: "Invalid flowDefHash" };
-      if (simId !== undefined && !isNonEmptyString(simId)) {
-        return { ok: false, error: "Invalid simId" };
-      }
-
-      const runId = app.services.run.makeRunId();
-
-      try {
-        await app.services.run.requestRun({
-          flowId,
-          flowVersionId,
-          flowDefHash: validFlowDefHash,
-          source: "lowercase://http-server",
-          runId,
-          ...(simId ? { simId } : {}),
-          forkSpecHash,
-          params,
-        });
-        return { ok: true, runId };
-      } catch (error) {
-        return {
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    },
-  );
+      });
+      return { ok: true, runId };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 };
 
 export function validateFlowHash(hash: unknown) {

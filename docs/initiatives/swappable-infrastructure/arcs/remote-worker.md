@@ -1,4 +1,4 @@
-# Prove Swappable Infrastructure Initiative — Arc: Remote Worker (Changes C19–C28)
+# Prove Swappable Infrastructure Initiative — Arc: Remote Worker (Changes C19–C29)
 
 **Previous:** [SQL Adapter](./sql-adapter.md) (Changes C15–C18)
 
@@ -161,7 +161,7 @@ while still preventing generic router code from depending on the whole profile.
 
 Do not split `@lcase/adapters` pre-emptively in this Change. A Worker host is
 expected to need its Redis Streams, S3, and Postgres implementations, so the
-present grouping may not inflate that artifact materially. C27 must inspect the
+present grouping may not inflate that artifact materially. C28 must inspect the
 actual deployable dependency closure; only observed unrelated dependencies are
 evidence for a further package split.
 
@@ -680,7 +680,7 @@ current split and worth re-reading before deciding.
 This Change does not add Worker lifecycle, application entry points, remote
 liveness, or delivery hardening. Although the manifest makes every Redis
 route/group pair derivable, provisioning and the publisher-before-group startup
-race remain remote-host startup work and must be settled in C27 before that
+race remain remote-host startup work and must be settled in C28 before that
 host accepts external intake.
 
 **Inventory, estimated from the
@@ -943,7 +943,7 @@ This Change's surface is the app's _boundaries_ — which tasks it runs and whic
 dependencies it is allowed to hold — and those are easiest to judge before any
 dependency exists to argue about. Its only production dependency is
 `@lcase/message-topology`. No adapters, Prisma, S3, or Redis, because nothing
-imports them yet, and adding them ahead of use would make C27's dependency
+imports them yet, and adding them ahead of use would make C28's dependency
 closure inspection report a closure this app does not have.
 
 The tasks follow `profile-local-system` rather than the other apps: real
@@ -984,7 +984,7 @@ makes no drain or stop guarantee.
 - The README records the dependency prohibition, the infrastructure
   requirement, and the absence of a lifecycle guarantee.
 
-## Change C25 - Build the Worker-host process - in review
+## Change C25 - Build the Worker-host process - merged (PR #384)
 
 ### Discussion
 
@@ -1000,7 +1000,7 @@ The Change is deliberately provable alone. A command appended directly onto the
 command work route must be consumed by this process and answered with a terminal
 on the terminal work route, with no companion process, no HTTP, and no Engine
 anywhere. That keeps the first process boundary a claim about one process rather
-than a claim about choreography, which is C27's.
+than a claim about choreography, which is C28's.
 
 Most of what this needs already exists. C21 and C22 supply the `remote-worker`
 manifest, the `workerHost` role, and `hostPlanFor`/`resolveHostPlan`, so this
@@ -1039,17 +1039,17 @@ host selects, so `buildSqlClient` builds a Postgres client and nothing else,
 `buildArtifactStore` an S3 store, `buildMessageRouter` a Redis carrier. Carrying
 the unreachable branches would cost twice over. It would put
 `@prisma/adapter-better-sqlite3` and `FsArtifactStore` inside the dependency
-closure C27 exists to inspect, for branches this process can never take. And it
-would make the comparison at C26 a tautology: three identical files prove only
+closure C28 exists to inspect, for branches this process can never take. And it
+would make the comparison at C27 a tautology: three identical files prove only
 that they were copied, which is what deferring the extraction was meant to avoid
 assuming. Narrowed copies make the diff between them the evidence, showing
 whether these hosts want the same function or only the same shape. `buildWorker`
 is the one expected to differ on content rather than by dropping a branch — its
 console lifecycle sink is the choice a real Worker host would make differently —
-and that difference is the one worth still being legible when C26 asks what the
+and that difference is the one worth still being legible when C27 asks what the
 copies proved.
 
-**Claim no drain.** This Change adds no lifecycle contract; C28 does. The Redis
+**Claim no drain.** This Change adds no lifecycle contract; C29 does. The Redis
 carrier's `stop()` already ends intake, awaits its read loops, and only then
 closes connections, and a loop awaits handler settlement through the lane, so
 in-flight jobs do finish and publish their terminals before the publisher
@@ -1058,9 +1058,9 @@ claimed. Nothing in this app's entrypoint, configuration, or documentation may
 describe a graceful drain, a stop guarantee, or a retained-entry policy.
 
 Keep configuration minimal. The single source of truth for shared protocol and
-physical values is C27's concern, because a convention cannot be unified with
+physical values is C28's concern, because a convention cannot be unified with
 one participant. Containerization and a readiness endpoint likewise belong to
-C27. If the Change runs long, the seam is that the profile is provable by an
+C28. If the Change runs long, the seam is that the profile is provable by an
 integration test before an entrypoint exists at all.
 
 **Completion evidence.**
@@ -1146,18 +1146,39 @@ surface hands back a client, which is the wrong shape for a profile whose entire
 premise is building its own client from configuration. The per-worker database
 name stays private, so nothing outside that package restates the convention.
 
+## Change C27 - Build the API host process - not started
+
 ### Discussion
 
-Add an app-local distributed profile inside `apps/http-server` that resolves the
-same `remote-worker` manifest for the `api-engine-observer-host` role. It
-constructs everything the embedded profile does except Worker, and binds the
-Engine terminal subscription and the Observability subscription.
+`apps/http-server` gains a second host. `src/hosts/` holds one file per
+deployment — `embedded.ts`, which is today's `main.ts` moved and otherwise
+unchanged, and `api.ts`, which composes an app-local profile resolving the same
+`remote-worker` manifest C25 used, for the `api-engine-observer-host` role. That
+profile constructs everything the embedded one does except Worker, and binds the
+Engine terminal subscription and the Observability subscription. What both hosts
+share — Fastify, the routes, the plugin registration order — moves to `src/http/`
+and is handed a composed system rather than composing one.
 
-`@lcase/profile-local-system` and the existing embedded server path stay exactly
-as they are. This profile is not promoted to a shared package: a second real
-consumer has to need the same composition policy first, and a CLI acting as a
-thin HTTP client is not one. Whether a CLI running directly against the
-distributed services becomes such a consumer stays deliberately open.
+`hosts` rather than `entries` or `deployments`: each file is one process host,
+which is the word the topology already uses, and both of these correspond to
+declared roles. `deployments` is taken — `@lcase/message-topology/deployments`
+means the messaging presets.
+
+**The profile stays app-local.** Not for want of a rule, but because the role it
+composes is a waypoint: `api-engine-observer-host` holds Engine and Observability
+alongside the API, while the distributed shape actually wanted holds neither (see
+the deployment shapes in `INITIATIVE.md`). A package here would fix a boundary
+around a shape nobody keeps. The second consumer that would justify one is a CLI
+running app-services against remote infrastructure, which stays open.
+
+**Entry points, not a bundler.** `tsc` already emits every file under `src/`, so
+`node dist/hosts/api.js` needs nothing new, and this Change adds no build tooling.
+Bundling each host into a narrow artifact was measured separately and works — see
+[`research/deployment-artifacts-from-static-entrypoints.md`](../research/deployment-artifacts-from-static-entrypoints.md)
+— but adopting it is a deployment concern, and it belongs with C28's deployable
+closure work rather than here. What this Change owes that later step is only that
+each host is reachable from its own static entry point, because that is what makes
+an artifact boundary possible at all.
 
 **This Change's proof is partial by construction, and should say so.** With no
 Worker process running, a submitted run cannot complete. The honest evidence is
@@ -1165,32 +1186,45 @@ that the process starts, binds both subscriptions, publishes a command onto the
 command work route where it can be observed directly, and then does not advance
 — because nothing consumed it. That the run stalls is the evidence, not a
 defect: it is what shows no local Worker fallback exists. Completing a run is
-C27's claim.
+C28's claim.
 
-The third copy of the infrastructure selectors arrives here. Record what the
-triplication actually shows rather than reacting to it: the selectors
-(`buildSqlClient`, `buildArtifactStore`, `buildMessageRouter`) are identical
-across all three profiles and will stay identical, while the component builders
-(`buildWorker`, `buildEngine`, `buildObservability`) are where profiles
-legitimately differ — a worker-host would not want the embedded profile's
-console lifecycle sink. Whether the extraction lands inside this Change or as
-its own depends on whether it stays mechanical; see `docs/todo.md`.
+The third copy of the infrastructure selectors arrives here, and it is a narrower
+copy than "three" suggests. This host is forced to Postgres, S3, and Redis for
+the same reasons `apps/worker-host` is, so `buildSqlClient`,
+`buildArtifactStore` and `buildMessageRouter` would be identical to worker-host's
+rather than a third variant — two narrow copies and one wide embedded one. The
+component builders are where profiles legitimately differ, which is the
+distinction worth recording: a Worker host would not want the embedded profile's
+console lifecycle sink. Whether extraction lands here or separately still depends
+on whether it stays mechanical; see `docs/todo.md`.
+
+Deployable closure is not an argument either way, though it resembles one.
+`apps/worker-host` already installs `@prisma/adapter-better-sqlite3` and native
+`better-sqlite3` through `@lcase/db-prisma`'s manifest, so the narrowness a shared
+selectors package would supposedly spoil does not exist. The spike above showed
+that bundling removes the question rather than answering it, since an artifact
+carries no manifest at all.
+
+**Out of scope.** Serving the workbench's static assets, which `src/http/` is the
+eventual home for but which nothing needs yet. Renaming the package now that it
+houses more than one host — cheap, and easier to judge once both exist. And the
+two workspace-coupling fixes in `docs/todo.md`, which block deployment rather
+than this Change and are better done on their own.
 
 **Completion evidence.**
 
-- The distributed profile is app-local to `apps/http-server`, constructs no
-  Worker and no remote placeholder resource, and leaves
-  `@lcase/profile-local-system` and the embedded entrypoint untouched.
+- Both hosts build and run from their own entry point under `src/hosts/`, with
+  the embedded one behaviourally unchanged from today's `main.ts`.
+- The API host's profile is app-local, constructs no Worker and no remote
+  placeholder resource, and leaves `@lcase/profile-local-system` untouched.
 - It resolves the same manifest as C25 for the other role, with neither role
   naming the other.
 - A run submitted over HTTP publishes a command onto the command work route,
   observable on that stream, and the run does not reach a terminal state.
-- The embedded profile and its filesystem, SQLite, and in-process branches
-  remain green.
-- The deployable dependency inventory of both profiles is recorded, without yet
-  acting on it.
+- The embedded host and its filesystem, SQLite, and in-process branches remain
+  green, including its integration suite.
 
-## Change C27 - Run and prove the distributed deployment - not started
+## Change C28 - Run and prove the distributed deployment - not started
 
 ### Discussion
 
@@ -1201,7 +1235,7 @@ retrieve shared artifacts, publish the terminal back across Redis, and reach the
 expected completed run state at Engine. The proof must fail if the Worker host
 is absent or misconfigured rather than succeeding through a local fallback.
 
-With C25 and C26 each proven alone, this Change's own content is the three
+With C25 and C27 each proven alone, this Change's own content is the three
 things neither could supply:
 
 **The provisioning and readiness race deferred by C22.** Before the companion
@@ -1249,7 +1283,7 @@ truthful without one of them.
 - The recorded deployable dependency inventories either justify the current
   provider package boundary or create a concrete follow-on Change to narrow it.
 
-## Change C28 - Give Worker truthful managed lifecycle and controlled ingress - not started
+## Change C29 - Give Worker truthful managed lifecycle and controlled ingress - not started
 
 ### Discussion
 

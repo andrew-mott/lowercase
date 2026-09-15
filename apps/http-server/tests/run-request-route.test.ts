@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { requestRunsRoute } from "../src/routes/runs/request.js";
 
@@ -14,7 +15,7 @@ describe("run request route", () => {
         requestRun: vi.fn(),
         makeRunId: vi.fn().mockReturnValue("run-1"),
       },
-    });
+    } as unknown as ServicesPort);
 
     await app.register(requestRunsRoute, { prefix: "/api/runs" });
 
@@ -43,7 +44,7 @@ describe("run request route", () => {
         requestRun,
         makeRunId: vi.fn().mockReturnValue("run-123"),
       },
-    });
+    } as unknown as ServicesPort);
 
     await app.register(requestRunsRoute, { prefix: "/api/runs" });
 
@@ -90,7 +91,7 @@ describe("run request route", () => {
         requestRun: vi.fn().mockRejectedValue(new Error("Invalid run params")),
         makeRunId: vi.fn().mockReturnValue("run-123"),
       },
-    });
+    } as unknown as ServicesPort);
 
     await app.register(requestRunsRoute, { prefix: "/api/runs" });
 

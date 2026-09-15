@@ -99,6 +99,7 @@ describe("EvalResultProjectionSink", () => {
       createEvalResult: vi.fn().mockResolvedValue({ ok: true, value: {} }),
       listByExperimentId: vi.fn(),
       listByTargetRunId: vi.fn(),
+      listByTargetShape: vi.fn(),
     };
     const runQuery = makeRunQuery();
     const artifacts = makeArtifacts();
@@ -135,6 +136,7 @@ describe("EvalResultProjectionSink", () => {
       createEvalResult: vi.fn(),
       listByExperimentId: vi.fn(),
       listByTargetRunId: vi.fn(),
+      listByTargetShape: vi.fn(),
     };
     const runQuery = makeRunQuery();
     const artifacts = makeArtifacts();
@@ -154,6 +156,7 @@ describe("EvalResultProjectionSink", () => {
       createEvalResult: vi.fn(),
       listByExperimentId: vi.fn(),
       listByTargetRunId: vi.fn(),
+      listByTargetShape: vi.fn(),
     };
     const runQuery = makeRunQuery([]);
     const artifacts = makeArtifacts();
@@ -178,6 +181,7 @@ describe("EvalResultProjectionSink", () => {
       createEvalResult: vi.fn().mockResolvedValue({ ok: true, value: {} }),
       listByExperimentId: vi.fn(),
       listByTargetRunId: vi.fn(),
+      listByTargetShape: vi.fn(),
     };
     const getRunDetail = vi
       .fn()
@@ -227,6 +231,7 @@ describe("EvalResultProjectionSink", () => {
       createEvalResult: vi.fn(),
       listByExperimentId: vi.fn(),
       listByTargetRunId: vi.fn(),
+      listByTargetShape: vi.fn(),
     };
     const runQuery = makeRunQuery();
     const artifacts = makeArtifacts({ not: "a valid payload" });

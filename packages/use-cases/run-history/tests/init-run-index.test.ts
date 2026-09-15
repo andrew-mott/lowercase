@@ -22,6 +22,7 @@ describe("run-history initRunIndex()", () => {
       traceid: "test-traceid",
       spanid: "test-spanid",
       flowid: "test-flowid",
+      flowversionid: "test-flowversionid",
       runid: "test-runid",
     } satisfies AnyEvent<"run.requested">;
 
@@ -63,6 +64,7 @@ describe("run-history initRunIndex()", () => {
       traceid: "test-traceid",
       spanid: "test-spanid",
       flowid: "test-flowid",
+      flowversionid: "test-flowversionid",
       runid: "test-runid",
     } satisfies AnyEvent<"flow.submitted">;
 

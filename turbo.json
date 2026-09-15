@@ -40,10 +40,10 @@
     "clean": {
       "cache": false
     },
-    "clean-dist": {
+    "clean:dist": {
       "cache": false
     },
-    "clean-node-modules": {
+    "clean:node-modules": {
       "cache": false
     }
   }

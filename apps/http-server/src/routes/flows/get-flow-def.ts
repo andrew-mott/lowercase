@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 export const getFlowDefRoute = async (app: FastifyInstance) => {
-  app.get<{ Params: { flowId: unknown } }>("/:flowId", async (req, reply) => {
+  app.get<{ Params: { flowId: unknown } }>("/:flowId", async (req) => {
     const { flowId } = req.params;
     if (!isFlowId(flowId)) {
       return { ok: false, error: "Invalid flow id format" };

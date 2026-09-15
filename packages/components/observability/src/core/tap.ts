@@ -3,7 +3,7 @@ import type {
   EventSink,
   ObservabilityTapPort,
 } from "@lcase/ports";
-import { AnyEvent } from "@lcase/types";
+import type { AnyEvent } from "@lcase/types";
 
 export class ObservabilityTap implements ObservabilityTapPort {
   #subscribeTopic = "observability";

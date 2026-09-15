@@ -1,4 +1,4 @@
-import {
+import type {
   ArtifactRepositoryPort,
   ArtifactReaderPort,
   EmitterFactoryPort,
@@ -13,7 +13,7 @@ import {
   isArtifactCompatible,
 } from "@lcase/flow-analysis";
 import { createRunId, runFlow } from "@lcase/run-flow";
-import {
+import type {
   FlowAnalysis,
   FlowDefinition,
   Result,

@@ -1,9 +1,6 @@
 import type { ReplayServicePort } from "@lcase/ports";
 import type { ReplayEnginePort } from "@lcase/ports/replay";
-import { AnyEvent } from "@lcase/types";
 
-type RunId = string;
-type EventId = string;
 export class ReplayService implements ReplayServicePort {
   constructor(private replay: ReplayEnginePort) {}
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseExportRef, parseRef } from "../src/parse-references.js";
-import { FlowProblem, Ref } from "@lcase/types";
+import type { FlowProblem, Ref } from "@lcase/types";
 
 describe("getRegStrings()", () => {
   it("parses simple strings correctly", () => {

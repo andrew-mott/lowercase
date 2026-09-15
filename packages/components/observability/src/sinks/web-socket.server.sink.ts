@@ -1,6 +1,7 @@
-import { EventSink } from "@lcase/ports";
-import { AnyEvent } from "@lcase/types";
-import { WebSocket, WebSocketServer } from "ws";
+import type { EventSink } from "@lcase/ports";
+import type { AnyEvent } from "@lcase/types";
+import type { WebSocket } from "ws";
+import { WebSocketServer } from "ws";
 
 export class WebSocketServerSink implements EventSink {
   id = "websocket-sink";
@@ -19,7 +20,7 @@ export class WebSocketServerSink implements EventSink {
       this.wss.on("connection", (socket) => {
         this.socket = socket;
         this.socket.ping();
-        this.socket.on("pong", (event) => {
+        this.socket.on("pong", () => {
           resolve();
         });
       });

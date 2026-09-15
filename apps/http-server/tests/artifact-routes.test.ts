@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import { describe, expect, it, vi } from "vitest";
 import { getArtifactRoute } from "../src/routes/artifacts/get-artifact.js";
 import { listArtifactsRoute } from "../src/routes/artifacts/list-artifacts.js";
@@ -13,7 +14,7 @@ describe("artifact routes", () => {
           { hash: "a".repeat(64), time: "2025-01-01T00:00:00.000Z" },
         ]),
       },
-    });
+    } as unknown as ServicesPort);
 
     await app.register(listArtifactsRoute);
 
@@ -42,7 +43,7 @@ describe("artifact routes", () => {
           value: "# prompt",
         }),
       },
-    });
+    } as unknown as ServicesPort);
 
     await app.register(getArtifactRoute);
 

@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { ConcurrencyLimiter, JobEntry } from "../../src/concurrency-limiter.js";
+import type { JobEntry } from "../../src/concurrency-limiter.js";
+import { ConcurrencyLimiter } from "../../src/concurrency-limiter.js";
 import type {
   EmitterFactoryPort,
   EventBusPort,
   SlotAccessDecision,
 } from "@lcase/ports";
-import { AnyEvent, ToolSpec } from "@lcase/types";
+import type { AnyEvent, ToolSpec } from "@lcase/types";
 
 const toolId = "test-toolid";
 const event = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { findAndParseRefs } from "../src/analyze-references";
-import { FlowAnalysis, FlowDefinition, StepHttpJson } from "@lcase/types";
+import { findAndParseRefs } from "../src/analyze-references.js";
+import type { FlowAnalysis, FlowDefinition, StepHttpJson } from "@lcase/types";
 
 describe("findAndParseRefs()", () => {
   it("find and parses references in a step", () => {
@@ -67,9 +67,6 @@ describe("findAndParseRefs()", () => {
       },
       problems: [],
     };
-    const fd = {
-      steps: {},
-    } as unknown as FlowDefinition;
 
     findAndParseRefs("bar", flowDef, flowAnalysis);
     expect(flowAnalysis).toEqual(expectedFlowAnalysis);

@@ -4,7 +4,7 @@ import type {
   EmitterFactoryPort,
   EventBusPort,
 } from "@lcase/ports";
-import { AnyEvent } from "@lcase/types";
+import type { AnyEvent } from "@lcase/types";
 import { defaultToolsConfig } from "./default-tools.config.js";
 
 type BusTopic = string;
@@ -35,7 +35,6 @@ export class Limiter {
 
   async start() {
     const slot = "worker.slot.requested";
-    const token = "worker.token.requested";
     const slotFinished = "worker.slot.finished";
     this.busTopics.set(
       slot,

@@ -13,6 +13,7 @@ function makeRunService(): RunServicePort {
     requestRun: vi.fn().mockResolvedValue(undefined),
     makeRunId: vi.fn().mockReturnValue("run-eval-1"),
     listAllRuns: vi.fn(),
+    listRunsByFlowVersionId: vi.fn(),
     getRunDetail: vi.fn(),
     getRunParams: vi.fn(),
   };

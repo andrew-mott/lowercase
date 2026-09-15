@@ -7,12 +7,14 @@
     "pwp": "./dist/main.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node ../../scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "echo test",
-    "lint": "echo lint",
+    "lint": "eslint .",
     "start": "node ./dist/main.js",
-    "dev": "npx tsx ./src/main.ts"
+    "dev": "npx tsx ./src/main.ts",
+    "clean:dist": "node ../../scripts/clean-dist.mjs",
+    "clean:node-modules": "node ../../scripts/clean-node-modules.mjs"
   },
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
@@ -25,9 +27,12 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@lcase/types": "workspace:*",
+    "@eslint/js": "^9.39.1",
     "@lcase/ports": "workspace:*",
+    "@lcase/types": "workspace:*",
     "@types/ws": "^8.18.1",
+    "eslint": "^9.39.1",
+    "typescript-eslint": "^8.46.4",
     "vitest": "^3.2.4"
   }
 }

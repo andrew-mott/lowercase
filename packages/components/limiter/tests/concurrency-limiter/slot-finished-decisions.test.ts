@@ -9,7 +9,7 @@ import type {
   EventBusPort,
   SlotAccessDecision,
 } from "@lcase/ports";
-import { AnyEvent, ToolSpec } from "@lcase/types";
+import type { AnyEvent, ToolSpec } from "@lcase/types";
 
 const toolId = "test-toolid";
 const event = {

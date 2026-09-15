@@ -8,7 +8,6 @@ import type {
   StepCapCommonFields,
   StepOnField,
   FlowDefinition,
-  RunParams,
 } from "@lcase/types";
 import { StepParallelSchema } from "./parallel.schema.js";
 import { StepJoinSchema } from "./join.schema.js";

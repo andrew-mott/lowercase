@@ -1,11 +1,11 @@
-import { FastifyInstance } from "fastify";
-import { GetRunParamsRes } from "@lcase/types";
+import type { FastifyInstance } from "fastify";
+import type { GetRunParamsRes } from "@lcase/types";
 import { isRunId } from "../../utils/is-run-id.js";
 
 export const getRunParamsRoute = async (app: FastifyInstance) => {
   app.get<{ Params: { runId: unknown } }>(
     "/:runId/params",
-    async (req, reply): Promise<GetRunParamsRes> => {
+    async (req): Promise<GetRunParamsRes> => {
       const { runId } = req.params;
       if (!isRunId(runId)) return { ok: false, error: "Invalid run id" };
 

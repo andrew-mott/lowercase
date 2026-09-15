@@ -54,10 +54,10 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "clean-dist": "rm -rf dist",
-    "clean-node-modules": "rm -rf ./node_modules",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "build": "node ../../scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+    "clean:dist": "node ../../scripts/clean-dist.mjs",
+    "clean:node-modules": "node ../../scripts/clean-node-modules.mjs",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "lint": "eslint ."

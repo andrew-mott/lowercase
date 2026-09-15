@@ -5,7 +5,7 @@ import {
   type ToolQueues,
 } from "../../src/concurrency-limiter.js";
 import type { EmitterFactoryPort, EventBusPort } from "@lcase/ports";
-import { ToolSpec } from "@lcase/types";
+import type { ToolSpec } from "@lcase/types";
 
 describe("ConcurrencyLimiter loadConfig()", () => {
   it("creates valid state when loading a config", () => {
