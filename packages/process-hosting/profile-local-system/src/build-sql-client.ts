@@ -9,7 +9,7 @@ import {
   PrismaClient as PostgresClient,
   defaultPostgresUrl,
 } from "@lcase/db-prisma/postgres";
-import type { SqlConfig } from "./config/sql.config.js";
+import type { SqlUserConfig } from "@lcase/types";
 import type { LifecycleHooks } from "@lcase/assembly";
 
 export type BuiltSqlClient = {
@@ -20,7 +20,7 @@ export type BuiltSqlClient = {
 // The one real per-provider choice this profile makes -- isolated into its own
 // function so the branch is directly unit-testable without pulling in the rest
 // of the profile's wiring, matching buildArtifactStore and buildMessageRouter.
-export function buildSqlClient(config: SqlConfig): BuiltSqlClient {
+export function buildSqlClient(config: SqlUserConfig): BuiltSqlClient {
   // No cast on either branch. `PortableSqlClient` is a strict narrowing of the
   // SQLite client, so these two assignments are what prove both providers are
   // usable here -- a failure is a real incompatibility, not a nuisance, and

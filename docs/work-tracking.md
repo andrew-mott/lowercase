@@ -14,7 +14,7 @@ files hold the actual work history.
 - **GitHub PR (`PR #N`)** — the repository-wide pull request object assigned
   by GitHub. It is not a Change identifier.
 
-Write a complete internal reference as `I3 / A2 / C4`. `I#` is globally
+Write a complete internal reference as `I3 / A2 / C4` (hardly ever used if ever). `I#` is globally
 unique; `A#` and `C#` are scoped to their initiative, so do not cite either
 alone where the initiative is not already clear. Never reuse an assigned ID.
 
@@ -35,12 +35,9 @@ index, not filename numbering, maps IDs to documents.
 
 ## Writing rules
 
-- Refer to an internal unit as `Change C4`, not `PR 4`.
+- Refer to an internal unit as `Change C4` or `C4`, not `PR 4`.
 - Refer to the external object as `GitHub PR #381` or `PR #381`, never `PR
 381` when ambiguity is likely.
-- In a GitHub PR description, add `Internal tracking: I3 / A2 / C4` when the
-  documentation link is useful. Keep these IDs out of PR titles and
-  user-facing text.
 - Code comments explain durable behavior or rationale. Do not add tracking
   IDs to them unless the ID is a useful, durable link to a design record; use
   the documentation link in that rare case.
@@ -50,8 +47,36 @@ index, not filename numbering, maps IDs to documents.
   Remove a stale or decorative date rather than guessing a replacement. Keep
   historical dates only when they are factual, or verify a correction from
   repository history before changing one.
-- An initiative's Change index records both identifiers at merge time, for
-  example `C4 — merged (PR #381)`.
+- An initiative's Change index carries each Change's current status, and gains
+  the GitHub identifier once it merges, for example `C4 — merged (PR #381)`.
+  See Change status below.
+
+## Change status
+
+A Change moves through four states, recorded identically in the arc file's
+Change heading and in the initiative's Change index:
+
+- **not started** — written down, nothing built.
+- **in progress** — being implemented.
+- **in review** — implemented and verified, with the pull request open or about
+  to be.
+- **merged (PR #N)** — landed. The GitHub identifier appears here and nowhere
+  earlier, because it does not exist until the pull request is opened.
+
+Move through the states rather than skipping them. A Change that goes straight
+from `not started` to `merged` leaves no record that it was ever in flight,
+which is most of what the status is for. Its not a big deal if this is missing, generally the imporant thing is before a PR, its at least moved to `in review`, then post PR, to `merged (PR #N)`.
+
+A Change's **What actually landed** section is written _before_ the pull request
+is opened, while the implementation is fresh and while it can still inform the
+PR description. It records where the outcome diverged from the Discussion —
+decisions reversed, constraints discovered, scope that moved in or out — not a
+summary of the diff. A Change whose Discussion was itself written after the code
+needs no such section: it already describes the outcome.
+
+After merge the only remaining edit is bookkeeping — the status becomes
+`merged (PR #N)` in both places, and the initiative's "Next up" list drops the
+entry.
 
 ## Migration playbook
 

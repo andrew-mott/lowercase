@@ -5,7 +5,7 @@ import {
   createLocalResourcePermit,
   Worker,
 } from "@lcase/worker";
-import type { WorkerConfig } from "./config/worker.config.js";
+import type { WorkerUserConfig } from "@lcase/types";
 import type { JobTerminalType } from "@lcase/message-topology/catalogs";
 
 // Component identity is composition's to decide, not the component's, so the
@@ -23,7 +23,7 @@ export type BuildWorkerDeps = {
 // built by Worker, so runtime cannot compose one that bypasses either.
 export function buildWorker(
   deps: BuildWorkerDeps,
-  config: WorkerConfig,
+  config: WorkerUserConfig,
 ): Worker {
   const permits = createLocalResourcePermit({
     maxConcurrencyPerKey: config.maxConcurrencyPerKey,

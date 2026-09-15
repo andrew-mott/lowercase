@@ -930,7 +930,7 @@ observation assertion changed from sorted to ordered, which is the test-level
 form of the same claim; the in-process slice is unchanged, which is what shows
 the semantics are shared rather than coincidental.
 
-## Change C24 - Scaffold the Worker-host app - not started
+## Change C24 - Scaffold the Worker-host app - merged (PR #383)
 
 ### Discussion
 
@@ -984,7 +984,7 @@ makes no drain or stop guarantee.
 - The README records the dependency prohibition, the infrastructure
   requirement, and the absence of a lifecycle guarantee.
 
-## Change C25 - Build the Worker-host process - not started
+## Change C25 - Build the Worker-host process - in review
 
 ### Discussion
 
@@ -1034,6 +1034,21 @@ own. Do not extract a shared package as part of this Change. Two copies is not
 yet evidence of the right boundary, and the extraction question has a real
 design fork inside it recorded in `docs/todo.md`.
 
+**The copies are narrowed, not verbatim.** Each implements only the arm this
+host selects, so `buildSqlClient` builds a Postgres client and nothing else,
+`buildArtifactStore` an S3 store, `buildMessageRouter` a Redis carrier. Carrying
+the unreachable branches would cost twice over. It would put
+`@prisma/adapter-better-sqlite3` and `FsArtifactStore` inside the dependency
+closure C27 exists to inspect, for branches this process can never take. And it
+would make the comparison at C26 a tautology: three identical files prove only
+that they were copied, which is what deferring the extraction was meant to avoid
+assuming. Narrowed copies make the diff between them the evidence, showing
+whether these hosts want the same function or only the same shape. `buildWorker`
+is the one expected to differ on content rather than by dropping a branch — its
+console lifecycle sink is the choice a real Worker host would make differently —
+and that difference is the one worth still being legible when C26 asks what the
+copies proved.
+
 **Claim no drain.** This Change adds no lifecycle contract; C28 does. The Redis
 carrier's `stop()` already ends intake, awaits its read loops, and only then
 closes connections, and a loop awaits handler settlement through the lane, so
@@ -1066,7 +1081,70 @@ integration test before an entrypoint exists at all.
 - No lifecycle, drain, or retained-entry guarantee is stated anywhere in the
   app.
 
-## Change C26 - Build the companion non-Worker process - not started
+### What actually landed
+
+**The config types moved to `@lcase/types`, and that is not the extraction this
+Change refused.** The Discussion says not to extract a shared package, and the
+builders duly stayed duplicated. The types did not: `apps/worker-host`'s first
+config module was byte-identical to `profile-local-system`'s `S3ArtifactStoreConfig`
+apart from its name, which is duplication with nothing to learn from. What
+separates the two cases is dependencies. An infra-selection package needs
+`@lcase/adapters`, `@prisma/*`, `@aws-sdk/client-s3` and `redis`; the config
+types need nothing at all -- the whole folder had no imports outside itself. So
+`@lcase/types/process-hosting` now owns the four axes, and a profile narrows a
+union to the arms it supports rather than restating an arm. Worker-host selects
+`PostgresSqlUserConfig`, `S3ArtifactStoreUserConfig` and
+`RedisStreamsMessagingUserConfig` directly, so its narrowing is a type
+selection rather than a copy.
+
+**That move named a layer that existed without a name.** `@lcase/worker` already
+exported a `WorkerConfig` -- the second constructor argument, carrying `source`
+and no permit settings -- while the profile had a different type of the same
+name carrying `maxConcurrencyPerKey` and no source. They describe different
+things: one is what a component is constructed with, the other is what a person
+writes down. The moved types are the second kind and are suffixed `UserConfig`
+to say so, which also anticipates their becoming a file a user edits rather than
+a TypeScript literal.
+
+**The copies diverged on content for the first time, and it was the artifact
+store rather than `buildWorker`.** The arc expected Worker's hardcoded console
+lifecycle sink to be where profiles part company. It was not: there is still
+only one sink implementation, a container captures stdout anyway, and this host
+passes the same one -- the fix was making it a parameter so a future host needs
+no third copy. The real divergence came from truthfulness at startup.
+Constructing an `S3Client` reaches nothing, so the process reported a healthy
+start having never contacted object storage, and a wrong bucket would have
+surfaced inside whichever job ran first, after that job's command had already
+been consumed. `buildArtifactStore` here returns `{ store, hooks }` with a
+`HeadBucket` start hook and the store is a third managed resource; the embedded
+profile's copy still returns a bare port. The hook reaches the client this
+builder made rather than a method on the store, which is the one asymmetry with
+`buildSqlClient`'s `SELECT 1`; putting a reachability method on
+`ArtifactStorePort` is the alternative and wants a second caller before it earns
+three implementations.
+
+**Binding became its own function, against the embedded profile's stated
+position.** `local-system.profile.ts` says its bind sequence is written inline
+"rather than hidden behind a helper" because the router enforces the ordering
+itself. That reasoning does not follow -- enforcement is what makes hiding the
+sequence _safe_ -- and extracting `bindSubscriptions` hides no sequence anyway,
+since the call site still reads build, bind, seal in order. `seal()` stays in the
+composition root, because a helper that sealed would decide on the root's behalf
+that the list is complete.
+
+**Two closed seams shaped the tests more than the design did.** `buildWorker`
+constructs its own permits and protocol executor, deliberately, so that
+composition cannot hand Worker something that bypasses either -- which also means
+there is no way to observe from outside that `maxConcurrencyPerKey` reached the
+permit adapter rather than Worker's own bound. `buildWorker` therefore has no
+unit tests, and the integration suite has to stand up a real HTTP server on an
+ephemeral port because there is no `fetch` to stub. Both are the cost of a
+property worth keeping, recorded here so neither reads as an oversight.
+
+**`@lcase/test-support` gained `postgresTestDatabaseUrl()`.** Its existing
+surface hands back a client, which is the wrong shape for a profile whose entire
+premise is building its own client from configuration. The per-worker database
+name stays private, so nothing outside that package restates the convention.
 
 ### Discussion
 

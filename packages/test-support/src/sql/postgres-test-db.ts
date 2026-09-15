@@ -21,6 +21,19 @@ function workerDatabaseName(): string {
 }
 
 /**
+ * The connection URL for this worker's database, for a suite that needs to hand
+ * a URL to the code under test rather than use a client this package built --
+ * a process profile selecting its own SQL backend from configuration, say.
+ *
+ * Naming a database is not creating one. This returns the same database
+ * `createPostgresTestDb()` provisions, so call that first when the schema has to
+ * be there.
+ */
+export function postgresTestDatabaseUrl(): string {
+  return workerDatabaseUrl(postgresTestUrl(), workerDatabaseName());
+}
+
+/**
  * Created on demand rather than in global setup, which cannot know how many
  * workers vitest will start. Existence is checked rather than assumed because
  * vitest isolates modules per test file, so this runs again for every file that

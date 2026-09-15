@@ -13,3 +13,9 @@ const repoRoot = path.resolve(
   "../../..",
 );
 config({ path: path.join(repoRoot, ".env.test.local") });
+
+// .env second, so anything test-specific above wins. It is loaded at all
+// because POSTGRES_HOST_PORT lives there: docker compose reads that file
+// natively when publishing the port, and the Prisma configs already read it, so
+// the suites reading it too is what makes one variable move all three.
+config({ path: path.join(repoRoot, ".env") });

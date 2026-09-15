@@ -80,23 +80,21 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C21    | Declare deployment topology as standalone static data                          | merged (PR #380) | [6]   |          |
 | C22    | Bind each process to its host plan rather than the full topology               | merged (PR #381) | [6]   |          |
 | C23    | Add one ordered Redis route for Observability                                  | merged (PR #382) | [6]   |          |
-| C24    | Scaffold the Worker-host app                                                   | not started      | [6]   |          |
-| C25    | Build the Worker-host process                                                  | not started      | [6]   |          |
+| C24    | Scaffold the Worker-host app                                                   | merged (PR #383) | [6]   |          |
+| C25    | Build the Worker-host process                                                  | in review        | [6]   |          |
 | C26    | Build the companion non-Worker process                                         | not started      | [6]   |          |
 | C27    | Run and prove the distributed deployment                                       | not started      | [6]   |          |
 | C28    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
 
 ## Next up
 
-1. **C24:** scaffold `apps/worker-host` with its own tasks and one module that
-   resolves this role's slice of the deployment, and nothing else.
-2. **C25:** build its app-local profile over Redis, Postgres, and S3/MinIO, and
-   prove it answers a directly submitted command alone.
-3. **C26:** add the companion non-Worker profile inside `apps/http-server`,
+1. **C25:** build `apps/worker-host`'s app-local profile over Redis, Postgres,
+   and S3/MinIO, and prove it answers a directly submitted command alone.
+2. **C26:** add the companion non-Worker profile inside `apps/http-server`,
    leaving the embedded profile and server path unchanged.
-4. **C27:** run both processes together, settle consumer-group readiness, and
+3. **C27:** run both processes together, settle consumer-group readiness, and
    prove the real two-process path end to end.
-5. **C28:** make Worker a truthful managed resource and coordinate command
+4. **C28:** make Worker a truthful managed resource and coordinate command
    intake with active-work settlement, now designed against a process that
    hosts Worker alone.
 

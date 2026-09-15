@@ -65,3 +65,6 @@ export * from "./artifacts/artifact-list-item.js";
 
 // sql return types used in adapters / api responses
 export * from "./db-sql/index.js";
+
+// backend selection shared by every process profile
+export * from "./process-hosting/index.js";

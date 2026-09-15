@@ -36,7 +36,7 @@ function resolveFileUrl(url: string): string {
  * whichever app you started. Moving the database to match them would point a
  * server at an empty new file rather than the one it has been writing to.
  *
- * An app that wants its own database passes a URL through `SqlConfig` instead of
+ * An app that wants its own database passes a URL through `SqlUserConfig` instead of
  * relying on this.
  */
 export function defaultSqliteUrl(): string {

@@ -6,7 +6,7 @@ import {
   localSystemInProcess,
   localSystemRedis,
 } from "@lcase/message-topology/deployments";
-import type { MessagingConfig } from "./config/messaging.config.js";
+import type { MessagingUserConfig } from "@lcase/types";
 
 /**
  * Which deployment this process is running, chosen by the one config axis that
@@ -21,7 +21,9 @@ import type { MessagingConfig } from "./config/messaging.config.js";
  * pairing -- which is why `buildMessageRouter` asserts the two match rather
  * than choosing between them a second time.
  */
-export function manifestFor(kind: MessagingConfig["kind"]): MessagingManifest {
+export function manifestFor(
+  kind: MessagingUserConfig["kind"],
+): MessagingManifest {
   const manifest =
     kind === "in-process" ? localSystemInProcess : localSystemRedis;
 

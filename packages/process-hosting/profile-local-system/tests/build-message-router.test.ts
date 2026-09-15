@@ -4,11 +4,11 @@ import { manifestFor } from "../src/select-manifest.js";
 import { hostPlanFor, resolveHostPlan } from "@lcase/message-topology";
 import { localSystemRole } from "@lcase/message-topology/deployments";
 import { jobCatalog } from "@lcase/message-topology/catalogs";
-import type { MessagingConfig } from "../src/config/messaging.config.js";
+import type { MessagingUserConfig } from "@lcase/types";
 
 // The chain the profile runs, so the branch below is exercised on a plan
 // production could actually have produced rather than a hand-built one.
-const planFor = (kind: MessagingConfig["kind"]) =>
+const planFor = (kind: MessagingUserConfig["kind"]) =>
   resolveHostPlan(
     hostPlanFor(manifestFor(kind), localSystemRole.id),
     jobCatalog,

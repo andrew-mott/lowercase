@@ -1,17 +1,53 @@
-import { workerHostPlan } from "./host-plan.js";
+import { config } from "./runtime.config.js";
+import { createWorkerHost } from "./profile/worker-host.profile.js";
 
-// Scaffold entrypoint. The host plan resolves, which is enough to prove this
-// process can derive its own slice of the deployment -- but nothing is
-// constructed, connected, or bound yet, so this exits rather than pretending to
-// be a running Worker host.
-//
-// What lands here: config parsing, the app-local profile (Redis carrier,
-// Postgres, S3/MinIO, Worker), the managed runtime, and a signal handler that
-// stops it. No drain guarantee -- see README.
-const plan = workerHostPlan();
-console.log(
-  `[worker-host] plan resolved: role '${plan.roleId}' of manifest '${plan.manifestId}' over ${plan.carrier}`,
-);
-console.log("Full plan object:", JSON.stringify(plan, null, 2));
-console.log("[worker-host] not runnable yet: no profile is wired.");
-process.exitCode = 1;
+const { runtime } = createWorkerHost(config);
+
+const started = await runtime.start();
+if (!started.ok) {
+  // `start()` reports rather than throws, and a process that ignored this would
+  // sit connected to nothing, consuming no Messages and saying so to no one.
+  // Resources that had already started were rolled back before this returned.
+  console.error(
+    `[worker-host] failed to start: resource '${started.failedResourceId}': ${started.error}`,
+  );
+  if (!started.rollback.ok) {
+    console.error(
+      "[worker-host] rollback also failed:",
+      started.rollback.errors,
+    );
+  }
+  process.exitCode = 1;
+} else {
+  console.log("[worker-host] started; consuming worker.job-command.v1");
+}
+
+let stopping = false;
+
+/**
+ * Ends intake and closes connections. This is not a drain: nothing reclaims
+ * entries already claimed by another consumer, and nothing waits on work that
+ * has not been read yet.
+ *
+ * What it does do is bounded and worth having. The router stops reading, then
+ * awaits its read loops -- a blocking read returns within one `blockMs` -- so a
+ * batch already claimed is worked through and its terminals published before the
+ * publisher connection closes. SQL disconnects after the router, so those
+ * writes still land.
+ */
+async function shutdown(signal: string): Promise<void> {
+  if (stopping) return;
+  stopping = true;
+
+  console.log(`[worker-host] ${signal} received, stopping`);
+  const stopped = await runtime.stop();
+  if (!stopped.ok) {
+    console.error("[worker-host] stop reported errors:", stopped.errors);
+    process.exitCode = 1;
+  }
+}
+
+// Nothing else holds the event loop open: the read loops' Redis connections are
+// what keep this process alive, and closing them is what lets it exit.
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
