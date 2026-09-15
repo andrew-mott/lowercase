@@ -4,13 +4,13 @@ import {
   S3ArtifactStore,
 } from "@lcase/adapters/artifact-store";
 import { S3Client } from "@aws-sdk/client-s3";
-import type { ArtifactStoreConfig } from "./config/artifact-store.config.js";
+import type { ArtifactStoreUserConfig } from "@lcase/types";
 
 // The one real per-instance choice this profile makes -- isolated into its
 // own function so the branch is directly unit-testable without pulling in
 // the rest of the profile's wiring.
 export function buildArtifactStore(
-  config: ArtifactStoreConfig,
+  config: ArtifactStoreUserConfig,
 ): ArtifactStorePort {
   switch (config.kind) {
     case "filesystem":

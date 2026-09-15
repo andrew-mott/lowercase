@@ -1,6 +1,6 @@
 import { createClient, type RedisClientType } from "redis";
 import { RedisMessageLog } from "@lcase/adapters/message-log";
-import type { MessagingConfig } from "./config/messaging.config.js";
+import type { MessagingUserConfig } from "@lcase/types";
 import {
   createInProcessMessageRouter,
   createRedisMessageRouter,
@@ -21,7 +21,7 @@ export type BuiltMessageRouter = {
 // function so the branch is directly unit-testable without pulling in the rest
 // of the profile's wiring, matching buildArtifactStore.
 export function buildMessageRouter(
-  config: MessagingConfig,
+  config: MessagingUserConfig,
   plan: ResolvedHostPlan,
 ): BuiltMessageRouter {
   // Switched on the config rather than on `plan.carrier`, because the config is

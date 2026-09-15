@@ -10,16 +10,29 @@
     "lint": "eslint .",
     "start": "node ./dist/main.js",
     "dev": "npx tsx ./src/main.ts",
-    "test:integration": "echo test:integration",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
     "clean-dist": "rm -rf ./dist",
     "clean-node-modules": "rm -rf ./node_modules"
   },
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
-    "@lcase/message-topology": "workspace:*"
+    "@aws-sdk/client-s3": "^3.1121.0",
+    "@lcase/adapters": "workspace:*",
+    "@lcase/artifacts": "workspace:*",
+    "@lcase/assembly": "workspace:*",
+    "@lcase/db-prisma": "workspace:*",
+    "@lcase/message-router": "workspace:*",
+    "@lcase/message-topology": "workspace:*",
+    "@lcase/worker": "workspace:*",
+    "@prisma/adapter-pg": "^7.8.0",
+    "redis": "^6.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@lcase/events": "workspace:*",
+    "@lcase/ports": "workspace:*",
+    "@lcase/test-support": "workspace:*",
+    "@lcase/types": "workspace:*",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.1",
     "typescript-eslint": "^8.46.4",
