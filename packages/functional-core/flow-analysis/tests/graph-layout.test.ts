@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { analyzeFlow } from "../src/analyze-flow.js";
 import { graphLayout } from "../src/graph-layout.js";
-import type {
-  FlowAnalysis,
-  FlowDefinition,
-  StepHttpJson,
-  StepJoin,
-  StepParallel,
-} from "@lcase/types";
+import type { FlowAnalysis } from "@lcase/types";
 
 describe("graphLayout()", () => {
   it("creates a correct toposort", () => {

@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import multipart from "@fastify/multipart";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
@@ -12,7 +13,9 @@ async function buildApp(
   createArtifact = vi.fn().mockResolvedValue({ ok: true, value: "hash" }),
 ) {
   const app = Fastify();
-  app.decorate("services", { artifact: { createArtifact } });
+  app.decorate("services", {
+    artifact: { createArtifact },
+  } as unknown as ServicesPort);
   await app.register(multipart);
   await app.register(postArtifactRoute);
   return { app, createArtifact };

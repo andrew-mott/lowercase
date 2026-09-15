@@ -21,7 +21,10 @@ export class JsonlEventLog implements EventStorePort {
     if (!path.isAbsolute(dir)) {
       throw new Error("[json-event-log] dir must be absolute");
     }
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    // Recursive because the path is nested (`lcase-db/replay`) and nothing
+    // guarantees the parent exists -- a fresh checkout or a deployment that
+    // starts somewhere other than the repo has neither level.
+    fs.mkdirSync(dir, { recursive: true });
   }
 
   async getEvent(_eventId: string) {

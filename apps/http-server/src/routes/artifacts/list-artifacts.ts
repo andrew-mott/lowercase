@@ -4,7 +4,7 @@ import type { GetArtifactsReq, GetArtifactsRes } from "@lcase/types";
 export const listArtifactsRoute = async (app: FastifyInstance) => {
   app.get<{ Querystring: GetArtifactsReq }>(
     "/",
-    async (req, reply): Promise<GetArtifactsRes> => {
+    async (req): Promise<GetArtifactsRes> => {
       try {
         const { flowId, flowVersionId, curated, hash } = req.query;
         const artifacts = await app.services.artifact.listArtifacts({

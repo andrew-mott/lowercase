@@ -1,4 +1,4 @@
-import { FlowDefinition, Result } from "@lcase/types";
+import type { FlowDefinition, Result } from "@lcase/types";
 import { FlowSchema } from "./flow.types.js";
 
 /**

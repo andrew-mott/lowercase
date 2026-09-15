@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolvePath } from "../src/resolve-path.js";
-import { Path } from "@lcase/types";
+import type { Path } from "@lcase/types";
 describe("resolvePath()", () => {
   it("resolves a path correctly when path traverses object properties", () => {
     const object = {

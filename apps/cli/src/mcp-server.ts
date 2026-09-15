@@ -20,4 +20,4 @@ server.registerTool(
 );
 const transport = new StdioServerTransport();
 console.log("Connecting");
-const response = await server.connect(transport);
+await server.connect(transport);

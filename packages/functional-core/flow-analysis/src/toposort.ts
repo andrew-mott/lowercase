@@ -1,4 +1,4 @@
-import { FlowAnalysis } from "@lcase/types";
+import type { FlowAnalysis } from "@lcase/types";
 import { addProblem } from "./analyze-flow.js";
 /**
  * Uses a flow analysis to generate a toposort array of node ids.

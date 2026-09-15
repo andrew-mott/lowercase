@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --incremental false -p tsconfig.build.json",
+    "build": "tsc --incremental false",
     "typecheck": "tsc --noEmit",
     "test": "echo test",
     "lint": "eslint ."

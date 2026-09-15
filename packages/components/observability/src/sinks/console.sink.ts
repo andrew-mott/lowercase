@@ -2,7 +2,7 @@
 
 import type { EventSink } from "@lcase/ports";
 import { hasRunId } from "@lcase/run-history";
-import { AnyEvent, EventType } from "@lcase/types";
+import type { AnyEvent, EventType } from "@lcase/types";
 
 export type ConsoleSinkContext = {
   allVerbose: boolean;
@@ -37,8 +37,6 @@ export class ConsoleSink implements EventSink {
   }
   handle(event: AnyEvent): void {
     if (!this.#enableSink) return;
-    const r = this.#c.red;
-    const j = this.#c.job;
 
     let ok = "\x1b[38;2;108;235;106m[✔]\x1b[0m";
     if (event.action !== "completed") ok = "";

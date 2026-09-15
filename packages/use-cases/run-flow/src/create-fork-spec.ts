@@ -1,9 +1,5 @@
-import { ForkSpec } from "@lcase/types";
-import type {
-  ArtifactWriterPort,
-  EmitterFactoryPort,
-  EventBusPort,
-} from "@lcase/ports";
+import type { ForkSpec } from "@lcase/types";
+import type { ArtifactWriterPort, EmitterFactoryPort } from "@lcase/ports";
 import { randomUUID } from "node:crypto";
 
 export function createForkSpec(steps: string[], runId: string) {

@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -99,7 +100,7 @@ describe("sim sql routes", () => {
     const app = Fastify();
     app.decorate("services", {
       sim: simService,
-    });
+    } as unknown as ServicesPort);
 
     await app.register(simsListRoute, { prefix: "/api/sims" });
     await app.register(postSimsRoute, { prefix: "/api/sims" });

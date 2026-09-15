@@ -1,5 +1,5 @@
 import type { ServicesPort } from "@lcase/ports";
-import { Command } from "commander";
+import type { Command } from "commander";
 import { resolveCliPath } from "../../resolve-path.js";
 
 export async function cliAddAction(

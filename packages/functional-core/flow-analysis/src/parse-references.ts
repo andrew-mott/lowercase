@@ -100,7 +100,7 @@ export function parseRef(
 export function getRefStrings(value: string): RegExpExecArray[] {
   // {{steps.like.this[3][3].ok}}
   const regex =
-    /{{((input|steps|env|params)\.[a-zA-Z0-9\-\[\]_\.]+)(?:\s+\|\s+?(json))?}}/g;
+    /{{((input|steps|env|params)\.[a-zA-Z0-9\-[\]_.]+)(?:\s+\|\s+?(json))?}}/g;
   const matches = [...value.matchAll(regex)];
   return matches;
 }
@@ -111,9 +111,7 @@ export function parseExportRef(
   exportName: string,
   problems: FlowProblem[],
 ): ExportRef | undefined {
-  const match = declaration.ref.match(
-    /^{{((output)\.[a-zA-Z0-9\-\[\]_\.]+)}}$/,
-  );
+  const match = declaration.ref.match(/^{{((output)\.[a-zA-Z0-9\-[\]_.]+)}}$/);
 
   if (!match) {
     problems.push({
@@ -163,7 +161,7 @@ export function makePath(templateString: string): Path {
 export function parseArray(part: string): { key?: string; index?: string[] } {
   // pull out the name and any array index
   // not robust, just simple
-  const regex = /([a-zA-Z0-9\-\_]+)/gm;
+  const regex = /([a-zA-Z0-9\-_]+)/gm;
   const match = part.match(regex);
   if (!match) return {};
 

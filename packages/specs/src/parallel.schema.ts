@@ -1,4 +1,4 @@
-import { StepParallel } from "@lcase/types";
+import type { StepParallel } from "@lcase/types";
 import { z } from "zod";
 
 export const StepParallelSchema = z

@@ -19,7 +19,7 @@ function resolveFileUrl(url: string): string {
   if (!url.startsWith("file:")) return url;
   const target = url.slice("file:".length);
   if (path.isAbsolute(target)) return url;
-  return `file:${path.resolve(repoRoot, target)}`;
+  return `file:${path.resolve(repoRoot(), target)}`;
 }
 
 /**
@@ -43,5 +43,5 @@ export function defaultSqliteUrl(): string {
   loadRepoEnv();
   const configured = process.env["DATABASE_URL"];
   if (configured) return resolveFileUrl(configured);
-  return `file:${path.join(repoRoot, "lcase-db/sqlite/dev.db")}`;
+  return `file:${path.join(repoRoot(), "lcase-db/sqlite/dev.db")}`;
 }

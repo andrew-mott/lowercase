@@ -1,34 +1,14 @@
 import { describe, it, expect } from "vitest";
-import {
-  ConcurrencyLimiter,
-  ToolQueues,
-} from "../../src/concurrency-limiter.js";
+import type { ToolQueues } from "../../src/concurrency-limiter.js";
+import { ConcurrencyLimiter } from "../../src/concurrency-limiter.js";
 import type {
   EmitterFactoryPort,
   EventBusPort,
   SlotAccessDecision,
 } from "@lcase/ports";
-import { AnyEvent, ToolSpec } from "@lcase/types";
+import type { ToolSpec } from "@lcase/types";
 
 const toolId = "test-toolid";
-const event = {
-  id: "test-id",
-  source: "",
-  specversion: "1.0",
-  time: "",
-  type: "worker.slot.requested",
-  data: {
-    jobId: "test-jobid",
-    runId: "test-runid",
-    toolId: toolId,
-  },
-  domain: "worker",
-  action: "requested",
-  traceparent: "",
-  traceid: "test-traceid",
-  spanid: "",
-  workerid: "test-workerid",
-} satisfies AnyEvent<"worker.slot.requested">;
 
 const toolQueues: ToolQueues = {
   [toolId]: [

@@ -1,11 +1,11 @@
-import { GetRunEventsReq, GetRunEventsRes } from "@lcase/types";
-import { FastifyInstance } from "fastify";
+import type { GetRunEventsReq, GetRunEventsRes } from "@lcase/types";
+import type { FastifyInstance } from "fastify";
 import { isRunId } from "../../../utils/is-run-id.js";
 
 export const getRunsEventsListRoute = async (app: FastifyInstance) => {
   app.get<{ Querystring: GetRunEventsReq }>(
     "/",
-    async (req, reply): Promise<GetRunEventsRes> => {
+    async (req): Promise<GetRunEventsRes> => {
       const { runId } = req.query;
       if (!isRunId(runId)) return { ok: false, error: "Invalid Run ID" };
 

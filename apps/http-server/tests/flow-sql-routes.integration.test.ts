@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -72,7 +73,7 @@ describe("flow routes", () => {
     await app.register(import("@fastify/multipart"));
     app.decorate("services", {
       flow: flowService,
-    });
+    } as unknown as ServicesPort);
 
     await app.register(listFlowsRoute, { prefix: "/api/flows" });
     await app.register(listFlowVersionsRoute, { prefix: "/api/flows" });

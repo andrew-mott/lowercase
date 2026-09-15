@@ -1,4 +1,4 @@
-# Prove Swappable Infrastructure Initiative — Arc: Package Tooling (Change C10)
+# Prove Swappable Infrastructure Initiative — Arc: Package Tooling (Changes C10 and C26)
 
 **Related:** [`queue-adapter.md`](./queue-adapter.md) (Changes C4–C5, C7–C9, C11–C14)
 
@@ -28,3 +28,127 @@ Config exactly as planned: `eslint.config.js` copied verbatim from `packages/com
 - **Fixed here rather than deferred, with the smallest test that proves it.** Suppressing the rule at the one place it earned its keep would have made the new gate lie, and Change C5 set the precedent of fixing the real bugs a lint pass turns up. Three cases in a new `plan-join-edge.reducer.test.ts` — all dependencies completed, dependencies finished but not all completed, and one still running — modelled on the existing branch-edge test's shape. Confirmed non-vacuous by restoring the `===` and watching the first two fail, matching how Change C9 verified its snapshot test. The engine's own tests are due a broader rework; this deliberately does not start one.
 - **`clean-dist` immediately justified itself.** After `execution.context.temp.ts` was deleted, `dist/` still held `execution.context.temp.js`/`.d.ts`/`.map` — `tsc` does not prune outputs for removed sources, and the engine had no way to clear them. Running the new script and rebuilding produced a `dist` with no stale artifacts.
 - **Verified**: engine lint clean, `typecheck` clean against `src` + `tests`, and its suite up from 34 files/83 tests to 35/86. Full workspace `build` 25/25, `typecheck` 24/24, `lint` 24/24, and `pnpm -r test` green in every package. Confirmed by search that no `dist` anywhere in the workspace contains a test file, so pointing `typecheck` at the wider config did not leak tests into build output.
+
+## Change C26 - Portability pass: cross-platform cleans, build config inversion, two workspace couplings - in progress
+
+### Discussion
+
+- **One Change because these share a defect, not a category.** Each item assumes a Unix shell on a machine where this repository is checked out: `rm -rf` in every clean script, build output that is never pruned, a package that walks parent directories for `pnpm-workspace.yaml` at import time, and a `mkdirSync` that assumes its parent exists. None of them is a feature and none belongs on a Change with a process boundary to prove, which is what C27 has. Two of them were surfaced by the static-entrypoint bundling spike (`../research/deployment-artifacts-from-static-entrypoints.md`) while running built artifacts outside the workspace; neither is caused by bundling, and both fail identically from plain `tsc` output copied elsewhere.
+- **Windows became a supported development environment, which is what forces the clean scripts.** All 34 `clean-dist`/`clean-node-modules` scripts were `rm -rf`. `fs.rmSync` has been built in since Node 14.14, so no dependency is needed, and its `maxRetries`/`retryDelay` options are most of what a dedicated removal package actually provides — they matter on Windows, where a held file handle surfaces as `EBUSY`/`EPERM` rather than as a missing file, and deep Electron trees are where that happens. Retries are on the `node_modules` script only; build output has no such contention.
+- **A root `scripts/` folder rather than an inlined `node -e` per package.** The invoking package's directory is the working directory for a package-manager script, so neither script takes an argument — the path _to_ the script varies by nesting depth, the path _from_ it never does. Two depths cover the workspace (`../../` for seven packages, `../../../` for ten). A private workspace package exposing these as `bin` entries would give one uniform string instead of two, at the cost of a new workspace member and a devDependency in every consumer; two path variants is less machinery for the same result.
+- **Renamed to `clean:dist` and `clean:node-modules`, which is the convention the repo already drifted to.** Colon-separated names are already in use for `test:integration`, `test:e2e`, `format:check`, `db:migrate`, `migrate:postgres`, `check:migrations` and `make:mac:unsigned`; the two clean scripts accounted for 34 of the 35 hyphenated instances. Turbo task names must match script names, so `turbo.json`'s two entries rename in lockstep — missing that would make the fan-out silently match nothing.
+- **`build` chains the clean inside the script rather than through turbo `dependsOn`, and the difference was measured rather than assumed.** `clean:dist` is `cache: false`, so as a `dependsOn` entry it force-executes on every invocation: a second run logged `clean:dist: cache bypass, force executing` followed by `build: cache hit, replaying logs`, meaning `dist` was deleted and then restored from cache on a build that had nothing to do. Chaining inside the build script instead means turbo skips the script entirely on a cache hit — confirmed by `dist` holding the same inode across a cached run — so the deletion happens only when turbo actually rebuilds. A fully cached workspace build stays at about one second.
+- **The residual gap is worth stating rather than implying it is closed.** A cached build does not clean. That covers the case this exists for, because deleting a source file changes the build hash and forces a rebuild, which cleans. What survives is switching to a branch whose build is already cached, where an orphan from the other branch can persist. Closing that would require `dependsOn` and its cost on every build.
+- **The `tsconfig.typecheck.json` convention is inverted to `tsconfig.build.json`, for the failure direction more than the naming.** Today `tsconfig.json` is `include: ["src"]` and a sibling widens to `["src", "tests"]` for typechecking. Two consequences: an editor opening a test file finds no project covering it and falls back to an inferred one, losing `strict` from `tsconfig.base.json`; and a package that never gains the widening config verifies its tests with nothing, silently — currently ten packages and sixty-nine test files. Inverted, `tsconfig.json` covers `src` and `tests` so the editor is right by default, and `tsconfig.build.json` narrows for emit. The failure then reverses: forgetting the build config emits tests into `dist`, which is immediately visible, rather than leaving them unchecked, which is not. `typecheck` also collapses to a uniform bare `tsc --noEmit`. `packages/types` already carries a `tsconfig.build.json` that is byte-identical to its `tsconfig.json` — a half-finished inversion doing nothing today — so this settles which of two competing conventions the repo keeps.
+- **The inversion is scoped to the ten packages whose tests are already typechecked, which is what keeps it mechanical.** Those tests are verified today, so restructuring the configs cannot surface a new error. The other ten stay on the existing one-package-per-Change backlog in `INITIATIVE.md`'s "Not yet scoped", because enabling verification for the first time is not a config flip: C10 turned up 26 type errors, two dead fixtures, 115 lint problems, and a real engine bug where `===` was written for `=`.
+- **Real ESLint for `packages/db-prisma` and `apps/http-server` only, for the same reason.** Both are packages this Change or its successor edits directly — the `repo-env.ts` fix lands in one, and C27 builds in the other. The remaining twelve `echo lint` stubs stay on the backlog; a first real run on `packages/events` produced 78 problems, so twelve packages is a different Change, not a larger version of this one.
+- **The two source fixes are small and independently justified.** `packages/db-prisma/src/repo-env.ts` computes `export const repoRoot = findRepoRoot()` at module load, and `@lcase/db-prisma/postgres` re-exports `defaultPostgresUrl` from a module that imports it, so importing the Postgres client alone performs the walk — in a process that supplies its own `DATABASE_URL` and never calls the function. Making it lazy is the fix. `sqlite-url.ts` additionally uses `repoRoot` to build the database path, which is a deeper coupling and arguably correct for a local default; it is left alone, and noted so the embedded profile's need for an explicit URL elsewhere is not mistaken for a bug. Separately, `JsonlEventLog` calls `mkdirSync` without `recursive`, so it throws `ENOENT` rather than creating the path.
+- **Out of scope.** Widening test typechecking to the remaining ten packages and real lint for the remaining twelve, both per above. Building each artifact into a staging directory and swapping it into place on success, which would additionally make a failed build leave the previous output intact — a genuinely better shape, but it solves atomicity rather than staleness, it fits the bundler step where an artifact is already one self-contained directory, and the staging directory would have to be a sibling of `dist` for the replace to be atomic at all.
+
+### Completion evidence
+
+- Every `clean:dist` and `clean:node-modules` script runs on Windows and macOS without a new dependency, and the `node_modules` one retries rather than failing on a held handle.
+- `turbo.json` task names match the renamed scripts, and `turbo run clean:dist` resolves in every package that declares it.
+- A cached workspace build does not delete or restore `dist`, and a real rebuild removes output whose source no longer exists.
+- `tsconfig.json` covers `src` and `tests` in the ten packages that already typecheck tests, `tsconfig.build.json` narrows emit to `src`, and no `dist` anywhere contains a test file.
+- `packages/db-prisma` and `apps/http-server` have real ESLint configs and scripts, with whatever the first run surfaces fixed rather than suppressed.
+- Importing `@lcase/db-prisma/postgres` performs no filesystem walk, and `JsonlEventLog` creates its directory path.
+- Full workspace `format:check`, `build`, `typecheck`, `lint` and tests green.
+
+### What actually landed
+
+Wider than planned. The Discussion scoped the verification floor to the packages
+that already had it and deferred the rest to later increments; measuring the cost
+first reversed that. A probe that widened each remaining package's config and
+counted errors without fixing anything showed sixteen type errors across eight
+packages, four of them zero — bounded enough to finish rather than schedule. The
+packages were then done one at a time, each verified on its own before moving on.
+
+**Cross-platform clean scripts.** `scripts/clean-dist.mjs` and
+`scripts/clean-node-modules.mjs` at the repository root, using `fs.rmSync` rather
+than `rm -rf` so Windows works, and rather than a dependency because Node has had
+this built in since 14.14. Neither takes an argument: a package manager runs a
+script with that package's directory as the working directory, so the path _to_
+the script varies by nesting depth while the path _from_ it never does. The
+`node_modules` one retries, which is what makes it survive a held file handle on
+Windows and is most of what a dedicated removal package would have provided.
+Twenty-three packages reference them as `clean:dist` and `clean:node-modules`,
+matching the colon convention already used by `test:integration`, `format:check`
+and the rest; those two scripts had been thirty-four of the thirty-five
+hyphenated names. `turbo.json`'s task names renamed in lockstep, since a task
+name that does not match a script name silently matches nothing.
+
+**`build` chains the clean, inside the script rather than through turbo.** As a
+`dependsOn` entry it would run on every invocation, because it is `cache: false`
+— measured: a second run logged `clean:dist: cache bypass, force executing`
+followed by `build: cache hit, replaying logs`, deleting `dist` and restoring it
+on a build with nothing to do. Chained inside the build script, turbo skips it
+entirely on a cache hit, confirmed by `dist` keeping the same inode across a
+cached run. A fully cached workspace build stays around one second. The residual
+gap is stated rather than papered over: a cached build does not clean, which
+covers the case this exists for (deleting a source changes the hash and forces a
+rebuild) but not switching to a branch whose build is already cached.
+
+**The build-config inversion, everywhere.** `tsconfig.typecheck.json` is gone
+from the repository — zero remain — and twenty-two packages now carry a
+`tsconfig.build.json` instead. `tsconfig.json` covers `src` and `tests` with
+`noEmit`, so an editor opening a test file gets the project's real options rather
+than falling back to an inferred one, and `tsconfig.build.json` narrows to `src`
+for emit. `typecheck` collapsed to a uniform bare `tsc --noEmit` in every
+package. The failure direction is the point: forgetting the build config emits
+tests into `dist` where it is visible immediately, rather than leaving them
+unchecked where it is not. `packages/types` went the other way and lost its
+`tsconfig.build.json`, which was byte-identical to its `tsconfig.json` and
+excluded nothing; the pair is worth having only where the two files differ.
+
+**Verified non-vacuously** rather than by reading config: a type error planted in
+a `tests/` file was caught and the file went clean when it was removed. No `dist`
+anywhere contains a test file.
+
+**Twelve packages gained real ESLint** — `apps/cli`, `apps/http-server`,
+`app-services`, `db-prisma`, `limiter`, `observability`, `flow-analysis`,
+`json-ref-binder`, `replay`, `specs`, `run-flow`, `run-history` — each copying
+the config `packages/components/worker` established. Two deviations from that
+template. `db-prisma` ignores `src/generated`, which is gitignored Prisma codegen
+that happened to pass and would otherwise start failing on a codegen change, in
+code nobody here can edit. And `coverage` joined the ignore list in the template
+itself, so packages copying it inherit the fix; `engine` was linting its own
+generated coverage output silently, and only surfaced when a newer istanbul began
+emitting a disable directive.
+
+**Two workspace couplings fixed.** `packages/db-prisma/src/repo-env.ts` no longer
+walks for `pnpm-workspace.yaml` at import time. The first attempt only deferred
+the walk, which was not enough: `defaultPostgresUrl` calls `loadRepoEnv`, and a
+host whose configuration omits a URL calls that, so the failure merely moved from
+import to call. The actual defect was that loading an optional `.env` failed hard
+without a checkout, so the lookup now returns undefined, `repoRoot()` throws only
+for callers that genuinely need a path, and `loadRepoEnv()` is best effort. A
+deployed process got its configuration from the real environment before that ran.
+Separately, `JsonlEventLog` creates its directory path recursively. Both would
+fail identically from plain `tsc` output copied out of the workspace; neither was
+caused by bundling.
+
+**State afterwards.** Every live package has real ESLint and has its tests
+typechecked. Twenty-six of twenty-nine packages lint for real; the three that do
+not are `apps/desktop`, which has no `lint` script at all, and the two archived
+packages, all unmaintained. There are no test-typechecking gaps left.
+`apps/workbench` was carried on the gap list for a while and should not have
+been: its `tsconfig.app.json` already includes `tests` and is reached through the
+root config's `references`, which a survey reading only the root config missed.
+Its coverage was confirmed the same way as everywhere else, by planting an error
+and watching `tsc -b` catch it.
+
+**What the findings were worth, briefly.** Not catalogued here, because the
+individual fixes were small and the pattern matters more than the list. Almost
+every package had at least one dead import, unused fixture, or vestigial local,
+invisible while `lint` was `echo lint`. Three separate packages had test fixtures
+omitting a `flowversionid` that `RunScope` and `FlowScope` require — the same
+defect Change C10 found in the engine, meaning `satisfies` had been asserting
+nothing in those files. Two packages had test doubles explicitly typed as a port
+that the port had since outgrown. None of it was dramatic, and none of it was
+reachable before.
+
+**Out of scope, unchanged from the Discussion.** `apps/desktop` and the archived
+packages, where gating unmaintained code is a different question. Staging-
+directory build output, which buys atomicity rather than freedom from staleness
+and belongs with the bundler step.

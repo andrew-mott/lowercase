@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { ServicesPort } from "@lcase/ports";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   createSqliteTestDb,
@@ -155,7 +156,7 @@ describe("run sql routes", () => {
     app.decorate("services", {
       run: runService,
       replay: replayService,
-    });
+    } as unknown as ServicesPort);
 
     await app.register(listRunsRoute, { prefix: "/api/runs" });
     await app.register(getRunDetailRoute, { prefix: "/api/runs" });

@@ -1,5 +1,5 @@
-import { ServicesPort } from "@lcase/ports";
-import { Command } from "commander";
+import type { ServicesPort } from "@lcase/ports";
+import type { Command } from "commander";
 
 export async function cliReplayAction(
   services: ServicesPort,

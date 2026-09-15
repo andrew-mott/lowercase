@@ -1,4 +1,4 @@
-import { EmitterFactoryPort, RunRequest } from "@lcase/ports";
+import type { EmitterFactoryPort, RunRequest } from "@lcase/ports";
 import { createRunId } from "./create-fork-spec.js";
 
 export type RunDetails = {

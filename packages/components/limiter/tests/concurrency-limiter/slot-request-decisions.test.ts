@@ -9,7 +9,7 @@ import type {
   EventBusPort,
   SlotAccessDecision,
 } from "@lcase/ports";
-import { AnyEvent, ToolSpec } from "@lcase/types";
+import type { AnyEvent, ToolSpec } from "@lcase/types";
 
 const toolId = "test-toolid";
 const event = {
@@ -74,7 +74,6 @@ describe("ConcurrencyLimiter slotRequestResults()", () => {
       [toolId]: { count: 3, limit: 5 },
       "test-id2": { count: 0, limit: 4 },
     };
-    cl.toolCounters;
 
     const results = cl.slotRequestDecisions(event);
     const expectedResults = [

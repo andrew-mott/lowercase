@@ -1,4 +1,5 @@
-import { ChildProcess, spawn } from "child_process";
+import type { ChildProcess } from "child_process";
+import { spawn } from "child_process";
 import { resolveCliPath } from "../../resolve-path.js";
 
 // assume process was invoked from project root
@@ -18,7 +19,6 @@ async function spawnServer(
   });
   console.log(`[demo] spawned process; ${label} server (pid: ${child.pid})`);
 
-  let i = 0;
   let result;
 
   console.log(

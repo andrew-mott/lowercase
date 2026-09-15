@@ -18,11 +18,11 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "build": "node ../../scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "clean-dist": "rm -rf ./dist",
-    "clean-node-modules": "rm -rf ./node_modules"
+    "clean:dist": "node ../../scripts/clean-dist.mjs",
+    "clean:node-modules": "node ../../scripts/clean-node-modules.mjs"
   },
   "packageManager": "pnpm@10.17.1",
   "dependencies": {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { ReplayEngine } from "../src/replay.js";
-import { EventStorePort } from "@lcase/ports/event-store";
-import { EmitterFactoryPort, EventBusPort } from "@lcase/ports";
+import type { EventStorePort } from "@lcase/ports/event-store";
+import type { EmitterFactoryPort, EventBusPort } from "@lcase/ports";
 
 describe("replay engine", () => {
   it("should read and emit all events", async () => {

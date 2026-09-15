@@ -1,4 +1,4 @@
-import { AnyEvent, RunIndex } from "@lcase/types";
+import type { AnyEvent, RunIndex } from "@lcase/types";
 import { getDuration } from "./get-duration.js";
 
 /**

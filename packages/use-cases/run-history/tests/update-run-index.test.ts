@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { updateRunIndex } from "../src/update-run-index.js";
-import { AnyEvent, RunIndex } from "@lcase/types";
+import type { AnyEvent, RunIndex } from "@lcase/types";
 
 describe("run-history updateRunIndex()", () => {
   it("processes a run.requested event correctly", () => {

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   validateExportRefPath,
   validateRefTargetStep,
-} from "../src/analyze-references";
-import {
+} from "../src/analyze-references.js";
+import type {
   FlowAnalysis,
   FlowDefinition,
   InvalidRefStepIdProblem,

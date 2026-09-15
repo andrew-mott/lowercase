@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { Limiter, LimiterDeps } from "../../src/limiter.js";
+import type { LimiterDeps } from "../../src/limiter.js";
+import { Limiter } from "../../src/limiter.js";
 import type {
   ConcurrencyLimiterPort,
   EmitterFactoryPort,
