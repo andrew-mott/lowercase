@@ -4,6 +4,10 @@ Status: spike result, measured rather than reasoned
 
 Date: 2026-09-15
 
+Re-run later the same day against Change C27's real entry points, which measured
+the api-server artifact this spike could not build. See
+[Re-run against real entry points](#re-run-against-real-entry-points).
+
 The question: can one application package emit several independently deployable
 artifacts, one per static entry point, narrowly enough that separate application
 packages are not needed to keep a deployment's dependencies honest.
@@ -200,3 +204,86 @@ compose and start, not to execute work.
 
 Anything about other platforms or Node versions. One machine, one Node, one
 bundler.
+
+## Re-run against real entry points
+
+After Change C27, `apps/http-server` has two hosts under `src/hosts/` and the
+api-server profile exists. All three artifacts were rebuilt with the same flags,
+using esbuild 0.27.2 from the workspace rather than 0.28.2, and again thrown away.
+
+**The proposition was only inferred the first time.** The original run bundled
+entry points from two _different_ packages, `apps/worker-host` and
+`apps/http-server`. The claim under test was that one package can emit several
+narrow artifacts. With two hosts in one package over one shared HTTP layer, that
+is now observed:
+
+|                        | api host       | embedded         | worker-host   |
+| ---------------------- | -------------- | ---------------- | ------------- |
+| Size / inputs          | 10.1 MB / 1847 | 14.7 MB / 1886   | 8.7 MB / 1471 |
+| SQLite inputs          | 0              | 11               | 0             |
+| `profile-local-system` | 0              | 14               | 0             |
+| Worker implementation  | 0              | 17               | 17            |
+| Limiter                | 0              | 4                | 0             |
+| Engine / Observability | 57 / 7         | 57 / 7           | 0 / 0         |
+| Externals              | none           | `better-sqlite3` | none          |
+
+Embedded and worker-host reproduced the original sizes exactly. The api host
+fills in the enforcement table's missing row, and every entry it names as
+forbidden is absent. The limiter's absence is a composition decision C27 made,
+showing up as bytes.
+
+**Both prerequisites held without patching.** The `repo-env.ts` and
+`JsonlEventLog` fixes landed in Change C26, and this run needed neither patch the
+original applied by hand.
+
+**The first standalone run failed, on configuration.** From a directory holding
+only the bundle and `{"type":"module"}`, with no `node_modules`, the api host
+connected to a Postgres on port 5432 and failed authentication. Outside the
+workspace `loadRepoEnv()` finds no `.env` and returns silently, and
+`POSTGRES_HOST_PORT=5434` exists only in the repository's `.env`. So the default
+URL pointed at a different server. The fix held as designed: it degraded to a
+wrong default instead of throwing, which is what let the process get far enough
+to report a real error. Supplying `POSTGRES_DATABASE_URL` explicitly, as a
+deployment would, produced `{ ok: true }`, a 200 from `/api/flows`, `api-host`
+registered as the consumer on both of its groups, and a clean exit on SIGTERM.
+
+That failed run also reproduced the observation above: the process logged
+`{ ok: false, failedResourceId: 'sql' }` and then served every request with a 500. C27 fixed this, and a failed start now exits non-zero without binding a
+port.
+
+**Where the bytes are.** Attributing each input's post-shaking `bytesInOutput` to
+its owning package:
+
+- Workspace code is 344 KB of the api host's 10.09 MB, 452 KB of embedded, and
+  194 KB of worker-host. Third-party code is over 95% of every artifact.
+- `@prisma/client` alone is 4.94 MB, 49% of the api host. That is the base64
+  query compiler, unavoidable on the driver-adapter path, and it is also why a
+  Worker that no longer writes artifact metadata to SQL would roughly halve its
+  artifact.
+- Tree shaking works within workspace packages, not only between them.
+  `@lcase/events` contributes 74 KB to the api host and 49 KB to worker-host, and
+  `@lcase/adapters` 43 KB and 11 KB. The adapters subpath layout is what makes
+  the second possible.
+- `@lcase/db-prisma` doubles in the embedded artifact, 138 KB against 69 KB,
+  because its config union leaves both generated clients reachable.
+- `redis` brings `@redis/time-series`, `@redis/search` and `@redis/bloom`, about
+  280 KB, though only streams are used. Its client entry point defeats shaking.
+- `light-my-request` and `semver`, about 125 KB together, are unconditional
+  imports of Fastify itself: the implementation of `inject()`, and plugin
+  version-range checks.
+
+**Bundling from source reaches only as far as the app.** Pointed at
+`src/hosts/api.ts` instead of `dist`, esbuild compiled the app's own 36 files
+straight from TypeScript and produced the same artifact. Every workspace package
+still came from `dist`, 987 inputs in all, because each resolves through its
+`exports` map. With one package's `dist` hidden, the build failed on
+`Could not resolve "@lcase/engine"`, quoting `"import": "./dist/index.js"`. esbuild
+does not fall back to source. Skipping the package builds would need a source
+export condition on every package. `typecheck` would also still need `dist/*.d.ts`
+to resolve types across packages, so the two would resolve the same graph
+differently.
+
+**Still not proven.** That job execution works from a bundle: the two-process run
+that completed a flow ran from source, and running the pair from its artifacts is
+Change C29's proof. And that the boundary holds over time, since the CI assertion
+does not exist yet; Change C28 builds it.

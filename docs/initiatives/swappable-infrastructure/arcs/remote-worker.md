@@ -1,4 +1,4 @@
-# Prove Swappable Infrastructure Initiative — Arc: Remote Worker (Changes C19–C29)
+# Prove Swappable Infrastructure Initiative — Arc: Remote Worker (Changes C19–C30)
 
 **Previous:** [SQL Adapter](./sql-adapter.md) (Changes C15–C18)
 
@@ -680,7 +680,7 @@ current split and worth re-reading before deciding.
 This Change does not add Worker lifecycle, application entry points, remote
 liveness, or delivery hardening. Although the manifest makes every Redis
 route/group pair derivable, provisioning and the publisher-before-group startup
-race remain remote-host startup work and must be settled in C28 before that
+race remain remote-host startup work and must be settled in C29 before that
 host accepts external intake.
 
 **Inventory, estimated from the
@@ -1000,7 +1000,7 @@ The Change is deliberately provable alone. A command appended directly onto the
 command work route must be consumed by this process and answered with a terminal
 on the terminal work route, with no companion process, no HTTP, and no Engine
 anywhere. That keeps the first process boundary a claim about one process rather
-than a claim about choreography, which is C28's.
+than a claim about choreography, which is C29's.
 
 Most of what this needs already exists. C21 and C22 supply the `remote-worker`
 manifest, the `workerHost` role, and `hostPlanFor`/`resolveHostPlan`, so this
@@ -1049,7 +1049,7 @@ console lifecycle sink is the choice a real Worker host would make differently �
 and that difference is the one worth still being legible when C27 asks what the
 copies proved.
 
-**Claim no drain.** This Change adds no lifecycle contract; C29 does. The Redis
+**Claim no drain.** This Change adds no lifecycle contract; C30 does. The Redis
 carrier's `stop()` already ends intake, awaits its read loops, and only then
 closes connections, and a loop awaits handler settlement through the lane, so
 in-flight jobs do finish and publish their terminals before the publisher
@@ -1058,9 +1058,8 @@ claimed. Nothing in this app's entrypoint, configuration, or documentation may
 describe a graceful drain, a stop guarantee, or a retained-entry policy.
 
 Keep configuration minimal. The single source of truth for shared protocol and
-physical values is C28's concern, because a convention cannot be unified with
-one participant. Containerization and a readiness endpoint likewise belong to
-C28. If the Change runs long, the seam is that the profile is provable by an
+physical values is C29's concern, because a convention cannot be unified with
+one participant. Containerization and a readiness endpoint belong to C28. If the Change runs long, the seam is that the profile is provable by an
 integration test before an entrypoint exists at all.
 
 **Completion evidence.**
@@ -1146,7 +1145,7 @@ surface hands back a client, which is the wrong shape for a profile whose entire
 premise is building its own client from configuration. The per-worker database
 name stays private, so nothing outside that package restates the convention.
 
-## Change C27 - Build the API host process - not started
+## Change C27 - Build the API host process - in progress
 
 ### Discussion
 
@@ -1186,7 +1185,7 @@ that the process starts, binds both subscriptions, publishes a command onto the
 command work route where it can be observed directly, and then does not advance
 — because nothing consumed it. That the run stalls is the evidence, not a
 defect: it is what shows no local Worker fallback exists. Completing a run is
-C28's claim.
+C29's claim.
 
 The third copy of the infrastructure selectors arrives here, and it is a narrower
 copy than "three" suggests. This host is forced to Postgres, S3, and Redis for
@@ -1224,7 +1223,168 @@ than this Change and are better done on their own.
 - The embedded host and its filesystem, SQLite, and in-process branches remain
   green, including its integration suite.
 
-## Change C28 - Run and prove the distributed deployment - not started
+### What actually landed
+
+**The HTTP layer lost process lifecycle, which the Discussion did not plan.**
+`buildServer` used to call `runtime.start()`, log the outcome, and register an
+`onClose` hook to stop it -- so a failed start printed `{ ok: false }` and the
+process bound its port anyway. That stayed theoretical until an API host
+artifact, run outside the workspace against the wrong database port, answered
+every request with a 500. Lifecycle now lives in `src/http/serve.ts`:
+`serveHost` checks the start outcome and exits non-zero naming the failed
+resource, stops the runtime if `listen` fails rather than leaving consumer
+groups registered, and on a signal closes the server before stopping resources
+in reverse. `buildServer` takes `{ services, tap }` and nothing else, and both
+host files reduce to composing a system and handing it over.
+
+That makes one completion-evidence bullet false as written. The embedded host is
+not behaviourally unchanged from the old `main.ts`: it now refuses to serve on a
+failed start and handles SIGINT/SIGTERM, neither of which it did before. The
+change was taken deliberately, because the defect was in the layer both hosts
+share and fixing it in one would have left the other serving with a dead
+database.
+
+**Engine's and Observability's builders were copied, not imported.**
+`@lcase/profile-local-system` exports neither, but importing its internals or
+widening its barrel would have cost nothing to install -- the package is already
+a dependency here, for the embedded host. The cost was in the import graph: the
+API host's entry point would reach the profile for the complete embedded graph.
+Measured afterwards, an esbuild artifact of `dist/hosts/api.js` contains zero
+inputs from that package, zero SQLite inputs, and no Worker implementation.
+
+**No limiter, on evidence rather than scope.** `worker.slot.requested` is
+declared in `@lcase/types` and served by `@lcase/limiter`, and nothing in the
+system emits it. The embedded profile composes a limiter by inheritance from
+older wiring; this profile does not, and says why in `assemble-api-host.ts`. If
+the protocol goes live it is a conversation between processes, not a resource
+that happens to share this host's bus.
+
+**The copies measured as mechanical as they could be.** Of the three
+infrastructure selectors carried over from `apps/worker-host`, two are
+byte-identical and the third differs by one string, the role prefix in its
+carrier-mismatch error. The Discussion left extraction depending on exactly
+that. It stayed deferred by choice rather than for lack of evidence; see
+`docs/todo.md`.
+
+**Evidence took a different shape than the Discussion planned.** The partial
+proof -- a run publishing its command and stalling for want of a Worker -- was not
+run as a separate check, because two other things covered it. The composition
+tests pin the absence of a Worker structurally: the assembled resource list holds
+no Worker, the binding step never binds Worker's subscription, and the profile
+composes under a router that rejects any binding outside the role's plan. On a
+live Redis, the API host registered as the consumer of `engine.job-terminal.v1`
+and `observability.job.v1` and of nothing else. And the positive path went
+further than this Change claims: with `apps/worker-host` running alongside, a flow
+submitted from the workbench completed across both processes.
+
+That run is not C29's proof, and should not be read as one. Consumer groups are
+created at `$`, and `worker.job-command.v1` already existed from C25's run, so a
+cold start where the API host publishes before the Worker host has ever created
+its group was not exercised.
+
+**Tests for this app now test composition, not only routes.** Four files under
+`tests/profiles/` cover the resolved plan, what gets bound, resource order, and
+that the profile composes against dead addresses without reaching them. They were
+checked against deliberate breakage: raising the observation lane's
+`maxInFlight` from 1 fails exactly the test written for it, and swapping Engine
+and the router in the assembly fails both assembly tests. The copied selectors
+are untested here, since `apps/worker-host` tests the same code. Route tests moved
+to `tests/http/` so the test tree mirrors `src/`.
+
+**The API host depends on the adapters directly.** `@lcase/adapters` and
+`@lcase/db-prisma` moved from dev to runtime dependencies. They were dev-only
+because the embedded profile package did all composition, so this app now
+installs Prisma and the adapters in its own right, and both SQL driver adapters
+between its two hosts. Bundling is what removes that from a deployment; see C28.
+
+## Change C28 - Build and package deployable artifacts - not started
+
+### Discussion
+
+C27 left each host reachable from a static entry point, which the spike in
+[`research/deployment-artifacts-from-static-entrypoints.md`](../research/deployment-artifacts-from-static-entrypoints.md)
+identified as the only precondition for per-host artifacts. This Change turns
+that measurement into build output, and gives the two distributed hosts
+something to run in other than a checkout.
+
+**Artifacts from `tsc` output, one bundle per host.** esbuild reads each host's
+`dist` entry point, so type checking stays where it is and the bundler only
+resolves and shakes. Per-host settings differ -- the embedded artifact must keep
+`better-sqlite3` external, the other two ship no externals at all, and all three
+need the `createRequire` banner for `@aws-sdk/client-s3` -- which makes them data
+in a script under `scripts/` rather than a command line repeated per app. The
+output directory must be declared as a turbo task output as well as gitignored.
+An output turbo cannot see is one that goes silently stale while the build
+reports success, which is already true of `@lcase/db-prisma`'s generated clients.
+
+Bundling from TypeScript source is out of scope. It works today for an app's own
+files, but every workspace package resolves through its `exports` map to `dist`,
+so skipping the package builds means a source export condition on each one and a
+second resolution story beside the one `typecheck` relies on.
+
+**The boundary assertion is the reason this is a Change and not a script.** Under
+separate application packages a boundary violation fails at install time. Under
+static entry points nothing prevents the API host from importing Worker, and the
+violation is visible only in the bundle's metafile. The spike made its verdict
+conditional on an assertion that fails CI, expressed against the metafile each
+build already emits. Without one, the boundary is verified once and never again.
+The expectations are already measured:
+
+| Artifact    | Must not contain                                            |
+| ----------- | ----------------------------------------------------------- |
+| worker-host | SQLite, Engine, Observability, HTTP layer, embedded profile |
+| api host    | Worker implementation, limiter, SQLite, embedded profile    |
+| embedded    | nothing distinctive -- it is the contrasting case           |
+
+The deployable dependency closures that C21, C24 and C25 each deferred to this
+point belong here as well. For a bundled artifact the closure is its externals,
+and the metafile is the record.
+
+**Images for the distributed pair only.** Both of their artifacts ship with no
+externals, so an image is a Node base, one file, and a `package.json` declaring
+the module type, with no install step at all. The embedded host is not
+containerized: `better-sqlite3` needs a native build matched to the image's
+platform and Node ABI, and the embedded shape is a development target rather than
+a deployment one. The compose file that already runs Postgres, MinIO and Redis
+gains the two hosts.
+
+**Configuration becomes mandatory and stays per host.** An image has no checkout,
+so no repository `.env`. A bundled API host run outside the workspace already
+failed on exactly this, falling back to the wrong Postgres port because
+`POSTGRES_HOST_PORT` only exists in the repo's `.env`. Each image declares the
+environment its host reads, under the names the host already uses. Unifying
+those names across hosts is C29's, because it is only expressible once both
+participants are running together.
+
+**A readiness endpoint, because a healthcheck otherwise lies.** A container check
+against an ordinary route reports healthy for as long as the port answers. The
+managed runtime already reports per-resource health, and `buildSqlClient` already
+implements a real probe, so the HTTP hosts need only expose it. The Worker host
+serves no HTTP, and whether it gains a listener or is checked some other way is
+open. Readiness here means the process's own resources; readiness across
+processes, where the Worker's consumer group must exist before the API host
+accepts work, is C29's.
+
+**Out of scope.** Standalone executables: Node's single-executable support is
+experimental, embeds a runtime larger than these images, and cannot carry native
+modules, and no deployment shape asks for one. Running the pair as the proof,
+which is C29. Moving the Worker off Postgres, which would remove roughly half of
+its artifact but is a schema question, not a packaging one.
+
+**Completion evidence.**
+
+- One command emits an artifact and metafile per host, into a directory turbo
+  caches and restores.
+- The boundary assertion fails when an artifact contains a forbidden input,
+  demonstrated by introducing one.
+- The API host and Worker host images build without an install step and start
+  against the compose services, and a failed start exits non-zero.
+- The HTTP hosts' readiness endpoint reports not ready when a required resource
+  is unreachable, and the images' healthchecks use it.
+- Each artifact's externals are recorded, confirming or refuting the current
+  provider package boundary.
+
+## Change C29 - Run and prove the distributed deployment - not started
 
 ### Discussion
 
@@ -1235,8 +1395,9 @@ retrieve shared artifacts, publish the terminal back across Redis, and reach the
 expected completed run state at Engine. The proof must fail if the Worker host
 is absent or misconfigured rather than succeeding through a local fallback.
 
-With C25 and C27 each proven alone, this Change's own content is the three
-things neither could supply:
+With C25 and C27 each proven alone, and C28 supplying the artifacts and images
+both processes run from, this Change's own content is the two things none of them
+could supply:
 
 **The provisioning and readiness race deferred by C22.** Before the companion
 process reports ready and accepts external intake, the selected provisioning or
@@ -1251,12 +1412,6 @@ entrypoints own configuration parsing, lifecycle start and rollback, signals,
 process identity, and truthful readiness for the resources they require. Shared
 protocol and physical route values come from one source, which is only
 expressible now that two participants exist.
-
-**The deployable dependency closures.** Inspect the built or `pnpm deploy`
-closure for each app and record which unexpected production dependencies remain.
-Split a broad provider package only when that evidence shows a material
-deployable cost or coupling; the Worker legitimately needs all three remote
-infrastructure implementations.
 
 The first remote deployment does not need to solve every distributed-systems
 policy. Cancellation across the boundary, crash recovery and pending-entry
@@ -1280,10 +1435,8 @@ truthful without one of them.
   skipped.
 - Companion and Worker processes load compatible values from one deployment
   definition rather than parallel environment-variable conventions.
-- The recorded deployable dependency inventories either justify the current
-  provider package boundary or create a concrete follow-on Change to narrow it.
 
-## Change C29 - Give Worker truthful managed lifecycle and controlled ingress - not started
+## Change C30 - Give Worker truthful managed lifecycle and controlled ingress - not started
 
 ### Discussion
 

@@ -14,10 +14,10 @@ import { EmitterFactory } from "@lcase/events";
 import type { ArtifactReaderPort, ReplayServicePort } from "@lcase/ports";
 import { RunService } from "@lcase/app-services";
 import type { AnyEvent } from "@lcase/types";
-import { getRunDetailRoute } from "../src/routes/runs/get-run-detail.js";
-import { getRunParamsRoute } from "../src/routes/runs/get-run-params.js";
-import { getRunsEventsListRoute } from "../src/routes/runs/events/events.js";
-import { listRunsRoute } from "../src/routes/runs/list.js";
+import { getRunDetailRoute } from "../../src/http/routes/runs/get-run-detail.js";
+import { getRunParamsRoute } from "../../src/http/routes/runs/get-run-params.js";
+import { getRunsEventsListRoute } from "../../src/http/routes/runs/events/events.js";
+import { listRunsRoute } from "../../src/http/routes/runs/list.js";
 
 describe("run sql routes", () => {
   let db: TestDb;

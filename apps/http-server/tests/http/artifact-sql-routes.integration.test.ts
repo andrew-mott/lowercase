@@ -23,10 +23,10 @@ import { PrismaFlowRepository } from "@lcase/adapters/flow-repository";
 import { FsArtifactStore } from "@lcase/adapters/artifact-store";
 import { createArtifactReadWritePort } from "@lcase/artifacts";
 import { ArtifactService } from "@lcase/app-services";
-import { getArtifactRoute } from "../src/routes/artifacts/get-artifact.js";
-import { listArtifactsRoute } from "../src/routes/artifacts/list-artifacts.js";
-import { postArtifactRoute } from "../src/routes/artifacts/post-artifact.js";
-import { patchArtifactRoute } from "../src/routes/artifacts/patch-artifact.js";
+import { getArtifactRoute } from "../../src/http/routes/artifacts/get-artifact.js";
+import { listArtifactsRoute } from "../../src/http/routes/artifacts/list-artifacts.js";
+import { postArtifactRoute } from "../../src/http/routes/artifacts/post-artifact.js";
+import { patchArtifactRoute } from "../../src/http/routes/artifacts/patch-artifact.js";
 import type { FlowDefinition, JsonValue } from "@lcase/types";
 
 describe("artifact sql routes", () => {

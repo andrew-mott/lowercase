@@ -1170,7 +1170,7 @@ curl http://localhost:3000/api/runs/<runId>/params
 **Service:** `ReplayService.getAllEvents()`
 
 Note the different base path — this route is registered under `/api/runs/details`,
-not `/api/runs/:runId/...` like the rest of this section (`apps/http-server/src/routes/routes.ts`).
+not `/api/runs/:runId/...` like the rest of this section (`apps/http-server/src/http/routes/routes.ts`).
 
 ##### Query parameters
 

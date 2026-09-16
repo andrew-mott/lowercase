@@ -11,6 +11,9 @@ importers:
       '@types/node':
         specifier: ^24.5.2
         version: 24.5.2
+      esbuild:
+        specifier: ^0.27.2
+        version: 0.27.2
       prettier:
         specifier: ^3.9.6
         version: 3.9.6
@@ -151,22 +154,15 @@ importers:
 
   apps/http-server:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1121.0
+        version: 3.1121.0
       '@fastify/cors':
         specifier: ^11.2.0
         version: 11.2.0
       '@fastify/multipart':
         specifier: ^9.4.0
         version: 9.4.0
-      '@lcase/profile-local-system':
-        specifier: workspace:*
-        version: link:../../packages/process-hosting/profile-local-system
-      fastify:
-        specifier: ^5.7.2
-        version: 5.7.2
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.39.1
-        version: 9.39.1
       '@lcase/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
@@ -176,15 +172,49 @@ importers:
       '@lcase/artifacts':
         specifier: workspace:*
         version: link:../../packages/artifacts
+      '@lcase/assembly':
+        specifier: workspace:*
+        version: link:../../packages/process-hosting/assembly
       '@lcase/db-prisma':
         specifier: workspace:*
         version: link:../../packages/db-prisma
+      '@lcase/engine':
+        specifier: workspace:*
+        version: link:../../packages/components/engine
       '@lcase/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@lcase/message-router':
+        specifier: workspace:*
+        version: link:../../packages/process-hosting/message-router
+      '@lcase/message-topology':
+        specifier: workspace:*
+        version: link:../../packages/process-hosting/message-topology
+      '@lcase/observability':
+        specifier: workspace:*
+        version: link:../../packages/components/observability
       '@lcase/ports':
         specifier: workspace:*
         version: link:../../packages/ports
+      '@lcase/profile-local-system':
+        specifier: workspace:*
+        version: link:../../packages/process-hosting/profile-local-system
+      '@lcase/replay':
+        specifier: workspace:*
+        version: link:../../packages/replay
+      '@prisma/adapter-pg':
+        specifier: ^7.8.0
+        version: 7.10.0
+      fastify:
+        specifier: ^5.7.2
+        version: 5.7.2
+      redis:
+        specifier: ^6.2.1
+        version: 6.2.1
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.1
+        version: 9.39.1
       '@lcase/test-support':
         specifier: workspace:*
         version: link:../../packages/test-support
