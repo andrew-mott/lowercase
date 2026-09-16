@@ -3,7 +3,7 @@ import type { ServicesPort } from "@lcase/ports";
 import multipart from "@fastify/multipart";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { postArtifactRoute } from "../src/routes/artifacts/post-artifact.js";
+import { postArtifactRoute } from "../../src/http/routes/artifacts/post-artifact.js";
 
 // postArtifactRoute checks req.isMultipart() unconditionally, even for the
 // JSON branch, so @fastify/multipart must be registered regardless of

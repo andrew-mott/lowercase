@@ -26,9 +26,9 @@ import { createArtifactReadWritePort } from "@lcase/artifacts";
 import { EmitterFactory } from "@lcase/events";
 import type { RunQueryPort } from "@lcase/ports";
 import { SimService } from "@lcase/app-services";
-import { getSimSpecRoute } from "../src/routes/sims/get-sim-spec.js";
-import { simsListRoute } from "../src/routes/sims/list.js";
-import { postSimsRoute } from "../src/routes/sims/post.js";
+import { getSimSpecRoute } from "../../src/http/routes/sims/get-sim-spec.js";
+import { simsListRoute } from "../../src/http/routes/sims/list.js";
+import { postSimsRoute } from "../../src/http/routes/sims/post.js";
 
 describe("sim sql routes", () => {
   let db: TestDb;

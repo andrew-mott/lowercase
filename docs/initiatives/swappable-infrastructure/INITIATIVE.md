@@ -141,7 +141,7 @@ first advances neither.
 **C27's role is a waypoint between shapes 1 and 2, not one of them.**
 `api-engine-observer-host` keeps Engine and Observability in the API process and
 moves only Worker out, which is what lets the service layer come across unchanged
-and keeps C28's end-to-end proof reachable. The manifest naming it already says
+and keeps C29's end-to-end proof reachable. The manifest naming it already says
 as much: `remote-worker.deployment.ts` calls itself the transitional split and
 states that moving Engine out is a different manifest rather than a variant of
 this one. Shared composition machinery built around this role would be built
@@ -184,23 +184,24 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C23    | Add one ordered Redis route for Observability                                  | merged (PR #382) | [6]   |          |
 | C24    | Scaffold the Worker-host app                                                   | merged (PR #383) | [6]   |          |
 | C25    | Build the Worker-host process                                                  | merged (PR #384) | [6]   |          |
-| C26    | Portability pass: cross-platform cleans, build config inversion, couplings     | in progress      | [5]   |          |
-| C27    | Build the API host process                                                     | not started      | [6]   |          |
-| C28    | Run and prove the distributed deployment                                       | not started      | [6]   |          |
-| C29    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
+| C26    | Portability pass: cross-platform cleans, build config inversion, couplings     | merged (PR #385) | [5]   |          |
+| C27    | Build the API host process                                                     | in progress      | [6]   |          |
+| C28    | Build and package deployable artifacts                                         | not started      | [6]   |          |
+| C29    | Run and prove the distributed deployment                                       | not started      | [6]   |          |
+| C30    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
 
 ## Next up
 
-1. **C26:** finish the portability pass — cross-platform clean scripts, the
-   `tsconfig.build.json` inversion for the packages that already typecheck
-   tests, ESLint for the two packages this work edits, and the two couplings
-   that stop a built artifact running outside the workspace.
-2. **C27:** give `apps/http-server` a second host under `src/hosts/` — today's
+1. **C27:** give `apps/http-server` a second host under `src/hosts/` — the
    embedded entry point moved, plus an API host composing an app-local profile
-   with no Worker — sharing one Fastify layer between them.
-3. **C28:** run both processes together, settle consumer-group readiness, and
-   prove the real two-process path end to end.
-4. **C29:** make Worker a truthful managed resource and coordinate command
+   with no Worker — sharing one Fastify layer that no longer owns process
+   lifecycle.
+2. **C28:** bundle each host into one artifact from its static entry point,
+   assert in CI that each artifact stays inside its boundary, and package the
+   API host and Worker host as images with a readiness endpoint to check.
+3. **C29:** run both processes together from those images, settle cross-process
+   consumer-group readiness, and prove the real two-process path end to end.
+4. **C30:** make Worker a truthful managed resource and coordinate command
    intake with active-work settlement, now designed against a process that
    hosts Worker alone.
 
@@ -216,7 +217,7 @@ surface is too large for one review.
   configurable co-location appears, a deployment definition could assign
   components to named host roles and project a process-local host plan instead
   of adding a profile name for every permutation. This is deliberately distant
-  work rather than part of C19–C29; the constraints, migration path, and open
+  work rather than part of C19–C30; the constraints, migration path, and open
   questions are sketched in
   [`research/configurable-component-placement.md`](./research/configurable-component-placement.md).
 - **The engine's own step/run self-loop (subscribing to events it publishes itself, purely to advance its own internal state)** — a real, precedented, low-risk fix (mirroring how `ExecuteHttpJsonJobFx` already avoids this), but decoupled from every Change in this initiative: nothing here depends on it, and it doesn't ease anything here either, since the self-loop never touches `MessageLogPort`/Redis at all. Deferred to whenever the engine gets its real core/inbound-outbound refactor. See `arcs/queue-adapter.md`'s Changes C5, C7–C9, and C11–C14 discussion for the full reasoning.

@@ -29,7 +29,7 @@ Config exactly as planned: `eslint.config.js` copied verbatim from `packages/com
 - **`clean-dist` immediately justified itself.** After `execution.context.temp.ts` was deleted, `dist/` still held `execution.context.temp.js`/`.d.ts`/`.map` — `tsc` does not prune outputs for removed sources, and the engine had no way to clear them. Running the new script and rebuilding produced a `dist` with no stale artifacts.
 - **Verified**: engine lint clean, `typecheck` clean against `src` + `tests`, and its suite up from 34 files/83 tests to 35/86. Full workspace `build` 25/25, `typecheck` 24/24, `lint` 24/24, and `pnpm -r test` green in every package. Confirmed by search that no `dist` anywhere in the workspace contains a test file, so pointing `typecheck` at the wider config did not leak tests into build output.
 
-## Change C26 - Portability pass: cross-platform cleans, build config inversion, two workspace couplings - in progress
+## Change C26 - Portability pass: cross-platform cleans, build config inversion, two workspace couplings - merged (PR #385)
 
 ### Discussion
 

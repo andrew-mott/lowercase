@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import type { ServicesPort } from "@lcase/ports";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestRunsRoute } from "../src/routes/runs/request.js";
+import { requestRunsRoute } from "../../src/http/routes/runs/request.js";
 
 describe("run request route", () => {
   afterEach(() => {

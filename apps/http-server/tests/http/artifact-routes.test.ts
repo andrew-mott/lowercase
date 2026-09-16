@@ -1,8 +1,8 @@
 import Fastify from "fastify";
 import type { ServicesPort } from "@lcase/ports";
 import { describe, expect, it, vi } from "vitest";
-import { getArtifactRoute } from "../src/routes/artifacts/get-artifact.js";
-import { listArtifactsRoute } from "../src/routes/artifacts/list-artifacts.js";
+import { getArtifactRoute } from "../../src/http/routes/artifacts/get-artifact.js";
+import { listArtifactsRoute } from "../../src/http/routes/artifacts/list-artifacts.js";
 
 describe("artifact routes", () => {
   it("lists indexed artifacts newest first", async () => {

@@ -23,8 +23,8 @@ import { FsArtifactStore } from "@lcase/adapters/artifact-store";
 import { createArtifactReadWritePort } from "@lcase/artifacts";
 import { ArtifactService } from "@lcase/app-services";
 import type { FlowDefinition, JsonValue } from "@lcase/types";
-import { getCuratedArtifactsForParamRoute } from "../src/routes/flows/curated-artifacts.js";
-import { patchArtifactRoute } from "../src/routes/artifacts/patch-artifact.js";
+import { getCuratedArtifactsForParamRoute } from "../../src/http/routes/flows/curated-artifacts.js";
+import { patchArtifactRoute } from "../../src/http/routes/artifacts/patch-artifact.js";
 
 describe("GET .../curated-artifacts", () => {
   let db: TestDb;

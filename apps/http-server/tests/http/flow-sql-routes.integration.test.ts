@@ -24,14 +24,14 @@ import { PrismaFlowRepository } from "@lcase/adapters/flow-repository";
 import { createArtifactReadWritePort } from "@lcase/artifacts";
 import { FlowService } from "@lcase/app-services";
 import type { FlowDefinition } from "@lcase/types";
-import { postFlowsRoute } from "../src/routes/flows/post.js";
-import { postFlowsFilesRoute } from "../src/routes/flows/files/post.js";
-import { getFlowDefRoute } from "../src/routes/flows/get-flow-def.js";
-import { listFlowsRoute } from "../src/routes/flows/get.js";
+import { postFlowsRoute } from "../../src/http/routes/flows/post.js";
+import { postFlowsFilesRoute } from "../../src/http/routes/flows/files/post.js";
+import { getFlowDefRoute } from "../../src/http/routes/flows/get-flow-def.js";
+import { listFlowsRoute } from "../../src/http/routes/flows/get.js";
 import {
   getFlowVersionRoute,
   listFlowVersionsRoute,
-} from "../src/routes/flows/get-versions.js";
+} from "../../src/http/routes/flows/get-versions.js";
 
 describe("flow routes", () => {
   let db: TestDb;
