@@ -10,7 +10,8 @@ body (see `packages/types`) rather than varying by HTTP status code, so each
 entry's "Response" section shows that union directly instead of a status-code
 table. The two multipart file-upload routes (`POST /api/artifacts`,
 `POST /api/flows/files`) are the real exception — they do send real `400`/`500`
-codes — and are called out individually where that applies.
+codes — and are called out individually where that applies. `GET /health`, outside
+`/api`, answers by status code alone.
 
 ## Base URL
 
@@ -1424,6 +1425,64 @@ type ForkSpec = {
 
 ```bash
 curl http://localhost:3000/api/sims/<simId>
+```
+
+</details>
+
+---
+
+## Health
+
+<details>
+<summary><code>GET</code> <code><b>/health</b></code> — the process's own readiness, by resource</summary>
+<br>
+
+**Type:** `SystemHealthReport` (`packages/process-hosting/assembly/src/managed-runtime.ts`)<br>
+**Source:** `apps/http-server/src/http/routes/health.ts`, registered by `serveHost`
+
+Not under `/api`, and the other exception to the envelope convention: callers such
+as a container healthcheck act on the status code alone, so it answers `200` when
+every resource reports healthy and `503` when any does not, with the report as the
+body either way. There is no `{ ok, ... }` wrapper.
+
+A resource with no health hook reports healthy. Today only `sql` performs a real
+check, so an unreachable S3 endpoint or Redis server does not yet appear here.
+
+##### Response
+
+```ts
+type SystemHealthReport = {
+  status: "healthy" | "unhealthy";
+  resources: readonly { id: string; health: HealthStatus }[];
+};
+
+type HealthStatus =
+  { status: "healthy" } | { status: "unhealthy"; reason: string };
+```
+
+##### Example response (`503`)
+
+```json
+{
+  "status": "unhealthy",
+  "resources": [
+    {
+      "id": "sql",
+      "health": {
+        "status": "unhealthy",
+        "reason": "Can't reach database server at postgres"
+      }
+    },
+    { "id": "artifacts", "health": { "status": "healthy" } },
+    { "id": "router", "health": { "status": "healthy" } }
+  ]
+}
+```
+
+##### Example request
+
+```bash
+curl -i http://localhost:3000/health
 ```
 
 </details>

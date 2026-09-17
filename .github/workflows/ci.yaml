@@ -53,21 +53,25 @@ jobs:
       # No POSTGRES_TEST_URL: the default in code already names this server.
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.17.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - run: pnpm install
       - run: pnpm run format:check
       - run: pnpm lint
       - run: pnpm build
+      # Each host's bundle fails when it contains a package that host's
+      # bundle.config.mjs forbids. Static entry points share one install, so
+      # this is the only place a host's boundary is enforced.
+      - run: pnpm bundle
       - run: pnpm typecheck
 
       - name: Wait for MinIO

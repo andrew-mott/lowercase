@@ -1,5 +1,6 @@
 import type { ManagedRuntime } from "@lcase/assembly";
 import { buildServer, type HttpSystem } from "./build-server.js";
+import { healthRoute } from "./routes/health.js";
 
 export type HostSystem = HttpSystem & {
   runtime: ManagedRuntime;
@@ -39,6 +40,12 @@ export async function serveHost(
   }
 
   const server = await buildServer(system);
+  // Registered here rather than in `buildServer`, which deliberately has no
+  // runtime. Serving at all already implies a successful start, since the port
+  // only opens once `runtime.start()` has succeeded.
+  await server.register(healthRoute, {
+    health: () => system.runtime.health(),
+  });
 
   const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   const host = process.env.HOST || "127.0.0.1";

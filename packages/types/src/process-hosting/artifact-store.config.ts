@@ -10,6 +10,10 @@ export type FilesystemArtifactStoreUserConfig = {
 export type S3ArtifactStoreUserConfig = {
   kind: "s3";
   bucket: string;
+  // Whether a host creates the bucket on start when it is missing. Off unless
+  // set, because hosted S3 commonly grants an application no permission to
+  // create buckets, and a bucket that already exists is never created.
+  createBucketIfMissing?: boolean;
   endpoint?: string;
   region?: string;
   forcePathStyle?: boolean;

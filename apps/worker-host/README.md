@@ -37,7 +37,15 @@ C30 of the `swappable-infrastructure` initiative's remote-worker arc.
 ```bash
 pnpm dev              # run from source via tsx
 pnpm build
+pnpm bundle           # after build
 pnpm start
 pnpm test             # unit
 pnpm test:integration # needs docker compose up -d --wait
 ```
+
+`pnpm bundle` writes `bundle/worker-host.mjs` with a source map and esbuild
+metafile, and fails if Engine, Observability, the limiter, the application
+services, the HTTP layer, the embedded profile, or SQLite ends up inside it -- see
+[`bundle.config.mjs`](bundle.config.mjs). The [`Dockerfile`](Dockerfile) packages
+that bundle as an image with nothing installed, built and run as part of a
+deployment; see [`deploy/`](../../deploy).

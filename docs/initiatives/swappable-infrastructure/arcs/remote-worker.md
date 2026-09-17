@@ -1145,7 +1145,7 @@ surface hands back a client, which is the wrong shape for a profile whose entire
 premise is building its own client from configuration. The per-worker database
 name stays private, so nothing outside that package restates the convention.
 
-## Change C27 - Build the API host process - in progress
+## Change C27 - Build the API host process - merged (PR #386)
 
 ### Discussion
 
@@ -1297,7 +1297,7 @@ because the embedded profile package did all composition, so this app now
 installs Prisma and the adapters in its own right, and both SQL driver adapters
 between its two hosts. Bundling is what removes that from a deployment; see C28.
 
-## Change C28 - Build and package deployable artifacts - not started
+## Change C28 - Build and package deployable artifacts - in progress
 
 ### Discussion
 
@@ -1309,13 +1309,14 @@ something to run in other than a checkout.
 
 **Artifacts from `tsc` output, one bundle per host.** esbuild reads each host's
 `dist` entry point, so type checking stays where it is and the bundler only
-resolves and shakes. Per-host settings differ -- the embedded artifact must keep
-`better-sqlite3` external, the other two ship no externals at all, and all three
-need the `createRequire` banner for `@aws-sdk/client-s3` -- which makes them data
-in a script under `scripts/` rather than a command line repeated per app. The
-output directory must be declared as a turbo task output as well as gitignored.
-An output turbo cannot see is one that goes silently stale while the build
-reports success, which is already true of `@lcase/db-prisma`'s generated clients.
+resolves and shakes. How a host is bundled is the same everywhere -- ESM, the
+`createRequire` banner `@aws-sdk/client-s3` needs, a metafile -- so it lives once,
+in `scripts/bundle.mjs`. Which hosts an app has, what each keeps external, and
+what each forbids differ per app, so they live in that app's
+`bundle.config.mjs`. Every app that grows a host adds a config rather than a
+copy of the mechanics. The output directory is a turbo task output as well as
+gitignored, because an output turbo cannot see goes silently stale while the
+build reports success.
 
 Bundling from TypeScript source is out of scope. It works today for an app's own
 files, but every workspace package resolves through its `exports` map to `dist`,
@@ -1326,115 +1327,258 @@ second resolution story beside the one `typecheck` relies on.
 separate application packages a boundary violation fails at install time. Under
 static entry points nothing prevents the API host from importing Worker, and the
 violation is visible only in the bundle's metafile. The spike made its verdict
-conditional on an assertion that fails CI, expressed against the metafile each
-build already emits. Without one, the boundary is verified once and never again.
-The expectations are already measured:
+conditional on an assertion that fails the build, expressed against the metafile
+each build already emits. Without one, the boundary is verified once and never
+again. The expectations are already measured:
 
-| Artifact    | Must not contain                                            |
-| ----------- | ----------------------------------------------------------- |
-| worker-host | SQLite, Engine, Observability, HTTP layer, embedded profile |
-| api host    | Worker implementation, limiter, SQLite, embedded profile    |
-| embedded    | nothing distinctive -- it is the contrasting case           |
+| Artifact    | Must not contain                                                             |
+| ----------- | ---------------------------------------------------------------------------- |
+| worker-host | SQLite, Engine, Observability, limiter, app-services, HTTP, embedded profile |
+| api host    | Worker implementation, limiter, SQLite, embedded profile                     |
+| embedded    | nothing distinctive -- it is the contrasting case                            |
 
 The deployable dependency closures that C21, C24 and C25 each deferred to this
 point belong here as well. For a bundled artifact the closure is its externals,
 and the metafile is the record.
 
-**Images for the distributed pair only.** Both of their artifacts ship with no
-externals, so an image is a Node base, one file, and a `package.json` declaring
-the module type, with no install step at all. The embedded host is not
-containerized: `better-sqlite3` needs a native build matched to the image's
-platform and Node ABI, and the embedded shape is a development target rather than
-a deployment one. The compose file that already runs Postgres, MinIO and Redis
-gains the two hosts.
+**Images for the distributed pair.** Their artifacts ship with no externals, so
+an image is an Alpine Node base and one `.mjs` file, which declares itself an ES
+module without a `package.json`, with no install step at all. Configuration
+arrives as environment variables under the names the hosts already read, since
+an image has no checkout and no repository `.env`.
 
-**Configuration becomes mandatory and stays per host.** An image has no checkout,
-so no repository `.env`. A bundled API host run outside the workspace already
-failed on exactly this, falling back to the wrong Postgres port because
-`POSTGRES_HOST_PORT` only exists in the repo's `.env`. Each image declares the
-environment its host reads, under the names the host already uses. Unifying
-those names across hosts is C29's, because it is only expressible once both
-participants are running together.
+**The embedded image is deferred, not dismissed.** The embedded host is a
+deployment in its own right -- the whole system in one process and one container
+-- and it gets an image. It does not get one here because it carries three open
+questions the distributed pair does not: migrating its own SQLite file inside the
+image, the weight of the Prisma CLI that migration currently needs, and where its
+database and artifact paths land when there is no repository to anchor them.
+Enough was measured to start that work from evidence; see What actually landed.
+
+**Whoever owns a database migrates it.** Postgres belongs to the deployment and
+is shared by two hosts, so a one-shot migration container applies pending
+migrations and exits, and both hosts wait for it to succeed. Neither host carries
+the Prisma CLI, and a host replica never migrates. The embedded host's SQLite
+file belongs to that container alone, so when it gets an image it migrates on its
+own start. The migration container runs `prisma migrate deploy` because that is
+the tool that writes the migrations; replacing it with a plain SQL runner is
+possible and recorded in `docs/todo.md`.
+
+**Hosts provision what they use, where they can.** `RedisMessageLog` already
+creates its streams and consumer groups on start. The S3 artifact store now does
+the same for its bucket, behind a config flag, because hosted S3 commonly grants
+an application no permission to create buckets. A bucket that exists is never
+created, so the flag is safe to leave on against infrastructure provisioned
+elsewhere. That removes a provisioning container from the deployment rather than
+adding one.
+
+**Local state lives on a mount.** A container's filesystem is discarded when the
+container is replaced. The Worker host writes nothing locally. The API host is
+easy to miss: its replay sink writes per-run JSONL under the working directory and
+replay reads it back from there, so its image works in a directory the `node`
+user owns and a deployment mounts a volume there. Whether that is a
+Docker-managed volume or a host directory is chosen at run time, not by the image.
+
+**One compose file per deployment shape, grown rather than replaced.**
+`deploy/remote-worker.compose.yaml` is named for the `remote-worker` preset both
+hosts resolve. Postgres, MinIO and Redis sit behind an `infra` profile, and every
+connection setting defaults to the service in the same file, so the same file
+runs either with its own infrastructure or against existing infrastructure given
+only environment variables. As components leave the API host, they become
+services here. It is separate from the repository-root compose file, which stays
+the integration-test infrastructure, and publishes no infrastructure port, so
+both can run at once.
 
 **A readiness endpoint, because a healthcheck otherwise lies.** A container check
-against an ordinary route reports healthy for as long as the port answers. The
-managed runtime already reports per-resource health, and `buildSqlClient` already
-implements a real probe, so the HTTP hosts need only expose it. The Worker host
-serves no HTTP, and whether it gains a listener or is checked some other way is
+against an ordinary route reports healthy for as long as the port answers, and a
+host with no check at all is reported healthy by `compose up --wait` the moment
+it runs. The managed runtime already reports per-resource health, so the HTTP
+hosts expose it. The Worker host serves no HTTP, and how it is checked stays
 open. Readiness here means the process's own resources; readiness across
 processes, where the Worker's consumer group must exist before the API host
 accepts work, is C29's.
 
 **Out of scope.** Standalone executables: Node's single-executable support is
 experimental, embeds a runtime larger than these images, and cannot carry native
-modules, and no deployment shape asks for one. Running the pair as the proof,
-which is C29. Moving the Worker off Postgres, which would remove roughly half of
-its artifact but is a schema question, not a packaging one.
+modules. Publishing images or bundles to any registry. Supporting more than one
+Worker replica, which splits work today but has no recovery for a crashed
+replica's in-flight jobs. Moving the Worker off Postgres, which would remove
+roughly half of its artifact but is a schema question, not a packaging one.
 
 **Completion evidence.**
 
-- One command emits an artifact and metafile per host, into a directory turbo
-  caches and restores.
-- The boundary assertion fails when an artifact contains a forbidden input,
-  demonstrated by introducing one.
-- The API host and Worker host images build without an install step and start
-  against the compose services, and a failed start exits non-zero.
-- The HTTP hosts' readiness endpoint reports not ready when a required resource
-  is unreachable, and the images' healthchecks use it.
+- One command emits an artifact, source map, and metafile per host, into a
+  directory turbo caches and restores.
+- The boundary assertion fails the build when an artifact contains a forbidden
+  package, demonstrated by introducing one, and CI runs it on every push.
+- The API host and Worker host images build without an install step, start
+  against real infrastructure, stop cleanly on SIGTERM, and exit non-zero on a
+  failed start.
+- One compose command migrates an empty database, starts both hosts after it, and
+  completes a real flow across Redis, MinIO and Postgres.
+- The API host's readiness endpoint reports not ready when a required resource is
+  unreachable, and its container healthcheck uses it.
 - Each artifact's externals are recorded, confirming or refuting the current
   provider package boundary.
 
-## Change C29 - Run and prove the distributed deployment - not started
+### What actually landed
+
+**The closure question has an answer, and it confirms the provider package
+boundary.** `@lcase/db-prisma` carries both generated clients and lists the SQLite
+driver adapter as a production dependency, which is why an installed Worker host
+contains `better-sqlite3`. A bundle contains what its entry point reaches, and
+the metafiles show neither the API host nor the Worker host reaches SQLite at all.
+The recorded externals:
+
+| Artifact    | Bundle  | Packages | Externals                                            |
+| ----------- | ------- | -------- | ---------------------------------------------------- |
+| api         | 10.1 MB | 120      | `pg-native`, `@opentelemetry/api`, `@node-rs/xxhash` |
+| worker-host | 8.7 MB  | 66       | `pg-native`, `@opentelemetry/api`, `@node-rs/xxhash` |
+| embedded    | 14.8 MB | 124      | the same three, and `better-sqlite3`                 |
+
+The three shared externals are not dependencies. None is installed anywhere in
+the workspace; each is an optional `require` its library makes only when present
+(`pg`'s native client, tracing, a faster hash), which esbuild leaves unresolved.
+Containers with no `node_modules` start and complete runs without them, so
+splitting `@lcase/db-prisma` per provider buys nothing for bundled hosts.
+`@prisma/client` is about half of each distributed bundle.
+
+**The boundary check reads package names, not paths.** The metafile names every
+input by path, so each file is attributed to the nearest `package.json` that has a
+name, and external imports are checked as well as bundled files. It was probed
+three ways: the API host re-exporting the embedded profile failed naming all five
+forbidden packages with a file that pulled each in; a forbidden package present
+only as an external was caught; and a misspelled `forbidden` field fails the run
+before anything builds, since a typo would otherwise switch the check off
+silently. For the Worker host no forbidden package is reachable through its
+declared dependencies at all, so pnpm's strict resolution enforces that boundary
+first and the check is the guard for a dependency added later. A failed run
+removes the whole output directory rather than leaving the hosts that finished
+first. CI runs `pnpm bundle` after `pnpm build`, so the check guards every push
+rather than only a local run.
+
+**Turbo had two blind spots, and one predated this Change.** The shared runner
+lives outside every app, so turbo returned cached bundles after it changed until
+the task named it with `$TURBO_ROOT$`. Separately, `@lcase/db-prisma`'s generated
+clients live in a gitignored `src/generated`, which the root `build` task never
+declared, so a cache hit restored `dist` and left the clients missing. A
+package-level `turbo.json` now declares them, the first in the repository, rather
+than describing all packages to accommodate one.
+
+**Source maps chain back to TypeScript.** esbuild follows the `tsc` maps in
+`dist`, so a bundle position resolves to the original `.ts` file and line, not to
+compiled output. The maps omit embedded source text, which cut the API host's map
+from 14.2 MB to 3.0 MB without affecting a stack trace. Images run with
+`--enable-source-maps`.
+
+**Alpine, on evidence.** On `node:24-slim` the Worker host image downloaded at
+80 MB; on `node:24-alpine`, 59 MB. musl only matters for native code, and neither
+distributed bundle contains any: Prisma's query path is WebAssembly, and `pg` and
+`redis` are JavaScript. Node 24 is LTS until April 2028, and CI moved to it along
+with action versions that run on it, which ends the deprecation warning every run
+printed.
+
+**The embedded image was measured before it was deferred.** `better-sqlite3`
+installs on Alpine from a prebuilt musl binary on both arm64 and x64, with no
+compiler in the image. A scratch embedded image, with its schema applied by hand
+onto a volume, served a two-step flow whose second step consumed the first's
+export, and stopped cleanly. A second, carrying the Prisma CLI, ran
+`prisma migrate deploy` against an empty volume at start, found nothing pending on
+restart, and then served. What stopped it here was the cost: the `prisma` package
+brings Prisma Studio, React, and an embedded Postgres that `migrate deploy` never
+uses, doubling that image from 67 MB to 132 MB.
+
+**The migration container records migrations exactly as local development does.**
+It carries its own five-line Prisma config reading `POSTGRES_DATABASE_URL`,
+because the repository's config imports package TypeScript and a `.env` an image
+does not have. Against a fresh database it applied the initial migration and
+exited zero, found nothing pending on a second run, and exited non-zero for an
+unreachable server or an unset URL. The repository's own `prisma migrate status`
+then reported that database up to date. The Postgres schema is derived at build
+time and not checked in, so building the image runs that derivation first. Its
+Prisma version is pinned separately from the package's, which is a second place
+to change on an upgrade.
+
+**A missing bucket is a bare 404.** `HeadBucket` has no response body, so MinIO
+reports a missing bucket as `NotFound` with status 404 rather than the
+`NoSuchBucket` code other calls use. The integration test pins that: narrowing
+detection to `NoSuchBucket` fails both of its cases. Losing a creation race to a
+host starting alongside counts as success, and any other failure is rethrown
+without attempting a create.
+
+**The healthcheck caught its own bug.** The first healthcheck called `localhost`,
+which Alpine resolves to `::1` first, while the host listens on IPv4 only, so
+Docker marked a serving container unhealthy. It calls `127.0.0.1`. With Postgres
+stopped, `/health` answered 503 naming `sql` and the container went unhealthy;
+with Postgres back, it recovered without a restart. Only the SQL client has a
+real health hook today, so an S3 or Redis outage does not yet show there.
+
+**The deployment ran end to end.** From empty volumes, one compose command started
+the infrastructure, ran the migration, and only then started both hosts, which
+created the bucket and the three streams themselves. `examples/parallel.flow.json`
+completed through the containers in under a second: every step projected to
+Postgres, step outputs read back from MinIO through the API, the replay log
+landed on the API host's volume, and no Redis group held an unacknowledged entry.
+Scaled to two Worker replicas, three concurrent runs completed with their twelve
+jobs split eight and four between the replicas and none run twice. The replicas
+share one consumer name, which is correct for splitting work and wrong for
+recovering it; that decision belongs with crash recovery, not here.
+
+**Linting and the deploy build each needed a fix the bundles caused.** ESLint
+lints `.mjs` files by default and began linting the bundles, so both apps ignore
+`bundle` alongside `dist`. And `turbo run bundle` schedules `build` for every
+package, including ones nothing bundles, so `deploy:build` filters to the two
+apps whose hosts it deploys.
+
+## Change C29 - Prove the distributed deployment from a cold start - not started
 
 ### Discussion
 
-Run both application processes against real Redis, MinIO/S3-compatible storage,
-and Postgres, submit one HTTP JSON job to the companion side, and observe the
-Worker process consume it with no in-process Worker instance, persist and
-retrieve shared artifacts, publish the terminal back across Redis, and reach the
-expected completed run state at Engine. The proof must fail if the Worker host
-is absent or misconfigured rather than succeeding through a local fallback.
+C28 already runs both hosts from their images against real Redis, MinIO and
+Postgres, and a real flow completes across them. What that run does not show is
+whether the deployment is correct when nothing has run before, or when a
+participant is missing: its Redis groups were created in an order that happened
+to work, and nothing checked that the proof fails without the Worker host rather
+than succeeding through a local fallback. This Change's content is the parts no
+earlier Change could supply.
 
-With C25 and C27 each proven alone, and C28 supplying the artifacts and images
-both processes run from, this Change's own content is the two things none of them
-could supply:
+**The provisioning and readiness race deferred by C22.** Before the API host
+reports ready and accepts external intake, the selected provisioning or startup
+policy must ensure every required Redis route and group pair exists. A group
+created at `$` sees nothing published before it existed, so a first submission
+accepted before the Worker host's group exists is silently lost. C28's `/health`
+reports only the API host's own resources, which is exactly the gap. The
+acceptance test starts from empty infrastructure and submits work immediately
+after readiness, so that a skipped first entry fails the test rather than passing
+by timing.
 
-**The provisioning and readiness race deferred by C22.** Before the companion
-process reports ready and accepts external intake, the selected provisioning or
-startup policy must ensure every required Redis route and group pair exists. A
-group created at `$` sees nothing published before it existed, so a first
-submission accepted before the Worker host's group exists is silently lost. The
-acceptance test submits work immediately after readiness so that a skipped first
-entry fails the test rather than passing by timing.
+**The proof must be able to fail.** Removing or misconfiguring the Worker host
+has to fail the run visibly rather than stall silently or degrade to local
+execution, and how the Worker host itself is checked -- it serves no HTTP -- is
+decided here.
 
-**One deployment configuration rather than parallel conventions.** Both
-entrypoints own configuration parsing, lifecycle start and rollback, signals,
-process identity, and truthful readiness for the resources they require. Shared
-protocol and physical route values come from one source, which is only
-expressible now that two participants exist.
+**One deployment configuration rather than parallel conventions.** Both hosts
+read their settings from environment variables under names each chose, and the
+compose file maps one set onto both. Shared protocol and physical route values
+should come from one source, which is only expressible now that two participants
+exist.
 
 The first remote deployment does not need to solve every distributed-systems
 policy. Cancellation across the boundary, crash recovery and pending-entry
-reclaim, idempotent redelivery, retained failures, full lifecycle-event
-migration, and ordering against event families still entering through
-`EventBusPort` remain separately scoped unless the acceptance proof cannot be
-truthful without one of them.
+reclaim, consumer naming for replicas, idempotent redelivery, retained failures,
+full lifecycle-event migration, and ordering against event families still
+entering through `EventBusPort` remain separately scoped unless the acceptance
+proof cannot be truthful without one of them.
 
 **Completion evidence.**
 
-- Both applications build and run independently against the shared
-  infrastructure, and each reports truthful startup failure for unreachable
-  required backends.
-- A real end-to-end flow crosses Redis in both directions, shares artifacts and
-  SQL state through MinIO/S3 and Postgres, and reaches a completed run with no
-  in-process Worker fallback anywhere.
-- Removing or misconfiguring the Worker host fails the proof rather than
-  degrading to local execution.
-- Every required Redis route and group pair exists before companion readiness,
-  and a submission made immediately after readiness is consumed rather than
-  skipped.
-- Companion and Worker processes load compatible values from one deployment
-  definition rather than parallel environment-variable conventions.
+- From empty infrastructure, every required Redis route and group pair exists
+  before the API host reports ready, and a submission made immediately after
+  readiness is consumed rather than skipped.
+- Removing or misconfiguring the Worker host fails the proof rather than stalling
+  unnoticed or degrading to local execution.
+- Both hosts load compatible values from one deployment definition rather than
+  parallel environment-variable conventions.
 
 ## Change C30 - Give Worker truthful managed lifecycle and controlled ingress - not started
 

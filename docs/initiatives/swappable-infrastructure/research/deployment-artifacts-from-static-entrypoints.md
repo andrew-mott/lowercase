@@ -287,3 +287,10 @@ differently.
 that completed a flow ran from source, and running the pair from its artifacts is
 Change C29's proof. And that the boundary holds over time, since the CI assertion
 does not exist yet; Change C28 builds it.
+
+**Update, Change C28.** Both are now covered. `pnpm bundle` checks each host's
+metafile against the packages its app's `bundle.config.mjs` forbids and fails on a
+violation, and CI runs it after `pnpm build`. And the API host and Worker host ran
+from their bundles, in containers with no `node_modules`, completing
+`examples/parallel.flow.json` end to end -- earlier than planned, as part of C28's
+compose deployment rather than C29's proof, which now covers cold start instead.

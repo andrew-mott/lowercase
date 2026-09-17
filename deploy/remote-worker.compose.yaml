@@ -1,0 +1,143 @@
+# The remote-worker deployment: the API host and the Worker host as separate
+# containers, named for the `remote-worker` preset in @lcase/message-topology
+# that both hosts resolve.
+#
+#   pnpm deploy:build
+#   docker compose -f deploy/remote-worker.compose.yaml --profile infra up -d --wait
+#
+# With `--profile infra`, Postgres, MinIO and Redis run here too. Without it,
+# only the migration and the two hosts run, pointed at existing infrastructure
+# through POSTGRES_DATABASE_URL, REDIS_URL and the S3_* variables. Each default
+# below names the service in this file, so the infra profile needs no settings.
+#
+# Separate from the repository-root docker-compose.yml, which is the
+# integration-test infrastructure. Nothing here publishes an infrastructure
+# port, so both can run at once.
+
+name: lcase-remote-worker
+
+x-postgres-url: &postgres-url ${POSTGRES_DATABASE_URL:-postgresql://lcase:lcase@postgres:5432/lcase}
+
+x-host-environment: &host-environment
+  POSTGRES_DATABASE_URL: *postgres-url
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  S3_BUCKET: ${S3_BUCKET:-lcase-artifacts}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+
+# `required: false` is what lets one file serve both modes: wait for the
+# infrastructure when its profile is running, and do not fail when it is not.
+x-host-depends-on: &host-depends-on
+  migrate:
+    condition: service_completed_successfully
+  redis:
+    condition: service_healthy
+    required: false
+  minio:
+    condition: service_healthy
+    required: false
+
+services:
+  postgres:
+    profiles: [infra]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lcase
+      POSTGRES_PASSWORD: lcase
+      POSTGRES_DB: lcase
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lcase -d lcase"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    profiles: [infra]
+    # The same image and reason as the test infrastructure: the official one
+    # needs a `server /data` command, this one runs from environment alone.
+    image: bitnamilegacy/minio:latest
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/bitnami/minio/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:9000/minio/health/live || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    profiles: [infra]
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applies pending Postgres migrations and exits. The only thing in this
+  # deployment that changes the schema, so neither host needs the Prisma CLI
+  # and a host replica never migrates.
+  migrate:
+    build:
+      context: ../packages/db-prisma
+      dockerfile: migrate.Dockerfile
+    image: lcase/migrate:local
+    environment:
+      POSTGRES_DATABASE_URL: *postgres-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  api:
+    build:
+      context: ../apps/http-server
+      dockerfile: api.Dockerfile
+    image: lcase/api:local
+    environment: *host-environment
+    ports:
+      - "${API_PORT:-3000}:3000"
+    # Replay logs are this host's only local state.
+    volumes:
+      - api-data:/data
+    # Busybox wget ships in the Alpine base. A 503 fails the check as well as a
+    # closed port, so `up --wait` waits for the API to report healthy.
+    #
+    # 127.0.0.1, not localhost: Alpine resolves localhost to ::1 first, and the
+    # host listens on IPv4 only, so a localhost check is refused while the API
+    # is serving.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+      start_interval: 1s
+    depends_on: *host-depends-on
+
+  # Nothing recovers a crashed replica's in-flight jobs yet, so running more
+  # than one replica splits work but is not a supported shape.
+  worker-host:
+    build:
+      context: ../apps/worker-host
+    image: lcase/worker-host:local
+    environment: *host-environment
+    depends_on: *host-depends-on
+
+volumes:
+  postgres-data:
+  minio-data:
+  redis-data:
+  api-data:
