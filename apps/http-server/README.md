@@ -35,7 +35,7 @@ pnpm -F @lcase/db-prisma migrate:postgres
 
 Connection settings come from the environment and default to those compose services. A process running outside the repository has no `.env` to fall back on and must be given them explicitly — `POSTGRES_DATABASE_URL` in particular, since the development default is derived from `POSTGRES_HOST_PORT` in the repo-root `.env`.
 
-Either host reports a failed start and exits non-zero rather than binding the port, and shuts down on SIGINT/SIGTERM by closing the server first, then stopping its resources in reverse start order.
+Either host reports a failed start and exits non-zero rather than binding the port, and shuts down on SIGINT/SIGTERM by closing the server first, then stopping its resources in reverse start order. Once serving, `GET /health` reports each resource's health, answering 503 if any is unhealthy.
 
 ## Build
 
@@ -46,6 +46,16 @@ pnpm start:api  # API host:      node ./dist/hosts/api.js
 ```
 
 `build` clears `dist/` and compiles with `tsconfig.build.json`, which emits `src/` only. The base `tsconfig.json` covers `src/` and `tests/` and is what `typecheck` uses, so test files are type-checked without reaching the build output.
+
+## Bundle and image
+
+```bash
+pnpm bundle     # bundle/api.mjs and bundle/embedded.mjs, each with a source map and esbuild metafile
+```
+
+`bundle` reads `dist/`, so build first — from the repo root, `pnpm bundle` runs both in order through turbo. [`bundle.config.mjs`](bundle.config.mjs) lists this app's hosts, what each keeps external, and what each must not contain: the API host fails the bundle if Worker, the limiter, SQLite, or the embedded profile ends up inside it. The mechanics are shared across apps in [`scripts/bundle.mjs`](../../scripts/bundle.mjs).
+
+[`api.Dockerfile`](api.Dockerfile) packages the API host bundle as an image, built and run as part of a deployment — see [`deploy/`](../../deploy). The embedded host has no image yet.
 
 ## Other commands
 

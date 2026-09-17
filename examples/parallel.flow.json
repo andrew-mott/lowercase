@@ -39,7 +39,7 @@
 
     "five": {
       "type": "httpjson",
-      "url": "{{steps.two.output.body.result.properties.homeworld}}",
+      "url": "{{steps.two.output.result.properties.homeworld}}",
       "method": "GET",
       "headers": {
         "Content-Type": "application/json"

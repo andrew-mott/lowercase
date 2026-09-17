@@ -185,23 +185,21 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C24    | Scaffold the Worker-host app                                                   | merged (PR #383) | [6]   |          |
 | C25    | Build the Worker-host process                                                  | merged (PR #384) | [6]   |          |
 | C26    | Portability pass: cross-platform cleans, build config inversion, couplings     | merged (PR #385) | [5]   |          |
-| C27    | Build the API host process                                                     | in progress      | [6]   |          |
-| C28    | Build and package deployable artifacts                                         | not started      | [6]   |          |
-| C29    | Run and prove the distributed deployment                                       | not started      | [6]   |          |
+| C27    | Build the API host process                                                     | merged (PR #386) | [6]   |          |
+| C28    | Build and package deployable artifacts                                         | in progress      | [6]   |          |
+| C29    | Prove the distributed deployment from a cold start                             | not started      | [6]   |          |
 | C30    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
 
 ## Next up
 
-1. **C27:** give `apps/http-server` a second host under `src/hosts/` — the
-   embedded entry point moved, plus an API host composing an app-local profile
-   with no Worker — sharing one Fastify layer that no longer owns process
-   lifecycle.
-2. **C28:** bundle each host into one artifact from its static entry point,
-   assert in CI that each artifact stays inside its boundary, and package the
-   API host and Worker host as images with a readiness endpoint to check.
-3. **C29:** run both processes together from those images, settle cross-process
-   consumer-group readiness, and prove the real two-process path end to end.
-4. **C30:** make Worker a truthful managed resource and coordinate command
+1. **C28:** bundle each host into one artifact from its static entry point,
+   fail the build when an artifact leaves its boundary, package the API host and
+   Worker host as images, and run them together from one compose file with a
+   migration step and a readiness endpoint. The embedded image is deferred.
+2. **C29:** prove that deployment from a cold start -- cross-process
+   consumer-group readiness, a proof that fails without the Worker host, and one
+   deployment configuration for both hosts.
+3. **C30:** make Worker a truthful managed resource and coordinate command
    intake with active-work settlement, now designed against a process that
    hosts Worker alone.
 

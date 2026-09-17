@@ -17,8 +17,10 @@ export const config = {
 
   artifacts: {
     kind: "s3",
-    // Has to exist already -- nothing in this process creates it.
     bucket: process.env.S3_BUCKET ?? "lcase-artifacts",
+    // Created on start when missing, so a fresh MinIO needs no separate
+    // provisioning step. A bucket that already exists is left alone.
+    createBucketIfMissing: true,
     endpoint: process.env.S3_ENDPOINT ?? "http://localhost:9000",
     region: process.env.S3_REGION ?? "us-east-1",
     // MinIO addresses buckets by path rather than by subdomain.

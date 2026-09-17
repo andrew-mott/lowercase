@@ -1,0 +1,4 @@
+*
+!prisma.postgres.container.config.mjs
+!prisma/postgres/schema.prisma
+!prisma/postgres/migrations

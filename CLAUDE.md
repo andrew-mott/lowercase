@@ -8,6 +8,8 @@ Package manager is pnpm (`pnpm@10.17.1`, enforced via `packageManager` + corepac
 
 - Install: `pnpm install`
 - Build all: `pnpm build` (turbo fan-out)
+- Bundle hosts: `pnpm bundle` — esbuild over each app's `dist`, one `.mjs` plus source map and metafile per host into that app's `bundle/`. Hosts, externals, and packages each host must not contain live in the app's `bundle.config.mjs`; the shared runner is `scripts/bundle.mjs`, and a forbidden package fails the bundle.
+- Deployment images: `pnpm deploy:build` bundles, then builds the images `deploy/remote-worker.compose.yaml` runs (see `deploy/README.md`). The repo-root `docker-compose.yml` is separate: it is integration-test infrastructure only.
 - Typecheck all: `pnpm typecheck`
 - Test all: `pnpm test` (runs vitest per package via turbo) — `pnpm -r test` also works to run all package tests from the root
 - Lint all: `pnpm lint` — real ESLint in every package except `packages/archive/*` (stubbed as `echo lint`) and `apps/desktop` (no `lint` script at all). Run in CI (`.github/workflows/ci.yaml`).

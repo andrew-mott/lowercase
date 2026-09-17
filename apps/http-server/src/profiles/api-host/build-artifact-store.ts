@@ -1,8 +1,4 @@
-import {
-  HeadBucketCommand,
-  S3Client,
-  type S3ClientConfig,
-} from "@aws-sdk/client-s3";
+import { S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
 import { S3ArtifactStore } from "@lcase/adapters/artifact-store";
 import type { LifecycleHooks } from "@lcase/assembly";
 import type { ArtifactStorePort } from "@lcase/ports";
@@ -22,9 +18,10 @@ export function buildArtifactStore(
     forcePathStyle: config.forcePathStyle,
     credentials: config.credentials,
   } satisfies S3ClientConfig);
+  const store = new S3ArtifactStore(client, config.bucket);
 
   return {
-    store: new S3ArtifactStore(client, config.bucket),
+    store,
     hooks: {
       // The counterpart to the SQL client's `SELECT 1`, and for the same
       // reason: constructing an S3Client reaches nothing, so without this the
@@ -36,18 +33,17 @@ export function buildArtifactStore(
       // Left to throw. `startAll` catches it, names this resource, and rolls
       // back everything already started.
       //
-      // Checked through the client this function built rather than through the
-      // store, which is the one asymmetry with `buildSqlClient`: that hook calls
-      // a method on the instance it manages, this one calls past it. The
-      // alternative is an operational method on `ArtifactStorePort`, which the
-      // codebase deliberately avoids -- `MessageRouter` states the position,
-      // that hooks normalize lifecycle so no port has to carry it.
+      // Called on the concrete store rather than through the port, which has no
+      // operational methods: hooks normalize lifecycle so that no port has to
+      // carry it, the position `MessageRouter` states.
       start: async () => {
-        await client.send(new HeadBucketCommand({ Bucket: config.bucket }));
+        await store.ensureBucket({
+          create: config.createBucketIfMissing ?? false,
+        });
       },
       // No stop, and no health. Both are reachable from here -- the client has
-      // `destroy()`, and this same command would answer health -- so their
-      // absence is a choice not to claim more than the process needs yet.
+      // `destroy()`, and a bucket check would answer health -- so their absence
+      // is a choice not to claim more than the process needs yet.
     },
   };
 }

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // `prisma generate` writes the clients to the gitignored src/generated, so
+    // a cache hit restores it only if it is an output. A package's outputs
+    // replace the root's rather than extending them, hence dist again.
+    "build": {
+      "outputs": ["dist/**", "src/generated/**"]
+    },
+    "typecheck": {
+      "outputs": ["src/generated/**"]
+    }
+  }
+}

@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "bundle": "turbo run bundle",
+    "deploy:build": "turbo run bundle --filter=@lcase/http-server --filter=@lcase/worker-host && pnpm -F @lcase/db-prisma schema && docker compose -f deploy/remote-worker.compose.yaml build",
     "build-packages": "turbo run build --filter='!./apps/*'",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -14,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter @lcase/db-prisma run migrate",
-    "verify": "pnpm format && pnpm lint && pnpm build && pnpm typecheck && pnpm -r test && pnpm test:integration"
+    "verify": "pnpm format && pnpm lint && pnpm build && pnpm bundle && pnpm deploy:build && pnpm typecheck && pnpm -r test && pnpm test:integration"
   },
   "packageManager": "pnpm@10.17.1",
   "devDependencies": {

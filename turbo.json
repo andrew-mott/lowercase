@@ -6,6 +6,11 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "bundle": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/bundle.mjs"],
+      "outputs": ["bundle/**"]
+    },
     "dev": {
       "dependsOn": ["^dev"],
       "cache": false,

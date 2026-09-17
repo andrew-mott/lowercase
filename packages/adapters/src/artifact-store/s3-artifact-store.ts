@@ -6,7 +6,12 @@ import type {
 } from "@lcase/ports";
 import type { Result } from "@lcase/types";
 import type { S3Client } from "@aws-sdk/client-s3";
-import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  CreateBucketCommand,
+  GetObjectCommand,
+  HeadBucketCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 
 // Built against the standard S3 API, not MinIO-specific -- MinIO differs
 // only in how the injected S3Client is configured (endpoint, path-style
@@ -83,6 +88,54 @@ export class S3ArtifactStore implements ArtifactStorePort {
         },
       };
     }
+  }
+
+  /**
+   * Confirms the bucket exists, creating it first when `create` is set.
+   *
+   * Deliberately not on `ArtifactStorePort`: provisioning belongs to a host's
+   * start hook, the way `RedisMessageLog.ensureStream` provisions streams, and
+   * nothing that reads or writes artifacts should be able to reach it.
+   *
+   * Two hosts starting together can both find the bucket missing, so losing the
+   * race to create it counts as success. Anything other than a missing bucket --
+   * bad credentials, an unreachable endpoint -- is rethrown without attempting a
+   * create, since creating cannot fix it.
+   */
+  async ensureBucket(options: { create: boolean }): Promise<void> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      return;
+    } catch (e) {
+      if (!this.isMissingBucket(e)) throw e;
+    }
+
+    if (!options.create) {
+      throw new Error(
+        `S3 bucket "${this.bucket}" does not exist, and creating it is not enabled`,
+      );
+    }
+
+    try {
+      await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+    } catch (e) {
+      const name = e instanceof Error ? e.name : "";
+      if (
+        name !== "BucketAlreadyOwnedByYou" &&
+        name !== "BucketAlreadyExists"
+      ) {
+        throw e;
+      }
+    }
+  }
+
+  // HeadBucket has no response body, so a missing bucket arrives as a bare 404
+  // named NotFound rather than as the NoSuchBucket code other calls use.
+  private isMissingBucket(e: unknown): boolean {
+    if (!(e instanceof Error)) return false;
+    const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+      ?.httpStatusCode;
+    return e.name === "NotFound" || e.name === "NoSuchBucket" || status === 404;
   }
 
   private isNoSuchKey(e: unknown): boolean {
