@@ -185,8 +185,8 @@ describe.skipIf(!live)("worker-host against live backends", () => {
   // The process boundary, proven in one process. The command is appended
   // straight onto the stream by a client that holds no plan, no router and no
   // binding -- so nothing in this test knows how Worker is wired, only where the
-  // deployment says the Messages travel. An Engine would read the terminal from
-  // exactly this stream, and C26 is what puts one there.
+  // deployment says the Messages travel. An Engine reads the terminal from
+  // exactly this stream in a real deployment; here the client stands in for it.
   it("answers a command on the command route with a terminal on the terminal route", async () => {
     const cfg = config();
     const prefix = cfg.messaging.keyPrefix!;
@@ -244,9 +244,10 @@ describe.skipIf(!live)("worker-host against live backends", () => {
       const hash: string = terminals[0].data.output;
       expect(hash).toEqual(expect.any(String));
 
-      // Blob in shared object storage. This is also the only thing in the suite
-      // that touches S3 at all -- the store has no start hook, so a wrong bucket
-      // reaches here and nowhere earlier.
+      // Blob in shared object storage, written by a process that is not this
+      // one. Reading it back through a plain client, rather than through the
+      // store the host built, is what makes it evidence of a real round trip
+      // rather than of the store agreeing with itself.
       const object = await s3.send(
         new GetObjectCommand({ Bucket: bucket, Key: hash }),
       );

@@ -57,7 +57,7 @@ describe("shipped deployments", () => {
     }
   });
 
-  // The shape C23 exists for, asserted on the presets rather than only on a
+  // Route convergence, asserted on the presets rather than only on a
   // fixture: Observability's two edges name one route, and the two work routes
   // stay separate so Worker and Engine are unaffected by it.
   it.each([

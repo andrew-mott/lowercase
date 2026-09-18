@@ -5,17 +5,17 @@
 [![Last commit (main)](https://img.shields.io/github/last-commit/lcaseio/lowercase/main?label=last%20commit%20%28main%29)](https://github.com/lcaseio/lowercase/commits/main)
 [![Last commit (dev)](https://img.shields.io/github/last-commit/lcaseio/lowercase/dev?label=last%20commit%20%28dev%29)](https://github.com/lcaseio/lowercase/commits/dev)
 
-## Alpha Software (v0.1.0-alpha.13)
+## Alpha Software (v0.1.0-alpha.14)
 
 **lowercase** is in an early alpha stage and still taking shape. Some things work but APIs and behaviors will change as development evolves. Expect rough edges and breaking changes for now.
-
-`main` reflects the latest tagged alpha release (this README). Active development happens on `dev`, which is ahead of `main` and may be unstable.
 
 ## Overview
 
 **lowercase** is an event-driven workflow engine for building and testing AI/LLM-driven pipelines: flows defined as JSON, executed step by step, with structured validation of model output and branching based on it.
 
-It runs locally today, as a single process: SQL (SQLite) holds metadata (flows, artifacts, sims, runs, evals), a content-addressed filesystem store holds immutable content (LLM outputs, API responses, exported values), and the event bus and job queue are both in-memory. Business logic is written against interfaces rather than these specific implementations, so other backends could get swapped in later — Redis Streams for the queue and MinIO for blob storage are the leading candidates — but that's a design intent, not a present capability.
+It runs as a single process by default, and as a distributed deployment when configured to. SQL holds metadata (flows, artifacts, sims, runs, evals), a content-addressed store holds immutable content (LLM outputs, API responses, exported values), and components communicate by publishing events rather than calling each other. Each of those three is a swappable axis, chosen when the process is composed: SQLite or Postgres, the filesystem or S3/MinIO, and — for the job protocol that crosses process boundaries — an in-process mailbox router or Redis Streams. Business logic is written against ports rather than any one of them.
+
+Event delivery is mid-migration from one in-process bus to addressed topics and subscriptions, one protocol family at a time. The HTTP job protocol has moved, which is what makes the distributed deployment possible; the rest still travel the bus.
 
 ## The Workbench (`apps/workbench`)
 
@@ -40,7 +40,7 @@ This monorepo uses [pnpm](https://pnpm.io/) via [Corepack](https://github.com/no
 corepack enable
 ```
 
-Post alpha versions of this repo should being to support other package managers.
+Post alpha versions of this repo should begin to support other package managers.
 
 ### 1. install + build
 
@@ -89,13 +89,28 @@ Steps reference each other's data through normalized, path-addressable values (`
 
 Not a one-command demo, though — its `text/markdown` params (`systemParser`, `userParser`, `systemReport`) need real prompt content supplied as run params before it'll actually execute, and only a partial starting point ([`examples/weather.system.prompt.md`](examples/weather.system.prompt.md)) is checked in. Worth reading the flow definition to see what each param expects rather than assuming it runs out of the box. Also needs a local LLM reachable over HTTP — see the flow definition for the expected endpoint. Hosted LLM API providers aren't wired up yet.
 
+## Distributed deployment
+
+The Quickstart above runs everything in one process. `deploy/` runs the same system split across containers — the HTTP API, Engine and Observability in one, the Worker in another — backed by Postgres, MinIO and Redis Streams instead of SQLite, the filesystem and the in-process router.
+
+```bash
+pnpm deploy:fresh   # build the images, then start from empty volumes
+pnpm deploy:down    # stop everything and delete the volumes
+```
+
+The API container serves the REST API and the bundled Workbench together on <http://localhost:3000>, so nothing else needs to be running. Images are built locally and never published. What each container does, and what sets itself up on a cold start: [`deploy/README.md`](deploy/README.md).
+
 ## Other commands
 
 ```bash
 pnpm build-packages   # build only packages/ (skips apps/)
 pnpm typecheck        # typecheck every package (turbo fan-out)
-pnpm lint             # real ESLint config only in apps/workbench today; most packages stub this as a no-op
+pnpm lint             # ESLint across the repo; stubbed only in packages/archive, examples, apps/desktop
+pnpm format           # prettier --write across the repo
+pnpm bundle           # esbuild each app's hosts into one file apiece
 pnpm -r test          # run every package's unit test suite
+pnpm test:integration # integration suites; starts their docker infrastructure first
+pnpm verify           # format, lint, build, bundle, images, typecheck, and every suite
 ```
 
 Further test coverage will grow as the architecture is cemented. Large breaking changes are still in progress.
@@ -106,7 +121,7 @@ Further test coverage will grow as the architecture is cemented. Large breaking 
 
 ## Next
 
-No committed next initiative yet — real candidates on the table: an evals rework (today's eval is a flow-embedded v1 slice; the goal is standalone, reusable eval entities — see [`docs/initiatives/evals/INITIATIVE.md`](docs/initiatives/evals/INITIATIVE.md)), a `packages/components/worker`/tool-interaction refactor (already flagged as unsettled), real binary artifact support, and general architecture-hardening work (the `packages/events` schema boilerplate + EmitterFactory rework, a few engine bugs/enhancements). See [`docs/todo.md`](docs/todo.md) for the fuller backlog.
+Work is organized as initiatives, each with its own design record. [`docs/initiatives/README.md`](docs/initiatives/README.md) lists them in order with current status; five are scaffolded and not yet started — `json-schema-migration`, `rate-limiting`, `engine-hardening`, `runtime-storage-consolidation`, and `evals`. [`docs/todo.md`](docs/todo.md) holds the fuller backlog.
 
 ## License
 

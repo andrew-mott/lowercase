@@ -52,7 +52,7 @@ type ModelName =
  * `docs/initiatives/swappable-infrastructure/research/prisma-provider-type-seam-spike.md`.
  *
  * The assignment at each construction site is the parity check, so there is no
- * separate assertion: `packages/runtime`'s `buildSqlClient` and
+ * separate assertion: `@lcase/profile-local-system`'s `buildSqlClient` and
  * `packages/test-support`'s `createPostgresTestDb` both assign a concrete client
  * to this type with no cast, and either compile or do not.
  */

@@ -34,7 +34,7 @@ export const reporterOutcomes = defineSubscription({
   topics: [outcomes],
 });
 
-/** One purpose spanning both topics, the shape C20 made possible. */
+/** One purpose spanning both topics, which a multi-topic subscription allows. */
 export const auditAll = defineSubscription({
   id: "synthetic-audit.all.v1",
   topics: [requests, outcomes],

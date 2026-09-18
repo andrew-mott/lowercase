@@ -99,8 +99,9 @@ describe.skipIf(!url)("HTTP JSON job vertical slice (real Redis)", () => {
     // observation stream, so this group name exists once and one reader feeds
     // the local lane.
     //
-    // In order, and that is the whole of C23. Until both topics shared a route
-    // this was asserted sorted, because two streams have two group instances
+    // In order, which is the whole point of converging them. Until both topics
+    // shared a route this was asserted sorted, because two streams have two
+    // group instances
     // and two cursors and Redis orders nothing across them -- the command and
     // the terminal it produced could be observed either way round. One log
     // makes the order a property of admission: the command's observation entry

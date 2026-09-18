@@ -4,10 +4,10 @@ import { loadRepoEnv } from "./repo-env.js";
  * The compose service, derived from the single variable that also moves the
  * compose binding itself. Deriving rather than hardcoding a port is what keeps
  * the binding, the Prisma CLI, and a running app in agreement when someone has
- * to move it -- a machine already running native Postgres, most likely. C17
- * recorded what the alternative costs: the port lived in two independent
- * variables that had to be kept equal by hand, and CI failed the first time they
- * disagreed.
+ * to move it -- a machine already running native Postgres, most likely. The
+ * alternative has already been tried and cost: the port lived in two
+ * independent variables that had to be kept equal by hand, and CI failed the
+ * first time they disagreed.
  */
 function composeUrl(database: string): string {
   const port = process.env["POSTGRES_HOST_PORT"] ?? "5432";

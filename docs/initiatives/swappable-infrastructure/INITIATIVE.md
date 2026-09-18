@@ -6,29 +6,36 @@ The actual reason this initiative exists: build a real remote worker and deploy
 it. Everything else here is in service of that — a worker running
 out-of-process needs infrastructure it can actually reach from another
 process/machine, which the original defaults (`InMemoryQueue`, local
-`FsArtifactStore`, SQLite) could not provide. Changes C1–C18 have now supplied
-remote-capable choices for messaging, artifacts, and SQL. The
-[Remote Worker Arc](./arcs/remote-worker.md) scopes the process and package
-boundary that exercises them together.
+`FsArtifactStore`, SQLite) could not provide. Changes C1–C18 supplied
+remote-capable choices for messaging, artifacts, and SQL; the
+[Remote Worker Arc](./arcs/remote-worker.md) (C19–C30) drew the package and
+process boundaries that exercise them together, and `deploy/` runs the result:
+the API host and the Worker host as separate containers against Postgres, MinIO
+and Redis, proven from a cold start with empty volumes.
 
-The ports/adapters boundary is meant to let other infrastructure backends get swapped in later (candidates already named in the root `README.md`: Redis Streams for the job queue, MinIO for CAS/blob storage) — but that's only a structural claim until real alternate implementations actually exist behind those ports. This initiative is where that gets tested for real, via the Worker V2 plan's [Phase 6](../../component-architecture/worker-v2/README.md#phase-6-exercise-a-remote-boundary) (deliberately left optional there until deployment independence is actually being tested — this initiative is that trigger).
+The swappability claim is no longer structural. Every axis named below has two
+live implementations selected by configuration, and the distributed deployment
+is what forced them to be real rather than nominal — two processes cannot share
+an `FsArtifactStore` directory or a SQLite file, so the alternate backends are
+load-bearing there rather than optional. What the boundary bought is checkable
+rather than asserted: `@lcase/assembly`, `@lcase/message-router` and
+`@lcase/message-topology` have no production dependencies at all, so a process
+hosting one component installs none of the rest of the system.
 
-Adapter surface, now scoped into individual Changes (see Change index below). "Swappable" throughout means **selected by configuration when a process is composed**, with every implementation retained and none deleted — not hot-swapped while running, and not one backend replacing another. Each bullet below is an axis with more than one live option:
+The adapter surface. "Swappable" throughout means **selected by configuration when a process is composed**, with every implementation retained and none deleted — not hot-swapped while running, and not one backend replacing another. Each bullet below is an axis with two live options:
 
 - **Queue + messaging** — asynchronous Messages (the existing CloudEvent-shaped `AnyEvent`) as the protocol between components, carried locally by an in-process mailbox router and remotely by Redis Streams under the same component boundary. Components publish through a declaration-bound publisher and receive through a handler. Shared protocol and deployment declarations own stable routing identity and select one carrier realization for the deployment; each process profile consumes that choice, constructs its local carrier resources, and binds the handlers it hosts. Still no separate pub/sub technology, and still independent subscriptions per concern (Engine and Observability each hold their own logical subscription rather than one being a special case of the other) — but the local case is deliberately _not_ Streams-shaped, and `EventBusPort` survives for every event family not yet migrated. See [`docs/component-architecture/in-process-messaging/`](../../component-architecture/in-process-messaging/README.md). The current Worker side is defined separately by [Worker Component Architecture](../../component-architecture/worker/README.md): a process profile retains one real Worker and binds its handler rather than adding another adapter-shaped wrapper.
 - **CAS/blob storage** — S3/MinIO alongside `FsArtifactStore`, both live on the `artifacts` config axis (Changes C1 and C3). The filesystem store stays the local default.
-- **SQL** — Postgres via Prisma alongside SQLite. SQLite is the lightweight install option for this application and stays a supported profile branch; the goal is that `sql` becomes a real config axis with two live backends, the same as `artifacts` and `messaging`. The schema is already Prisma-based so no model rewrite is needed, but Prisma binds a generated client to one `datasource.provider` — a driver adapter changes how a client reaches a database, not which provider it was generated for. Two backends therefore means two schema roots, two generated clients, two driver adapters, and two migration histories, with model parity guaranteed by repository-owned derivation rather than by anything Prisma provides. Both histories collapse freely while the schema is in flux — zero users, no data to preserve — and start being kept for real once it stabilizes. See [`research/prisma-sql-backend-strategy.md`](./research/prisma-sql-backend-strategy.md).
+- **SQL** — Postgres via Prisma alongside SQLite. SQLite is the lightweight install option for this application and stays a supported profile branch; `sql` is a real config axis with two live backends, the same as `artifacts` and `messaging`. The schema is already Prisma-based so no model rewrite was needed, but Prisma binds a generated client to one `datasource.provider` — a driver adapter changes how a client reaches a database, not which provider it was generated for. Two backends therefore means two schema roots, two generated clients, two driver adapters, and two migration histories, with model parity guaranteed by repository-owned derivation rather than by anything Prisma provides. Both histories collapse freely while the schema is in flux — zero users, no data to preserve — and start being kept for real once it stabilizes. See [`research/prisma-sql-backend-strategy.md`](./research/prisma-sql-backend-strategy.md).
 
 New adapters alone were not the whole goal. The former `packages/runtime`
 proved config-selected composition for one complete embedded profile, but it
 conflated reusable lifecycle, generic messaging, product protocol topology, and
-that profile's entire concrete dependency graph. C19 split generic lifecycle,
-active messaging, and the complete local-system profile into honest owners and
-removed `runtime`. The Worker process now supplies the evidence for the next
-seam: promoting product topology without turning another package into a new
-name for the whole system.
-
-Reordered ahead of `json-schema-migration`/`rate-limiting`/`engine-hardening`/`runtime-storage-consolidation` (see `docs/initiatives/README.md`) — originally scaffolded to run last, once other boundaries had stabilized, but now the intended next initiative after `worker-tools-artifacts`.
+that profile's entire concrete dependency graph. C19 split those into honest
+owners under `packages/process-hosting/` and removed `runtime`; C21 and C22 then
+promoted product topology to standalone static data and bound each process to
+its own host plan rather than the full picture, which is what lets a publisher
+stay ignorant of who consumes.
 
 ## Evolution
 
@@ -40,23 +47,44 @@ No natural single starting point among the three candidate adapters (queue/messa
 
 **Superseded in part by the mailbox pivot (Changes C9 and C11–C14), which is worth stating precisely because most of the above survived.** What held: no second messaging technology, and independent subscriptions per concern rather than one consumer being privileged over another. What changed: "Streams is the sole carrier" is no longer true. Local delivery is an in-process mailbox router that is deliberately not Streams-shaped — no consumer groups, entry IDs, acknowledgement, or pending recovery — because simulating those in memory buys resemblance rather than correctness. Redis becomes a second carrier under an unchanged component boundary instead of the only one. `EventBusPort` also survives rather than being retired wholesale: only the three HTTP job types migrate first, each remaining family moving as its own protocol slice. The deeper reversal is that components no longer exchange anything request/response-shaped at all — the engine stops awaiting a job and consumes the terminal Message from its own subscription, which is what removes the local/remote protocol split that every earlier revision of this messaging sequence kept trying to paper over. See `arcs/queue-adapter.md`'s Change C9 for the full reasoning and the four revisions it took to get there.
 
-**The remote Worker is now scoped because C18 closed the final infrastructure
+**The remote Worker was scoped once C18 closed the final infrastructure
 prerequisite.** The package seam and the process seam are separate. First move
 generic lifecycle, generic messaging, and the shared `local-system` profile to
-honest owners; then give multi-topic subscriptions one delivery lane;
-split shared deployment topology from process-local handler bindings; give
-Observability one ordered Redis route; give Worker and its ingress truthful
-lifecycle; only then add and prove a Worker-host app. The current six-Change cut
-is recorded in the
-[Remote Worker Arc](./arcs/remote-worker.md) and remains splittable when
-implementation inventory shows a review is too large.
+honest owners; then give multi-topic subscriptions one delivery lane; split
+shared deployment topology from process-local handler bindings; give
+Observability one ordered Redis route; only then add and prove a Worker-host
+app. That was scoped as six Changes and ran as twelve, C19–C30, which is the
+splitting the Change index anticipated rather than drift — the arc is where the
+detail lives.
+
+**Worker lifecycle was cut from the arc rather than delivered.** It was scoped as
+the arc's last Change and moved out before it started, because the current
+runtime cannot express the ordering it needs: `stopAll` is one flat reverse list,
+so there is no way to end command ingress before active work settles while
+terminal egress stays available. What shipped instead makes no drain guarantee
+and says so. See `Not yet scoped` below.
+
+**The Initiative closes having proven the thing it existed to prove, and not
+more.** A cold start from empty volumes provisions its own Redis topology,
+applies its own migrations, and runs a flow end to end across two containers.
+What it deliberately did not settle: liveness, run deadlines, reclaim of a
+crashed consumer's pending entries, consumer naming for replicas, and what
+happens when a subscription is renamed or removed. Those are recorded as
+`Not yet scoped` and in `docs/todo.md` rather than half-built.
 
 ## Deployment shapes
 
 The shapes this initiative is ultimately aiming at. Recorded because they are
 what makes an individual Change's process boundary legible as a step rather than
-a destination. Long-term targets rather than a schedule: only shapes 1 and 3
-exist today.
+a destination. Long-term targets rather than a schedule.
+
+Shapes 1 and 3 exist. What this Initiative also built is not in the table: the
+`remote-worker` deployment moves only Worker out, keeping Engine and
+Observability in the API process, which makes it a waypoint between shapes 1 and
+2 rather than either of them. It is deliberately not a sixth row — it is the step
+that proves a process boundary can be drawn at all, not a destination someone
+would choose. Moving Engine out as well is what reaches shape 2, and that is a
+different manifest rather than a variant of this one.
 
 | #   | Frontend     | App services                 | Engine / Worker / Observability | Infrastructure |
 | --- | ------------ | ---------------------------- | ------------------------------- | -------------- |
@@ -187,20 +215,12 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C26    | Portability pass: cross-platform cleans, build config inversion, couplings     | merged (PR #385) | [5]   |          |
 | C27    | Build the API host process                                                     | merged (PR #386) | [6]   |          |
 | C28    | Build and package deployable artifacts                                         | merged (PR #387) | [6]   |          |
-| C29    | Prove the distributed deployment from a cold start                             | in review        | [6]   |          |
-| C30    | Close out the Initiative and release it to main                                | not started      | [6]   |          |
+| C29    | Prove the distributed deployment from a cold start                             | merged (PR #388) | [6]   |          |
+| C30    | Close out the Initiative and release it to main                                | in progress      | [6]   |          |
 
-## Next up
-
-1. **C29:** prove that deployment from a cold start -- a one-shot command that
-   provisions every Redis route and consumer group from the deployment manifest
-   before either host publishes, proven against an empty Redis.
-2. **C30:** close out the Initiative -- a documentation pass including the root
-   README, a version bump across every package, and the `dev` to `main` merge.
-
-These are planned review seams, not fixed size targets. An unstarted Change
-should split before implementation if its rename-aware inventory or semantic
-surface is too large for one review.
+C30 is the last Change. Nothing follows it in this Initiative, so there is no
+`Next up` — what comes after is the next Initiative, ordered in
+[`docs/initiatives/README.md`](../README.md).
 
 ## Not yet scoped
 
@@ -227,7 +247,7 @@ surface is too large for one review.
 - **The engine's own step/run self-loop (subscribing to events it publishes itself, purely to advance its own internal state)** — a real, precedented, low-risk fix (mirroring how `ExecuteHttpJsonJobFx` already avoids this), but decoupled from every Change in this initiative: nothing here depends on it, and it doesn't ease anything here either, since the self-loop never touches `MessageLogPort`/Redis at all. Deferred to whenever the engine gets its real core/inbound-outbound refactor. See `arcs/queue-adapter.md`'s Changes C5, C7–C9, and C11–C14 discussion for the full reasoning.
 - **`LifecycleEventIngress` — largely resolved by Changes C9, C12, and C13, for the three migrated types only.** The idea was a per-component sink that gets lifecycle facts to observability without the bus. The mailbox design answers both halves for `job.httpjson.submitted`/`.completed`/`.failed`: worker constructs the real event once and publishes it (producing), and observability holds its own explicit logical subscriptions rather than tapping a magic topic (consuming). What stays unscoped is the same thing for every _other_ event family — run, step, flow, replay, limiter, component lifecycle — which keeps using `EventBusPort` and the `observability` topic until each is migrated as its own protocol slice. The general question in the bullet below is unchanged for those.
 - **A real cancel/abort protocol across the transport boundary.** Cancellation works today only because everything is in-process: an `AbortSignal` is passed by reference all the way into `fetch` (`worker.ts`'s `combineForProtocolRun`, which merges it with the worker's own protocol timeout). No signal can travel in a Message, so a real cancel needs to become its own Message that a worker honors against its own `AbortController`, plus an engine-side publish at the moment abort is invoked (nothing publishes anything there today — the abort only ever shows up baked into the eventual failed outcome). Deliberately not built in Changes C9 and C11–C14, and the mailbox pivot makes the gap narrower rather than wider: nothing exercises the engine-side abort path today, and the worker's own timeout-driven cancellation keeps working untouched, since it never depended on a caller-supplied signal. Change C11 deleted `JobExecutionOptions` outright rather than rehoming it, threading `callerSignal?: AbortSignal` directly through worker instead — the local core keeps its signal without pretending the signal is part of the protocol. Recorded because leaving it out is an asymmetry between the two paths, not a non-issue. One concrete prerequisite found while scoping it: `JobFailedData` carries only `status`/`output`/`message`, so worker's already-existing `CANCELLED` error code (`job-result.factories.ts`) is dropped before the fact ever reaches a published event — cancellation is currently indistinguishable from any other failure without string-matching prose.
-- **Finishing the test-typechecking and real-lint migrations for the packages Change C10 does not cover — still unscoped, and it should land before this initiative is called done.** Both migrations are in-flight rather than absent, and the remaining work is completing them package by package; `engine` was pulled out and scoped as Change C10 (see [`arcs/package-tooling.md`](./arcs/package-tooling.md)), which is also where later increments belong. **Test typechecking**: five packages (`adapters`, `artifacts`, `events`, `worker`, and `runtime` as of Change C9) carry a `tsconfig.typecheck.json` — `extends ./tsconfig.json`, `rootDir: "."`, `noEmit: true`, `include: ["src", "tests"]` — with `typecheck` pointed at it, so the build config keeps `include: ["src"]` and tests never reach `dist`. The rest still typecheck `src` only, and vitest transpiles without checking, so their tests are verified by nothing. That is not theoretical: Change C9 shipped a latent type error in its own new test (`message.data.output` against an erased union — correct at runtime, unsound on paper) that no gate caught, which is what prompted migrating `runtime` inside that Change. It also means `@ts-expect-error` type-level assertions are silently inert in unmigrated packages, which matters more as the messaging contracts push real safety into type parameters. **Lint**: real in 8 packages (`adapters`, `artifacts`, `events`, `ports`, `runtime`, `types`, `worker`, `workbench`), `echo lint` in 15, and absent entirely in `apps/desktop`. The two migrations have been moving together — every typecheck-migrated package is also in the real-lint set — so finishing them one package per Change, the way Change C9 did for `runtime` and Change C10 does for `engine`, is the established shape. Expect real findings rather than a config flip: enabling both on `runtime` surfaced three genuine `no-case-declarations` errors and a test helper typed `ManagedResource<unknown>` against typed slots.
+- **Resolved: test typechecking is complete, and real lint is complete except by choice.** This was carried as unscoped work that should land before the Initiative was called done, and it did, incrementally rather than as its own Change. **Test typechecking**: every package holding a `tests/` directory now typechecks it — verified package by package during C30, including `workbench`, which reaches it through project references rather than directly. The mechanism is not the one recorded here while the work was in flight: no package carries a `tsconfig.typecheck.json` any more. C26 inverted it, so `tsconfig.json` covers `src` and `tests` and is what `typecheck` reads, while a separate `tsconfig.build.json` emits `src` alone. That is the better arrangement, because the default config is the strict one and the narrow config is the exception. **Lint**: real in 27 of 31 packages. The four remaining are deliberate rather than pending — `echo lint` in the two archived packages and in `examples`, and no `lint` script at all in `apps/desktop`, which nothing in CI verifies either way. Reviving those is a question for whoever revives `apps/desktop`, not unfinished migration work.
 - **How observability gets ingested for every event family the mailbox slice does _not_ migrate. Flagged during Change C7, narrowed during Change C8, and largely answered for the three HTTP job types by Changes C9, C12, and C13 — the open part is everything else.** The old framing asked who reads facts and writes them down once `EventBusPort` is gone, and worried most about a local, no-broker deployment having no answer at all. The mailbox answers that: a local carrier with explicit logical subscriptions _is_ the local observability ingress, so it needs no separate direct-sink design and no per-component bridge. What remains genuinely unscoped is that run, step, flow, replay, limiter, and component-lifecycle events still arrive through the bus's magic `observability` topic, and each has to migrate as its own coherent protocol slice, chosen from evidence rather than in one sweep. Two things worth carrying into whichever slice comes next. First, **emission order/timing is behavior, not an implementation detail** — Change C13 deliberately changes the HTTP job ordering (worker publishes the terminal Message, then the engine consumes and advances, instead of the engine advancing first and publishing a reconstruction afterward), and anything reading the event log sees that difference; further migrations should decide their ordering consciously rather than inheriting it. Second, **truthful sink completion is still absent**: `ObservabilityTap` catches and logs every sink failure, `ReplaySink` discards the promise from `recordEvent()`, and `SqlRunProjectionSink` starts a background flush and returns immediately — all tolerable while delivery is fire-and-forget and unacknowledged, all of it a correctness prerequisite before any acknowledged (log-backed) carrier consumes these families.
 
 [1]: ./arcs/cas-adapter.md

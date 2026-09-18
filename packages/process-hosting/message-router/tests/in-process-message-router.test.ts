@@ -24,8 +24,8 @@ type Bind = {
   apply: (router: InProcessMessageRouter) => void;
 };
 
-// The authoritative-union shape C10 uses: the union is named once and shared
-// by the topic and every handler/publisher signature.
+// The authoritative-union shape production code uses: the union is named once
+// and shared by the topic and every handler/publisher signature.
 type JobTerminalType = "job.httpjson.completed" | "job.httpjson.failed";
 
 const terminal = defineTopicFor<JobTerminalType>()({
@@ -445,7 +445,7 @@ describe("createInProcessMessageRouter — whenIdle", () => {
     const downstream: string[] = [];
     const followUp = completedEvent("job-2");
 
-    // The multi-hop shape C10 actually uses: the second publisher is resolved
+    // The multi-hop shape production code actually uses: the second publisher is resolved
     // before the handler that needs it exists, so no mutable late assignment
     // is required to close the cycle.
     const router = createInProcessMessageRouter({

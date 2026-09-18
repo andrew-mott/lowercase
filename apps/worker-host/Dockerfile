@@ -1,6 +1,6 @@
 # The Worker host image: Node and one bundled file, with nothing installed.
 #
-# Built by `pnpm image`, which bundles first, so the bundle copied here is never
+# Built by `pnpm deploy:build`, which bundles first, so the bundle copied here is never
 # stale. All configuration arrives as environment variables at run time.
 
 ARG NODE_VERSION=24

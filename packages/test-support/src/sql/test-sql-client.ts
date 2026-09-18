@@ -4,8 +4,8 @@ import type { PortableSqlClient } from "@lcase/db-prisma";
  * The client a suite gets from `createSqliteTestDb`/`createPostgresTestDb`.
  *
  * An alias rather than its own definition: this type started here, for the
- * contract suites, and moved to `@lcase/db-prisma` in Change C18 once the
- * runtime needed the same thing to hand its repositories. The name stays so the
+ * contract suites, and moved to `@lcase/db-prisma` once a composed process
+ * needed the same thing to hand its repositories. The name stays so the
  * suites read in test terms, and so the harness does not look like it owns a
  * rule the production composition also depends on.
  */

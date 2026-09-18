@@ -54,9 +54,9 @@ export function repoRoot(): string {
  *
  * Called by every default-URL function rather than at module load, so that both
  * providers honour the same file. A default that silently ignores `.env` on one
- * branch and honours it on the other is the exact shape of the two faults C17
- * recorded: the value looks set, something reads a stale default instead, and
- * the failure surfaces somewhere else entirely.
+ * branch and honours it on the other is the exact shape of two faults this has
+ * already produced: the value looks set, something reads a stale default
+ * instead, and the failure surfaces somewhere else entirely.
  *
  * Best effort on purpose. A deployed process has no checkout and therefore no
  * repo `.env` to read, and it got its configuration from the real environment
