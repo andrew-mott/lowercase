@@ -216,7 +216,7 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C27    | Build the API host process                                                     | merged (PR #386) | [6]   |          |
 | C28    | Build and package deployable artifacts                                         | merged (PR #387) | [6]   |          |
 | C29    | Prove the distributed deployment from a cold start                             | merged (PR #388) | [6]   |          |
-| C30    | Close out the Initiative and release it to main                                | in progress      | [6]   |          |
+| C30    | Close out the Initiative and release it to main                                | merged (PR #389) | [6]   |          |
 
 C30 is the last Change. Nothing follows it in this Initiative, so there is no
 `Next up` — what comes after is the next Initiative, ordered in

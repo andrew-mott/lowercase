@@ -1780,7 +1780,7 @@ the older Redis suites do not, so a test Redis accumulates prefixed keys from
 them. Harmless, since every suite uses a unique prefix, but it is why a stray
 `lcase-test:*` count means nothing.
 
-## Change C30 - Close out the Initiative and release it to main - not started
+## Change C30 - Close out the Initiative and release it to main - merged (PR #389)
 
 ### Discussion
 
@@ -1842,3 +1842,71 @@ immediately and are recorded here so they are not lost:
   and commands.
 - Every workspace package carries the same new version, and `dev` is merged into
   `main`.
+
+### What actually landed
+
+**The drift belonged to four Initiatives, not one.** The documentation pass was
+scoped as recording what this Initiative did, but `main` had last received
+`v0.1.0-alpha.13`, and `architecture-boundaries`, `events-refactor` and
+`worker-tools-artifacts` had all landed on `dev` since. The root `README.md`'s
+overview was byte-identical to that release: a single process, an in-memory bus
+and queue, Redis Streams and MinIO as candidates. `CLAUDE.md` routed a job
+through a `NodeRouter` and an `InMemoryQueue` that `architecture-boundaries`
+deleted, and cited a `packages/tools` that `worker-tools-artifacts` dissolved.
+`docs/architecture.md` still gave `runtime` and `tools` their own rows. A path
+check had passed that file, because the dead packages were named bare in table
+cells; a second check compared every workspace package against its text instead.
+So the pass became "make the documentation true as of this merge", which cost
+more rewriting than patching but touched no more files than planned.
+
+**The README says the job protocol has moved, not that the system is message
+driven.** Three event types travel as Messages, `job.httpjson.submitted`,
+`completed` and `failed`, and the other twelve families still travel the bus.
+The overview keeps "event-driven", because what changed is delivery rather than
+what a Message is, and states the migration as partial.
+
+**The app READMEs were wrong in the two apps nobody had touched.** The CLI's
+headline example was `run <flow.json>`. The command takes three relational
+identifiers, and its documented options and streaming demo no longer exist.
+The rewrite leads with `validate` as the one dependable command, which was run
+to confirm it. `apps/desktop` still carried the Vite template. The four READMEs
+C29 had updated needed nothing.
+
+**The Initiative's own record was corrected, not just closed.** The unscoped
+typecheck item was resolved, but by a different mechanism than it recorded. No
+`tsconfig.typecheck.json` survives, because C26 made `tsconfig.json` the strict
+default and the build config the exception. Lint is real in 27 of 31 packages,
+and the other four are deliberate. The remote-worker deployment went into the
+shapes section as a waypoint between shapes 1 and 2 rather than a new row. The
+six-Change cut is recorded as having run to twelve.
+
+**Two of the comment inventory's items were not quite as recorded.** Of the two
+"no start hook" comments in the Worker host's integration test, only one was
+wrong. The other is a counterfactual explaining why `ensureBucket` exists, and it
+stayed. The sweep also found two comments in `db-prisma` pointing at
+`packages/runtime`'s `buildSqlClient`, which now lives in
+`@lcase/profile-local-system`. Fifteen Change numbers became the rationale they
+stood for, and none were simply dropped.
+
+**Found and recorded rather than fixed.** The `scheduler` event family is dead
+but ships in all three host bundles. Deleting it spans four packages and mostly
+lives in the `EmitterFactory` that `json-schema-migration` replaces, so it went
+to that Initiative. An `mcp` step validates, starts and hangs. The engine still
+plans it and emits `job.mcp.submitted`, but nothing subscribes and the worker has
+no executor. It went into `docs/todo.md` as a revive-or-remove decision, because
+removal breaks the flow definition format. `CLAUDE.md` now says `httpjson` is
+the only working capability.
+
+**A merge to `main` is an update, not a release.** Nothing is published or
+installable, and the merge prefix has been `update:` since `v0.1.0-alpha.10`.
+Every package moved to `0.1.0-alpha.14` in lockstep with the lockfile untouched,
+and `main` received it as PR #390. Git tags stopped at `v0.1.0-alpha.7`, which
+went unnoticed because `main`'s own history marked each merge. Under trunk-based
+development that stops being true, so a tag on each version bump becomes the
+only marker. That was decided in principle and left undone, along with
+backfilling the six missing tags.
+
+**The follow-ups happened straight after.** The repository moved to
+`andrew-mott/lowercase`, and the switch to trunk-based development landed as its
+own follow-up. That follow-up covers CI's triggers, the badges, and retiring
+`dev`.

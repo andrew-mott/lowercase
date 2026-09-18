@@ -1,9 +1,8 @@
 # lowercase
 
-[![CI](https://github.com/lcaseio/lowercase/actions/workflows/ci.yaml/badge.svg)](https://github.com/lcaseio/lowercase/actions/workflows/ci.yaml)
-[![License](https://img.shields.io/github/license/lcaseio/lowercase)](LICENSE)
-[![Last commit (main)](https://img.shields.io/github/last-commit/lcaseio/lowercase/main?label=last%20commit%20%28main%29)](https://github.com/lcaseio/lowercase/commits/main)
-[![Last commit (dev)](https://img.shields.io/github/last-commit/lcaseio/lowercase/dev?label=last%20commit%20%28dev%29)](https://github.com/lcaseio/lowercase/commits/dev)
+[![CI](https://github.com/andrew-mott/lowercase/actions/workflows/ci.yaml/badge.svg)](https://github.com/andrew-mott/lowercase/actions/workflows/ci.yaml)
+[![License](https://img.shields.io/github/license/andrew-mott/lowercase)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/andrew-mott/lowercase/main?label=last%20commit)](https://github.com/andrew-mott/lowercase/commits/main)
 
 ## Alpha Software (v0.1.0-alpha.14)
 
