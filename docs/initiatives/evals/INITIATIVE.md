@@ -2,7 +2,7 @@
 
 ## Summary
 
-A real data-model rearchitecture, not a UI tab — deserves its own initiative the same way the original eval vertical slice did (Initiative I9, see [`eval-milestone.md`](./eval-milestone.md)). Current state: evals are embedded inside the flow definition itself (an eval is just a flow with a judge step) — a smaller move than originally wanted. The actual goal: evals as standalone, reusable entities, decoupled from any one flow — a fixed template (System Prompt + Question + Context + Answer) that can be constructed and run against different flows.
+A real data-model rearchitecture, not a UI tab — deserves its own initiative the same way the original eval vertical slice did (GitHub Milestone 9, see [`eval-milestone.md`](./eval-milestone.md)). Current state: evals are embedded inside the flow definition itself (an eval is just a flow with a judge step) — a smaller move than originally wanted. The actual goal: evals as standalone, reusable entities, decoupled from any one flow — a fixed template (System Prompt + Question + Context + Answer) that can be constructed and run against different flows.
 
 User's own framing for why this matters, not a bolt-on: "the premise behind my project is a workflow engine that allowed you to run experiments and measure results" — evals are core to the project's thesis. Wanted built hopefully within the same demo window as the UI rework (see memory `project_job_interview_demo_deadline`), but as independent work — see memory `project_post_ui_rework_priorities` for the fuller sequencing framing (run params next after the UI rework, evals important but on its own track).
 

@@ -11,11 +11,12 @@ One directory per initiative. See the convention below for shape, naming, and th
 | I3  | events-refactor               | complete (PRs #347–#349)            | [`events-refactor/INITIATIVE.md`](./events-refactor/INITIATIVE.md)                             |
 | I4  | worker-tools-artifacts        | complete (PRs #350–#359)            | [`worker-tools-artifacts/INITIATIVE.md`](./worker-tools-artifacts/INITIATIVE.md)               |
 | I5  | swappable-infrastructure      | complete (v0.1.0-alpha.14, PR #390) | [`swappable-infrastructure/INITIATIVE.md`](./swappable-infrastructure/INITIATIVE.md)           |
-| I6  | json-schema-migration         | not started, scaffolded             | [`json-schema-migration/INITIATIVE.md`](./json-schema-migration/INITIATIVE.md)                 |
-| I7  | rate-limiting                 | not started, scaffolded             | [`rate-limiting/INITIATIVE.md`](./rate-limiting/INITIATIVE.md)                                 |
-| I8  | engine-hardening              | not started, scaffolded             | [`engine-hardening/INITIATIVE.md`](./engine-hardening/INITIATIVE.md)                           |
-| I9  | runtime-storage-consolidation | not started, scaffolded             | [`runtime-storage-consolidation/INITIATIVE.md`](./runtime-storage-consolidation/INITIATIVE.md) |
-| I10 | evals                         | not started, scaffolded             | [`evals/INITIATIVE.md`](./evals/INITIATIVE.md)                                                 |
+| I6  | voice-pipeline                | scoping                             | [`voice-pipeline/INITIATIVE.md`](./voice-pipeline/INITIATIVE.md)                               |
+| I7  | json-schema-migration         | not started, scaffolded             | [`json-schema-migration/INITIATIVE.md`](./json-schema-migration/INITIATIVE.md)                 |
+| I8  | rate-limiting                 | not started, scaffolded             | [`rate-limiting/INITIATIVE.md`](./rate-limiting/INITIATIVE.md)                                 |
+| I9  | engine-hardening              | not started, scaffolded             | [`engine-hardening/INITIATIVE.md`](./engine-hardening/INITIATIVE.md)                           |
+| I10 | runtime-storage-consolidation | not started, scaffolded             | [`runtime-storage-consolidation/INITIATIVE.md`](./runtime-storage-consolidation/INITIATIVE.md) |
+| I11 | evals                         | not started, scaffolded             | [`evals/INITIATIVE.md`](./evals/INITIATIVE.md)                                                 |
 
 (Order here is start/intended-start order, not priority within an initiative — that's what each initiative's own `Next up` list is for.)
 
