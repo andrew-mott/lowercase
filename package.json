@@ -6,7 +6,10 @@
   "scripts": {
     "build": "turbo run build",
     "bundle": "turbo run bundle",
-    "deploy:build": "turbo run bundle --filter=@lcase/http-server --filter=@lcase/worker-host && pnpm -F @lcase/db-prisma schema && docker compose -f deploy/remote-worker.compose.yaml build",
+    "deploy:build": "turbo run bundle --filter=@lcase/http-server --filter=@lcase/worker-host --filter=@lcase/deploy-tasks && pnpm -F @lcase/db-prisma schema && docker compose -f deploy/remote-worker.compose.yaml build",
+    "deploy:up": "docker compose -f deploy/remote-worker.compose.yaml --profile infra up -d --wait",
+    "deploy:down": "docker compose -f deploy/remote-worker.compose.yaml --profile infra down -v",
+    "deploy:fresh": "pnpm deploy:down && pnpm deploy:build && pnpm deploy:up",
     "build-packages": "turbo run build --filter='!./apps/*'",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

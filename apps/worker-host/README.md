@@ -29,8 +29,8 @@ anything about a deployment.
 This process makes **no drain or stop guarantee**. Stopping ends intake, lets
 the current batch of deliveries settle, and closes connections. Anything still
 unread in Redis is left there. A real lifecycle contract — accepting, draining,
-stopped, with an ordered host stop policy — is separate work tracked as Change
-C30 of the `swappable-infrastructure` initiative's remote-worker arc.
+stopped, with an ordered host stop policy — is separate, not-yet-scheduled work; see
+`docs/initiatives/swappable-infrastructure/research/worker-lifecycle-and-controlled-ingress.md`.
 
 ## Commands
 

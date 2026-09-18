@@ -1,6 +1,9 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import type { ManagedRuntime } from "@lcase/assembly";
 import { buildServer, type HttpSystem } from "./build-server.js";
 import { healthRoute } from "./routes/health.js";
+import { workbenchRoute } from "./routes/workbench.js";
 
 export type HostSystem = HttpSystem & {
   runtime: ManagedRuntime;
@@ -28,6 +31,18 @@ export async function serveHost(
   name: string,
   system: HostSystem,
 ): Promise<void> {
+  // Checked before anything starts: a misconfigured path is a deployment
+  // mistake, and discovering it after the resources are up would mean rolling
+  // them back to report a directory name. Unset means this process serves no
+  // frontend, which is what development does -- Vite serves it there.
+  const workbenchDir = process.env.WORKBENCH_DIR;
+  if (workbenchDir && !existsSync(path.join(workbenchDir, "index.html"))) {
+    console.error(
+      `[${name}] WORKBENCH_DIR '${workbenchDir}' holds no index.html`,
+    );
+    process.exit(1);
+  }
+
   const started = await system.runtime.start();
   if (!started.ok) {
     console.error(
@@ -46,6 +61,12 @@ export async function serveHost(
   await server.register(healthRoute, {
     health: () => system.runtime.health(),
   });
+  // Last, so the routes above own their paths and the workbench answers only
+  // what is left over.
+  if (workbenchDir) {
+    await server.register(workbenchRoute, { root: workbenchDir });
+    console.log(`[${name}] serving the workbench from ${workbenchDir}`);
+  }
 
   const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   const host = process.env.HOST || "127.0.0.1";

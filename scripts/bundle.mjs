@@ -15,13 +15,13 @@
 
 import { build } from "esbuild";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const configUrl = pathToFileURL(path.resolve("bundle.config.mjs"));
-const { hosts } = await import(configUrl.href);
+const { hosts, assets = [] } = await import(configUrl.href);
 
 const outDir = "bundle";
 
@@ -41,6 +41,27 @@ function assertHost(host) {
   }
   if (typeof host.name !== "string" || typeof host.entry !== "string") {
     throw new Error("every host needs a string 'name' and 'entry'");
+  }
+}
+
+const assetFields = new Set(["from", "to"]);
+
+// Copied, never built: `from` is another package's finished output, produced by
+// whatever builds it -- a frontend's `vite build`, say -- and this only puts it
+// beside the hosts so one image build context holds everything deployable. A
+// missing directory fails here rather than yielding an artifact that is quietly
+// missing half of what it serves.
+function assertAsset(asset) {
+  for (const field of Object.keys(asset)) {
+    if (!assetFields.has(field)) {
+      throw new Error(`asset '${asset.from}' has unknown field '${field}'`);
+    }
+  }
+  if (typeof asset.from !== "string" || typeof asset.to !== "string") {
+    throw new Error("every asset needs a string 'from' and 'to'");
+  }
+  if (!existsSync(asset.from)) {
+    throw new Error(`asset '${asset.from}' does not exist; build it first`);
   }
 }
 
@@ -107,6 +128,7 @@ function assertNothingForbidden(host, metafile) {
 
 try {
   hosts.forEach(assertHost);
+  assets.forEach(assertAsset);
 
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
@@ -137,6 +159,11 @@ try {
     );
     assertNothingForbidden(host, result.metafile);
     console.log(`bundled ${host.name}`);
+  }
+
+  for (const asset of assets) {
+    await cp(asset.from, `${outDir}/${asset.to}`, { recursive: true });
+    console.log(`copied ${asset.from} to ${outDir}/${asset.to}`);
   }
 } catch (error) {
   await rm(outDir, { recursive: true, force: true });

@@ -16,14 +16,16 @@ separates the package responsibilities that would otherwise make a Worker
 deployable install the whole system, then gives one logical subscription a
 shared delivery lane across several topics, separates deployment topology
 from process-local bindings, gives Observability one ordered Redis route, runs
-the two roles apart, and only then gives Worker truthful lifecycle and ingress
-control.
+the two roles apart, packages them, proves the deployment from a cold start, and
+closes out the Initiative with a release.
 
-Lifecycle comes last deliberately. Its stop contract is least legible in the
-embedded profile, where one router resource serves Worker, Engine, and
-Observability at once; in a process hosting Worker alone the phases are
-actually separable. The contract is designed there and brought back, rather
-than designed against the topology that obscures it.
+Worker lifecycle and controlled ingress was scoped as this arc's last Change and
+moved out before it started. Its stop contract is least legible in the embedded
+profile, where one router resource serves Worker, Engine, and Observability at
+once, which is why it was placed after a process hosting Worker alone existed.
+Most of its value depends on reclaim and other Redis delivery work this arc
+defers, so it is kept with that work instead; see
+[`research/worker-lifecycle-and-controlled-ingress.md`](../research/worker-lifecycle-and-controlled-ingress.md).
 
 The Changes below are the current best review seams, not a quota. Before each
 Change starts, its expected moved and changed lines should be inventoried. If
@@ -1297,7 +1299,7 @@ because the embedded profile package did all composition, so this app now
 installs Prisma and the adapters in its own right, and both SQL driver adapters
 between its two hosts. Bundling is what removes that from a deployment; see C28.
 
-## Change C28 - Build and package deployable artifacts - in progress
+## Change C28 - Build and package deployable artifacts - merged (PR #387)
 
 ### Discussion
 
@@ -1530,167 +1532,313 @@ lints `.mjs` files by default and began linting the bundles, so both apps ignore
 package, including ones nothing bundles, so `deploy:build` filters to the two
 apps whose hosts it deploys.
 
-## Change C29 - Prove the distributed deployment from a cold start - not started
+## Change C29 - Prove the distributed deployment from a cold start - in review
 
 ### Discussion
 
 C28 already runs both hosts from their images against real Redis, MinIO and
 Postgres, and a real flow completes across them. What that run does not show is
-whether the deployment is correct when nothing has run before, or when a
-participant is missing: its Redis groups were created in an order that happened
-to work, and nothing checked that the proof fails without the Worker host rather
-than succeeding through a local fallback. This Change's content is the parts no
-earlier Change could supply.
+whether the deployment is correct when nothing has run before. Its Redis groups
+were created in an order that happened to work.
 
-**The provisioning and readiness race deferred by C22.** Before the API host
-reports ready and accepts external intake, the selected provisioning or startup
-policy must ensure every required Redis route and group pair exists. A group
-created at `$` sees nothing published before it existed, so a first submission
-accepted before the Worker host's group exists is silently lost. C28's `/health`
-reports only the API host's own resources, which is exactly the gap. The
-acceptance test starts from empty infrastructure and submits work immediately
-after readiness, so that a skipped first entry fails the test rather than passing
-by timing.
+**The cold-start race is real, and C28 did not hit it only because of timing.**
+Each host provisions only the consumer groups in its own host plan, and creates
+them at `$` (`startAt: "latest"`). A group created at `$` starts its cursor at
+the stream's last entry, so it never sees anything appended before it existed.
+Compose starts `api` without waiting for `worker-host`. A run submitted in that
+window appends a command to `job.command-work.v1` while no Worker group exists
+on it. The Worker host then creates its group past that entry, and the run
+waits forever: Engine has no deadline.
 
-**The proof must be able to fail.** Removing or misconfiguring the Worker host
-has to fail the run visibly rather than stall silently or degrade to local
-execution, and how the Worker host itself is checked -- it serves no HTTP -- is
-decided here.
+**Why not create groups at `0` instead.** The start position is read only when a
+group is created; afterwards the cursor lives in Redis and a restart hits
+`BUSYGROUP`. So `0` and `$` differ only when a group is created on a stream that
+already holds entries, which is exactly the race -- and also two ordinary
+development events. Renaming a subscription keeps its stream but creates a new
+group, since the group name is the subscription ID, and adding a subscription to
+an existing route creates one too. At `0`, either replays the stream's whole
+history, and nothing trims these streams. For the command route that means
+re-executing every HTTP job ever submitted. At `$` the same events skip unread
+entries instead. Skipping in-flight work during a rename is the lesser failure,
+because replay repeats side effects.
 
-**One deployment configuration rather than parallel conventions.** Both hosts
-read their settings from environment variables under names each chose, and the
-compose file maps one set onto both. Shared protocol and physical route values
-should come from one source, which is only expressible now that two participants
-exist.
+**Why not a readiness handshake.** A handshake answers whether a Worker is alive,
+not whether a Worker subscription exists, and only existence decides whether an
+entry is lost. With the group present, a Worker that is down just means work
+waits in Redis; with it absent, a live handshake creates nothing. Liveness is a
+separate question, below.
 
-The first remote deployment does not need to solve every distributed-systems
-policy. Cancellation across the boundary, crash recovery and pending-entry
-reclaim, consumer naming for replicas, idempotent redelivery, retained failures,
-full lifecycle-event migration, and ordering against event families still
-entering through `EventBusPort` remain separately scoped unless the acceptance
-proof cannot be truthful without one of them.
+**Provision the deployment's topology before anything publishes.** A one-shot
+command reads the deployment manifest -- `remoteWorker` from
+`@lcase/message-topology/deployments`, the same value both hosts' host plans
+derive from -- and creates every route's stream and every subscription's group
+at `$`, then exits. Because it runs before the first publish, `$` and the
+beginning of the stream are the same point, so there is no race and no replay.
+A renamed subscription gets a fresh group at `$` the next time the deployment is
+provisioned.
+
+It is the messaging counterpart to `migrate`, and deliberately the same shape:
+
+- **A plain Node program, not compose.** Nothing the deployment needs for
+  correctness should exist only in compose YAML. Compose runs it as a one-shot
+  service that both hosts wait on, the way they wait on `migrate`. Outside
+  Docker it is a command run before the hosts, the way `pnpm db:migrate` is
+  today.
+- **Only additive and idempotent.** It creates what is missing and changes
+  nothing that exists, so running it twice, or for two manifests sharing one
+  Redis, is harmless. The embedded Redis variant and `remote-worker` already use
+  the same route IDs and group names.
+- **Hosts keep creating their own groups as a fallback.** The embedded Redis
+  variant, local development and existing tests keep working with no extra
+  step, and a deployment that skips provisioning is no worse than today.
+  Correctness for a cold start rests on provisioning, not on the fallback.
+
+A deployment definition is keyed by manifest, not by a compose file, so this
+survives the deployment growing past one: other runners (a script, a release
+step, a pipeline) invoke the same command. It also holds when Workers run on
+other machines and come and go, because it concerns the shared infrastructure,
+not the processes. Provisioning runs in one place as part of deploying, never on
+a remote Worker.
+
+**Shared naming, not re-derived naming.** Stream keys are `streamFor`, a closure
+inside `createRedisMessageRouter` (`${keyPrefix}${routeId}`), and the group name
+is the subscription ID. Provisioning must use those rules rather than restating
+them, so exporting them from the Redis carrier is part of this Change. The key
+prefix is per-host configuration today, left absent on purpose in both hosts so
+they derive identical keys; provisioning has to receive the same value.
+
+**A proof that does not depend on compose.** The guarantee is tested in vitest
+against real Redis: from an empty Redis, provision, publish before any Worker
+exists, start a Worker, and assert the entry is consumed. The same test without
+provisioning fails. A compose run from empty volumes remains the manual
+end-to-end check, as in C28.
+
+**Narrowed from the earlier scope.**
+
+- _A proof that fails without the Worker host._ A silent fallback to local
+  execution is already impossible: the `api` bundle forbids `@lcase/worker`, so
+  that fails the build. What remains is failing visibly -- today a run with no
+  Worker stays running indefinitely -- which needs run deadlines or deployment
+  health, a liveness policy rather than a cold-start one.
+- _One deployment configuration for both hosts._ Largely already true. Both
+  hosts read the same environment variable names, compose sets one set for both,
+  and route IDs come from the one `remote-worker` manifest. `consumerName`
+  differs by design and stays as it is.
+
+**Where each piece lives.** Placed by what each is allowed to depend on:
+
+- **The manifest** stays in `@lcase/message-topology`. It is static data, and
+  that package deliberately holds no router, carrier, or connection.
+- **The provisioning function and the naming rules** belong in
+  `@lcase/message-router`'s Redis module -- for example
+  `provisionRedisTopology({ manifest, log, keyPrefix })` over a
+  `MessageLogPort`. Mapping routes to streams and subscriptions to groups is
+  carrier knowledge the Redis router already holds, and it needs only types from
+  `message-topology` and `ports`, so the package keeps an empty production
+  closure. The router's own `start()` uses the same exported naming. Not
+  `@lcase/adapters`: `RedisMessageLog` knows streams and groups, not routes,
+  subscriptions, or manifests, and teaching it topology would invert the
+  dependency direction.
+- **The executable** is a new app, `apps/deploy-tasks`, for one-shot deployment
+  tasks. Only apps and profiles may import concrete adapters, and this one needs
+  a Redis client and `RedisMessageLog`. A bundle entry in either host app was
+  the cheaper alternative, but it would hand a deployment-wide task to an app
+  that stands for one role, when host plans were built so that neither host
+  knows the other's subscriptions. It bundles and ships an image the way the
+  hosts do. Whether other deployment tasks, such as a plain SQL migration
+  runner, join it is left to evidence.
+
+**The key prefix comes from the same configuration the hosts read.** Both hosts
+leave it unset today so they derive identical keys, and integration tests set a
+unique prefix per run so they never collide with each other or with a running
+deployment. Provisioning takes the prefix through the same messaging
+configuration, so a test can provision and start hosts under one throwaway
+prefix, and a deployment that ever sets one sets it once for all three.
+
+**Outside this Arc.** Provisioning deliberately covers creation only. Several
+things build on it rather than replacing it, and belong with a later Redis
+delivery and lifecycle effort:
+
+- liveness: whether anyone is consuming, run deadlines, group lag and pending
+  counts as deployment health;
+- reclaim of entries pending on a dead consumer, and consumer naming for
+  replicas;
+- topology change while old processes still run -- removal, renames with
+  draining, retention, and a record of what was applied. This is the same
+  version-skew problem Postgres migrations have under rolling deploys, and
+  likely grows alongside them;
+- Worker lifecycle and drain, once scoped as this arc's last Change and moved
+  out of it, whose
+  value mostly depends on reclaim existing; see
+  [`research/worker-lifecycle-and-controlled-ingress.md`](../research/worker-lifecycle-and-controlled-ingress.md).
+
+**The deployment also serves its own frontend, added to this Change.** Not part
+of the cold-start proof, and included because it is what makes the compose
+deployment a whole system rather than a backend that still needs `pnpm dev`
+beside it -- the same thing the embedded single-container shape needs. The
+frontend keeps being built by its own `vite build` and is copied verbatim, chunk
+split and hashed names intact; `@fastify/static` serves it and an unmatched GET
+outside the API's paths falls back to `index.html`, so client-side routes
+survive a reload while an unknown `/api` path stays a JSON 404. Serving is off
+unless `WORKBENCH_DIR` names a directory, which is what leaves development on
+Vite's own server.
+
+Two smaller decisions come with it. A built workbench now addresses the API
+relatively, because an absolute `http://localhost:3000` is only right when the
+API happens to run on that machine; the development default is unchanged, since
+Vite is a different origin there. And the bundle step gained the ability to copy
+an already-built directory beside the hosts, because an image build context
+covers one directory and the frontend lives in another app -- the alternative,
+building the image from the repository root, is the same coupling this Arc
+avoided for the migration image.
+
+**Initiative close-out moves to C30,** along with the documentation items found
+while scoping this Change.
 
 **Completion evidence.**
 
-- From empty infrastructure, every required Redis route and group pair exists
-  before the API host reports ready, and a submission made immediately after
-  readiness is consumed rather than skipped.
-- Removing or misconfiguring the Worker host fails the proof rather than stalling
-  unnoticed or degrading to local execution.
-- Both hosts load compatible values from one deployment definition rather than
-  parallel environment-variable conventions.
+- From an empty Redis, a provisioning command reading the `remote-worker`
+  manifest creates every route stream and consumer group, and a Message
+  published before any Worker host has started is consumed once one does.
+- The same scenario without provisioning fails the test.
+- Compose runs provisioning as a one-shot service both hosts wait on, and the
+  same command runs outside Docker.
+- Provisioning and both hosts derive stream and group names from one exported
+  source.
+- Re-running provisioning against an existing deployment changes nothing.
+- The compose deployment serves the workbench at the API's own address, with
+  nothing else running, and client-side routes survive a reload while unknown
+  API paths still answer with a readable error.
 
-## Change C30 - Give Worker truthful managed lifecycle and controlled ingress - not started
+### What actually landed
+
+**The naming had to come out of the router first.** Stream keys came from
+`streamFor`, a closure inside `createRedisMessageRouter`, and a group name was
+the subscription id written inline at its binding. Provisioning restating either
+would have been a defect nothing catches: groups created under names no host
+reads produce no error, just a Message that never arrives. They moved to
+`redis-naming.ts` -- `DEFAULT_REDIS_KEY_PREFIX`, `redisStreamKey`,
+`redisGroupName` -- which the router now uses too. The test that matters there
+is the one asserting a router with no configured prefix provisions exactly what
+those functions return; the rest would pass with two copies of the same rule.
+
+**Provisioning is creation and nothing else.** One group per distinct route and
+subscription, at `$`, from the manifest's own order; `MKSTREAM` makes the stream,
+so a validated manifest needs no separate stream call. Every deployment-shaped
+concern stayed out: no removal, no rename handling, no history of what was
+applied. The proof that it is safe to re-run is a cursor check rather than a call
+count -- a second run leaves a waiting entry readable.
+
+**The tests were made to fail before being trusted.** With
+`provisionRedisTopology` stubbed to do nothing, three of the seven unit tests
+failed and the deliberately-unprovisioned one still passed; the same stub failed
+two of the three live-Redis cases. The negative case asserts through
+`XINFO GROUPS` -- the Worker group's `last-delivered-id` already past the
+published entry -- rather than waiting for a non-delivery, so it states the
+mechanism instead of timing out.
+
+**The cold start, measured.** From empty volumes with `worker-host` scaled to 0,
+a run's three commands sat in Redis with the Worker group at `0-0` and lag 3.
+Starting the Worker container consumed all of them and the run completed, with
+the steps' own work taking under a second. The waiting shows up as step duration
+-- 42.7s for steps whose HTTP calls took milliseconds -- because a step's
+duration spans submission to completion. Nothing in a run's detail distinguishes
+waiting for a Worker from running, which is the liveness gap this Change
+deliberately left open, now observed rather than predicted.
+
+**The setup tasks stayed two images.** Folding `migrate` into the deploy-tasks
+image was considered and declined: it would carry the Prisma CLI's weight into
+provisioning and need a repository-root build context to reach both packages,
+only to be repackaged when a plain SQL runner replaces the CLI. Recorded against
+that entry in `docs/todo.md` instead. As separate one-shot services the two also
+run in parallel and fail separately.
+
+**Serving the workbench needed an ignore rule, not a router change.** The API
+already lives under `/api`, `/events` and `/health`, so nothing collided with the
+frontend's routes. What the first version got wrong was the boundary: a
+`startsWith` fallback answered `/events/absent` with a page. Each API root now
+owns itself and what is under it, and a path that merely shares its first letters
+-- `/evaluations` against `/events` -- stays the client's. Both are pinned by
+tests.
+
+**The bundle runner learned to carry what it did not build.** An image build
+context covers one directory, and the frontend is another app's `vite build`
+output, so `scripts/bundle.mjs` gained an optional `assets` copy with the same
+unknown-field rejection its hosts have, and a missing source fails the bundle
+rather than producing an artifact missing half of what it serves. What makes the
+frontend build first is `apps/http-server/turbo.json` naming
+`@lcase/workbench#build`, which also means a frontend change invalidates the
+bundle. Nothing re-bundles the frontend: its chunk split and hashed names are
+copied as they were produced.
+
+**Sizes.** The provision bundle is 1.6 MB, 1.2 MB of it the Redis client, in a
+234 MB image. The API image grew from 248 MB to 264 MB with the workbench in it,
+most of that Monaco's workers.
+
+**A smaller thing worth knowing.** This suite deletes its own keys afterwards;
+the older Redis suites do not, so a test Redis accumulates prefixed keys from
+them. Harmless, since every suite uses a unique prefix, but it is why a stray
+`lcase-test:*` count means nothing.
+
+## Change C30 - Close out the Initiative and release it to main - not started
 
 ### Discussion
 
-Worker is a long-lived autonomous component with real capacity and execution
-state, so the remote process must not manage it through no-op lifecycle hooks.
-Give the same Worker used by embedded and remote profiles meaningful `start()`,
-`stop()`, and `health()` control. Its lifecycle state should express whether it
-is accepting work, draining, or stopped, while preserving the component's
-existing capacity and terminal-topic ownership.
+This Change ends the Initiative and the development period behind it. The
+remaining work is documentation and release bookkeeping rather than behavior, and
+the release is the reason to do it as one Change: `main` should receive a
+repository whose documentation describes what is actually on it.
 
-This sits after the deployment proof rather than before it. The stop contract is
-least legible in the embedded profile, where one router resource serves Worker,
-Engine, and Observability at once; in the Worker host it is a process reading one
-subscription and publishing one topic, which is where the phases are actually
-separable. Design the contract there, then bring it back to the embedded profile
-and the companion.
+**Documentation pass.**
 
-**Starting position, as measured during C25's discussion.**
+- The Initiative's own record. The unscoped item requiring test typechecking and
+  lint before the Initiative is called done appears resolved by C26, which moved
+  tests into each package's `tsconfig.json` behind a separate build config;
+  verify across every package and record it. The deployment-shapes table says
+  only shapes 1 and 3 exist, while the API host with a separate Worker host now
+  runs as a real deployment. The Summary still describes a six-Change cut. The
+  Initiative's status in `docs/initiatives/README.md` becomes complete.
+- The root `README.md`: architecture, deployment shapes, commands, and the
+  `deploy/` stack, as they now stand rather than as they stood at the last
+  release.
+- `CLAUDE.md` and the app READMEs, checked against the same state.
+- Code comments that drifted:
+  - all three Dockerfiles name `pnpm image` where the command is
+    `pnpm deploy:build`;
+  - `apps/worker-host/tests/worker-host.integration.test.ts` says "C26 is what
+    puts one there" of the Engine reading the terminal, which was C27, and twice
+    describes the artifact store as having no start hook -- "the store has no
+    start hook" and "the only thing in the suite that touches S3 at all" --
+    which stopped being true when C28 added `ensureBucket`, and which the
+    suite's own missing-bucket test contradicts.
+- Tracking IDs in code comments. The writing rules keep Change numbers out of
+  code comments, but about fifteen remain across source and tests (for example
+  in `message-topology`'s deployments and catalog, `db-prisma`, and the Redis
+  slice test). Each becomes a statement of the behavior or rationale it was
+  standing in for, or is dropped.
 
-- Worker is not a managed resource at all today, and has no `start`, `stop`, or
-  `health`. `assembleEmbeddedSystem` takes sql, bus, sinks, tap, engine,
-  limiter, and router; the profile retains Worker only so its handler can be
-  bound. There are no no-op hooks to correct — this is additive.
-- The cancellation producer was pre-built for this Change. `executeSubmission`'s
-  `callerSignal` is threaded through capacity and permits and has no producer,
-  with a comment saying a shutdown source can be added without reopening that
-  path. `WorkerCapacity.acquire` already answers what happens to work waiting
-  for capacity: it returns cancelled and records no lifecycle facts, because
-  execution never reached started.
-- A `cancelledResult()` still returns through `handleHttpJsonSubmitted` and
-  publishes a terminal. So cancel-on-shutdown currently means emitting a
-  terminal, which needs egress alive, and that collides with the retained-entry
-  policy this Change wants under Redis. Those are two different answers to the
-  same event and the Change has to choose.
-- The Redis carrier already settles in-flight handlers — `stop()` clears
-  `running`, awaits the read loops, and only then closes connections, while a
-  loop awaits handler settlement and acknowledgement through the lane. The
-  in-process carrier drains nothing: its hooks are empty by design, and
-  `whenIdle()` is explicitly not a drain and is unwired from lifecycle. The gap
-  is the opposite way round from the intuition.
-- A blocked `XREADGROUP` is not interrupted by clearing `running`, so one final
-  batch is admitted and run after stop is requested. Not a leak, but not
-  quiescence either.
+**Release.** Bump every workspace package's version together, from
+`0.1.0-alpha.13`, and merge `dev` into `main` unsquashed, as previous releases
+were.
 
-**The structural obstacle.** The ordered stop policy cannot be expressed by the
-current runtime. `stopAll` walks one flat list strictly in reverse of start, and
-the router is a single resource owning both ingress and egress, so Worker has no
-position in that list that is both after ingress ends and before egress closes.
-Placing Worker before the router loses egress while it drains; placing it after
-starts the carrier ahead of the component it delivers to. Either the router
-resource splits — which is what C22's host-binding split was meant to enable — or
-`ManagedRuntime` gains an explicit quiesce phase, which changes a generic
-contract four other resources already satisfy.
+**After the release, outside this Change's diff.** Two repository changes follow
+immediately and are recorded here so they are not lost:
 
-Worker lifecycle and carrier lifecycle remain separate responsibilities. Worker
-owns whether it accepts work and how its active executions settle. The process
-host owns whether a subscription is polling or presenting deliveries. Worker
-must not learn about Redis, consumer groups, mailboxes, or deployment placement
-merely to coordinate those controls.
-
-The ordered host policy is:
-
-1. quiesce that host's Worker-command ingress so it presents no new work;
-2. define honestly what happens to work already admitted or waiting for Worker
-   capacity;
-3. let active work reach its chosen finish-or-cancel boundary while terminal
-   topic remains available;
-4. stop Worker only after the executions covered by that policy settle; and
-5. stop remaining messaging egress and infrastructure dependencies afterward.
-
-Redis entries not yet presented may remain in Redis for a later process; an
-in-process carrier has no durable equivalent. This Change must state and test the
-minimum common stop guarantee and each carrier's stronger behavior rather than
-making the local carrier imitate Redis recovery. A delivery refused because
-Worker is no longer accepting must not be silently acknowledged as successful.
-
-Local Worker health reports only the component instance this process owns.
-Whether a separately deployed Worker process is reachable or whether enough
-Worker instances exist is deployment health, not a fake remote
-`ManagedResource<Worker>` inside an Engine or gateway process.
+- **Move the repository** from the `lcaseio` organization to a personal account.
+  References to the current location: the git remote, the four badge URLs at the
+  top of `README.md`, and the GitHub Milestone link in
+  `docs/initiatives/evals/eval-milestone.md`.
+- **Switch to trunk-based development on `main`.** Changes branch from and merge
+  into `main` directly, so work stays current and nothing waits on a periodic
+  `dev` merge. That touches CI's `push` and `pull_request` triggers, which name
+  both `main` and `dev`; the "last commit (dev)" badge; and retiring `dev`
+  itself. How versions are bumped without a `dev` to `main` merge marking a
+  release is decided then.
 
 **Completion evidence.**
 
-- The retained Worker instance exposes tested accepting, draining/stopping,
-  stopped, and health behavior rather than no-op symmetry methods.
-- Every profile hosting Worker starts it before its command ingress and stops
-  new ingress before Worker settles active work, over both carriers.
-- Terminal topic needed by settling work remains available for the duration
-  promised by the stop contract.
-- Redis work not yet presented follows an explicit retained-entry policy, and
-  in-process admitted work follows an explicit ephemeral policy.
-- Every profile hosting Worker includes it as a real managed resource, while
-  profiles that do not host Worker include no remote placeholder resource.
-- Worker remains free of carrier, topology, deployment, and process-supervisor
-  dependencies.
-- The claims C25 was forbidden from making are now made and tested, in the apps
-  that were forbidden from making them.
-
-**Deliberately deferred beyond this Arc.**
-
-- General migration of Engine, Limiter, Replay, Observability, and component
-  lifecycle event families off `EventBusPort`.
-- A cancellation protocol that replaces the in-process `AbortSignal` path.
-- Production Redis delivery hardening: retries, reclaim, retention, poison
-  handling, idempotency, and duplicate terminal policy.
-- Reconciliation, retry, or recovery for a multi-route admission whose outcome
-  is ambiguous beyond C23's transaction-backed happy path.
-- Dynamic provider plugins and per-job backend selection.
-- A general startup-time component-placement compiler. The explicit profiles
-  in this Arc remain compatible presets, but the broader configuration and
-  validation surface is deliberately distant work; see the
-  [deferred design sketch](../research/configurable-component-placement.md).
-- Hot relocation of components after a process has started.
+- Every close-out item above is resolved or explicitly recorded as not done.
+- The root `README.md` describes the current architecture, deployment shapes,
+  and commands.
+- Every workspace package carries the same new version, and `dev` is merged into
+  `main`.

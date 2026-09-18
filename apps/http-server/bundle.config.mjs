@@ -1,4 +1,5 @@
-// The hosts this app bundles, read by scripts/bundle.mjs.
+// The hosts this app bundles, and what ships beside them, read by
+// scripts/bundle.mjs.
 
 export const hosts = [
   {
@@ -25,3 +26,8 @@ export const hosts = [
     external: ["better-sqlite3"],
   },
 ];
+
+// The workbench's own `vite build` output, copied as it is: an image build
+// context covers one directory, so the frontend a host serves has to sit beside
+// that host's bundle. turbo.json is what makes the frontend build first.
+export const assets = [{ from: "../workbench/dist", to: "workbench" }];

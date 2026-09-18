@@ -74,6 +74,14 @@ jobs:
       - run: pnpm bundle
       - run: pnpm typecheck
 
+      # The deployment file only, not the images it builds: this catches a
+      # broken anchor, an undefined service or a bad depends_on, which nothing
+      # else here would notice until someone ran a deployment. Building the
+      # images is deliberately left out -- with no layer cache it costs minutes
+      # per run and still proves only that they build.
+      - name: Check the deployment compose file
+        run: docker compose -f deploy/remote-worker.compose.yaml --profile infra config --quiet
+
       - name: Wait for MinIO
         run: until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done
 
