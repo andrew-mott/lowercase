@@ -10,14 +10,14 @@ Sections and route order mirror `docs/api-reference.md` (alphabetical by resourc
 
 **Zero live frontend consumers (4 of 21 endpoints):**
 
-- `POST /api/evals` — its only call site, `EvaluateExportModal.tsx`, has been an orphaned, unimported component since PR 43.
+- `POST /api/evals` — its only call site, `EvaluateExportModal.tsx`, has been an orphaned, unimported component since Change C43.
 - `POST /api/flows/files` — hook exported, never called.
 - `GET /api/flows/:flowId` — hook exported, never called; `GET /api/flows/versions/:versionId` covers every real need instead.
 - `GET /api/flows/versions/:versionId/params/:paramName/curated-artifacts` — never called; the UI gets curated artifacts a different way entirely (`GET /api/artifacts?flowVersionId&curated=true`, filtered client-side).
 
 **Most fetched-but-unused response data:**
 
-- `GET /api/runs/:runId` (`RunDetail`) — 2 of ~20 `run` fields used, `steps`/`params`/`flow`/`flowVersion` (all nested, several fields deep) entirely unread. The worst case by far, and the one PR 51 already flagged as sprawling.
+- `GET /api/runs/:runId` (`RunDetail`) — 2 of ~20 `run` fields used, `steps`/`params`/`flow`/`flowVersion` (all nested, several fields deep) entirely unread. The worst case by far, and the one Change C51 already flagged as sprawling.
 - `GET /api/sims` (`SimListItem[]`) — 3 of 21 leaf fields used; `flow`/`flowVersion` fetched on every sim and discarded at the list-mapping call site.
 - `GET /api/flows` (`FlowListItem[]`) — `flow` fully used, but `latestVersion` is fetched on every item and unused everywhere live.
 
@@ -37,10 +37,10 @@ Sections and route order mirror `docs/api-reference.md` (alphabetical by resourc
 
 **Consumed by:** `useListArtifactsQuery`, called from:
 
-- [`ArtifactList.tsx:31`](../apps/web-app/src/components/workbench/explorer/version/ArtifactList.tsx#L31) — one flow version's curated artifacts, shown in the FlowExplorer tree
-- [`use-flow-graph-panel.ts:68`](../apps/web-app/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L68) — all artifacts, for run-param compatibility filtering
-- [`use-flow-graph-panel.ts:69`](../apps/web-app/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L69) — curated artifacts scoped to one version, for the curated-only params picker
-- [`use-artifact-panel.ts:90`](../apps/web-app/src/components/workbench/artifact-panel/use-artifact-panel.ts#L90) — one artifact by hash, for the metadata tab
+- [`ArtifactList.tsx:31`](../apps/workbench/src/components/workbench/explorer/version/ArtifactList.tsx#L31) — one flow version's curated artifacts, shown in the FlowExplorer tree
+- [`use-flow-graph-panel.ts:68`](../apps/workbench/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L68) — all artifacts, for run-param compatibility filtering
+- [`use-flow-graph-panel.ts:69`](../apps/workbench/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L69) — curated artifacts scoped to one version, for the curated-only params picker
+- [`use-artifact-panel.ts:90`](../apps/workbench/src/components/workbench/artifact-panel/use-artifact-panel.ts#L90) — one artifact by hash, for the metadata tab
 
 ##### `artifact` ([`ArtifactIndex`](../packages/types/src/artifacts/artifact-index.ts) minus `flowId`/`flowVersionId`/`curated` — those live under `associations` instead)
 
@@ -76,10 +76,10 @@ Well-utilized relative to `RunDetail` below — 9 of 12 leaf fields genuinely re
 
 **Consumed by:** `useCreateArtifactMutation`, live call sites:
 
-- [`use-artifact-authoring-panel.ts:176`](../apps/web-app/src/components/workbench/artifact-authoring-panel/use-artifact-authoring-panel.ts#L176)
-- [`CreateArtifactDialog.tsx:192`](../apps/web-app/src/components/workbench/shared/CreateArtifactDialog.tsx#L192)
+- [`use-artifact-authoring-panel.ts:176`](../apps/workbench/src/components/workbench/artifact-authoring-panel/use-artifact-authoring-panel.ts#L176)
+- [`CreateArtifactDialog.tsx:192`](../apps/workbench/src/components/workbench/shared/CreateArtifactDialog.tsx#L192)
 
-A third call site, [`EvaluateExportModal.tsx:103`](../apps/web-app/src/components/evals/EvaluateExportModal.tsx#L103), is dead — that component has had zero importers since PR 43 (its own header comment: "kept intentionally, not dead code to sweep," preserved as a reference for a future real evals rework). Not counted as a live consumer.
+A third call site, [`EvaluateExportModal.tsx:103`](../apps/workbench/src/components/evals/EvaluateExportModal.tsx#L103), is dead — that component has had zero importers since Change C43 (its own header comment: "kept intentionally, not dead code to sweep," preserved as a reference for a future real evals rework). Not counted as a live consumer.
 
 ##### Usage, both live call sites
 
@@ -93,10 +93,10 @@ On success (`result.ok`), `result.value` (the new `ArtifactIndex`) is read direc
 
 **Consumed by:** `useGetArtifactQuery` / `useLazyGetArtifactQuery`, called from:
 
-- [`ArtifactContentPanel.tsx:8`](../apps/web-app/src/components/workbench/artifact-panel/ArtifactContentPanel.tsx#L8) — main content preview panel
-- [`ArtifactHashLoader.tsx:16`](../apps/web-app/src/components/workbench/flow-graph-panel/side-panel/step-results/ArtifactHashLoader.tsx#L16) — resolves a param ref's artifact content inline
-- [`StepOutputExportsPanel.tsx:33`](../apps/web-app/src/components/workbench/flow-graph-panel/side-panel/step-results/StepOutputExportsPanel.tsx#L33) (lazy) — step output/export preview, on demand
-- [`RunInputRow.tsx:83`](../apps/web-app/src/components/workbench/flow-graph-panel/side-panel/RunInputRow.tsx#L83) (lazy) — "open in main panel" preview, on demand
+- [`ArtifactContentPanel.tsx:8`](../apps/workbench/src/components/workbench/artifact-panel/ArtifactContentPanel.tsx#L8) — main content preview panel
+- [`ArtifactHashLoader.tsx:16`](../apps/workbench/src/components/workbench/flow-graph-panel/side-panel/step-results/ArtifactHashLoader.tsx#L16) — resolves a param ref's artifact content inline
+- [`StepOutputExportsPanel.tsx:33`](../apps/workbench/src/components/workbench/flow-graph-panel/side-panel/step-results/StepOutputExportsPanel.tsx#L33) (lazy) — step output/export preview, on demand
+- [`RunInputRow.tsx:83`](../apps/workbench/src/components/workbench/flow-graph-panel/side-panel/RunInputRow.tsx#L83) (lazy) — "open in main panel" preview, on demand
 
 ##### Fields
 
@@ -117,7 +117,7 @@ The one endpoint so far with no waste at all — every field of every response b
 <summary><code>PATCH</code> <code><b>/api/artifacts/:hash</b></code> — <code>Result&lt;ArtifactIndex, string&gt;</code> — same consumption profile as <code>POST</code>/<code>GET /api/artifacts</code></summary>
 <br>
 
-**Consumed by:** `useUpdateArtifactMetadataMutation`, one live call site: [`use-artifact-panel.ts:156`](../apps/web-app/src/components/workbench/artifact-panel/use-artifact-panel.ts#L156).
+**Consumed by:** `useUpdateArtifactMetadataMutation`, one live call site: [`use-artifact-panel.ts:156`](../apps/workbench/src/components/workbench/artifact-panel/use-artifact-panel.ts#L156).
 
 Same pattern as `POST /api/artifacts`: `result.ok` checked, `result.value` (the updated `ArtifactIndex`) patched wholesale into two cache entries (this panel's own hash-scoped lookup and the curated-scoped list), consumed later the same way `GET /api/artifacts` is. `result.error` shown on failure.
 
@@ -131,7 +131,7 @@ Same pattern as `POST /api/artifacts`: `result.ok` checked, `result.value` (the 
 <summary><code>GET</code> <code><b>/api/evals</b></code> — <code>EvalResultRecord[]</code> — 8 of 13 top-level fields used; the nested <code>payload.overall</code>/<code>payload.passed</code> duplicate is dead, only the flattened copies are read</summary>
 <br>
 
-**Consumed by:** two hooks, both only called from [`Evals.tsx`](../apps/web-app/src/pages/Evals.tsx) — `useListEvalsByTargetShapeQuery` (`Evals.tsx:22`) and `useListEvalsByExperimentIdQuery` (`Evals.tsx:31`), merged into one `results` array (`Evals.tsx:35-36`) and passed to `EvalScoreChart` and `EvalResultTable`. No other consumer of `EvalResultRecord` anywhere in `apps/web-app`.
+**Consumed by:** two hooks, both only called from [`Evals.tsx`](../apps/workbench/src/pages/Evals.tsx) — `useListEvalsByTargetShapeQuery` (`Evals.tsx:22`) and `useListEvalsByExperimentIdQuery` (`Evals.tsx:31`), merged into one `results` array (`Evals.tsx:35-36`) and passed to `EvalScoreChart` and `EvalResultTable`. No other consumer of `EvalResultRecord` anywhere in `apps/workbench`.
 
 ##### [`EvalResultRecord`](../packages/types/src/db-sql/eval-result-record.ts)
 
@@ -157,15 +157,15 @@ Same pattern as `POST /api/artifacts`: `result.ok` checked, `result.value` (the 
 
 ##### Takeaway
 
-The `overall`/`passed` duplication (flattened on the record and nested again in `payload`, flagged during PR 51) resolves cleanly on the read side — the frontend exclusively reads the flattened copies; the nested duplicates are dead weight. Within `payload`, only `dimensions[*].score` is read; `rationale` at both levels is never shown anywhere.
+The `overall`/`passed` duplication (flattened on the record and nested again in `payload`, flagged during Change C51) resolves cleanly on the read side — the frontend exclusively reads the flattened copies; the nested duplicates are dead weight. Within `payload`, only `dimensions[*].score` is read; `rationale` at both levels is never shown anywhere.
 
 </details>
 
 <details>
-<summary><code>POST</code> <code><b>/api/evals</b></code> — its only call site is orphaned dead code, unreachable since PR 43</summary>
+<summary><code>POST</code> <code><b>/api/evals</b></code> — its only call site is orphaned dead code, unreachable since Change C43</summary>
 <br>
 
-**Consumed by:** `useRequestEvalMutation`, one call site: [`EvaluateExportModal.tsx:91`](../apps/web-app/src/components/evals/EvaluateExportModal.tsx#L91). That component has zero importers anywhere in `apps/web-app/src` — its own header comment explains why: "Unused as of the UI Workspace milestone's PR 43 (pruning old pages)... kept intentionally, not dead code to sweep. This is v1 evals' judge-trigger UI, preserved as a reference for what to compare against when building the real evals rework."
+**Consumed by:** `useRequestEvalMutation`, one call site: [`EvaluateExportModal.tsx:91`](../apps/workbench/src/components/evals/EvaluateExportModal.tsx#L91). That component has zero importers anywhere in `apps/workbench/src` — its own header comment explains why: "Unused as of the UI Workspace initiative's Change C43 (pruning old pages)... kept intentionally, not dead code to sweep. This is v1 evals' judge-trigger UI, preserved as a reference for what to compare against when building the real evals rework."
 
 Within that dead code, the response is fully handled — `result.ok`/`result.error` checked, and on success `result.evalRunId` drives a `navigate(...)` call — so nothing here is a usage gap in the code itself. It's simply not reachable from any live page today, which makes this the only endpoint in the whole API with **zero live consumers**.
 
@@ -181,9 +181,9 @@ Within that dead code, the response is fully handled — `result.ok`/`result.err
 
 **Consumed by:** `useGetFlowsQuery`, called from:
 
-- [`flow-settings-panel/Content.tsx:8`](../apps/web-app/src/components/workbench/flow-settings-panel/Content.tsx#L8)
-- [`FlowExplorer.tsx:21`](../apps/web-app/src/components/workbench/explorer/FlowExplorer.tsx#L21) — the tree
-- [`EvalTargetPicker.tsx:29`](../apps/web-app/src/components/evals/EvalTargetPicker.tsx#L29)
+- [`flow-settings-panel/Content.tsx:8`](../apps/workbench/src/components/workbench/flow-settings-panel/Content.tsx#L8)
+- [`FlowExplorer.tsx:21`](../apps/workbench/src/components/workbench/explorer/FlowExplorer.tsx#L21) — the tree
+- [`EvalTargetPicker.tsx:29`](../apps/workbench/src/components/evals/EvalTargetPicker.tsx#L29)
 - `EvaluateExportModal.tsx:80` — dead code, same orphaned component as `POST /api/evals` above
 
 ##### `flow` ([`FlowRecord`](../packages/types/src/db-sql/flow-record.ts))
@@ -212,7 +212,7 @@ All 6 fields used live: `id`, `name`, `description`, `kind`, `createdAt`, `updat
 <summary><code>POST</code> <code><b>/api/flows</b></code> — <code>CreateFlowRecordResult</code> — fully consumed, mostly structurally (written into the <code>getFlows</code> cache) rather than field-by-field</summary>
 <br>
 
-**Consumed by:** `useAddJsonFlowMutation`, one call site: [`use-flow-authoring-panel.ts:46`](../apps/web-app/src/components/workbench/flow-authoring-panel/use-flow-authoring-panel.ts#L46).
+**Consumed by:** `useAddJsonFlowMutation`, one call site: [`use-flow-authoring-panel.ts:46`](../apps/workbench/src/components/workbench/flow-authoring-panel/use-flow-authoring-panel.ts#L46).
 
 Not a discarded-payload case: `result.ok`/`result.error` are checked, `flow.name` and `version.id` are read directly (toast + panel navigation), and the whole `flow`/`version` objects are written into the `getFlows` RTK Query cache to keep the explorer tree in sync without a refetch. Every field of `CreateFlowRecordResult` ends up traveling somewhere real — most of it structurally, via that cache write, rather than being individually destructured at the call site.
 
@@ -222,7 +222,7 @@ Not a discarded-payload case: `result.ok`/`result.error` are checked, `flow.name
 <summary><code>POST</code> <code><b>/api/flows/files</b></code> — zero call sites in the web app</summary>
 <br>
 
-**Consumed by:** `useUploadFlowFileMutation` — confirmed via grep, its only appearance in `apps/web-app/src` is the export line in `flows-api.ts` itself. No component calls it.
+**Consumed by:** `useUploadFlowFileMutation` — confirmed via grep, its only appearance in `apps/workbench/src` is the export line in `flows-api.ts` itself. No component calls it.
 
 ##### Takeaway
 
@@ -238,7 +238,7 @@ Genuinely dead. The one file-upload flow that does exist in the live UI (`Create
 
 ##### Takeaway
 
-Also genuinely dead. Every place the frontend needs a `FlowDefinition`, it goes through `GET /api/flows/versions/:versionId` (below) instead, which nests the definition inside a version record. This flow-level shortcut has no live caller — consistent with the `PostFlowReq`/`getFlowDef()` naming trap flagged in PR 51 (`docs/todo.md`), where this same "flowId-or-hash" service method was already flagged as loosely specified; it turns out the frontend doesn't even reach it via this route at all.
+Also genuinely dead. Every place the frontend needs a `FlowDefinition`, it goes through `GET /api/flows/versions/:versionId` (below) instead, which nests the definition inside a version record. This flow-level shortcut has no live caller — consistent with the `PostFlowReq`/`getFlowDef()` naming trap flagged in Change C51 (`docs/todo.md`), where this same "flowId-or-hash" service method was already flagged as loosely specified; it turns out the frontend doesn't even reach it via this route at all.
 
 </details>
 
@@ -246,7 +246,7 @@ Also genuinely dead. Every place the frontend needs a `FlowDefinition`, it goes 
 <summary><code>GET</code> <code><b>/api/flows/:flowId/versions</b></code> — <code>FlowVersionRecord[]</code> — 4 of 7 fields used</summary>
 <br>
 
-**Consumed by:** `useGetFlowVersionsQuery`, one call site: [`explorer/version/List.tsx:33`](../apps/web-app/src/components/workbench/explorer/version/List.tsx#L33) (the tree's per-flow version list), fanning out through `version/Row.tsx` into `FlowExplorer.tsx`.
+**Consumed by:** `useGetFlowVersionsQuery`, one call site: [`explorer/version/List.tsx:33`](../apps/workbench/src/components/workbench/explorer/version/List.tsx#L33) (the tree's per-flow version list), fanning out through `version/Row.tsx` into `FlowExplorer.tsx`.
 
 ##### [`FlowVersionRecord`](../packages/types/src/db-sql/flow-record.ts)
 
@@ -268,7 +268,7 @@ Also genuinely dead. Every place the frontend needs a `FlowDefinition`, it goes 
 
 **Consumed by:** `useGetFlowVersionDefQuery`, called from 7 places: `json-definition-panel/Content.tsx`, `event-graph-panel/Content.tsx`, `artifact-authoring-panel/use-artifact-authoring-panel.ts`, `shared/CreateArtifactDialog.tsx`, `artifact-panel/use-artifact-panel.ts`, `flow-graph-panel/use-flow-graph-panel.ts`, `evals/EvalTargetPicker.tsx`.
 
-##### `definition` ([`FlowDefinition`](../packages/types/src/flow/flow-definition.ts), top-level keys only — see PR 51 on why this large/evolving type isn't expanded further)
+##### `definition` ([`FlowDefinition`](../packages/types/src/flow/flow-definition.ts), top-level keys only — see Change C51 on why this large/evolving type isn't expanded further)
 
 | Key           | Used? | Where                                                                                                           |
 | ------------- | ----- | --------------------------------------------------------------------------------------------------------------- |
@@ -298,11 +298,11 @@ Two call sites are pure opposites — `json-definition-panel/Content.tsx` uses o
 <summary><code>GET</code> <code><b>/api/flows/versions/:versionId/params/:paramName/curated-artifacts</b></code> — zero call sites, confirmed dead</summary>
 <br>
 
-**Consumed by:** nobody. Grepped for the route path and for `GetCuratedArtifactsRes`/`curated-artifacts` across `apps/web-app/src` — zero matches outside the server route itself.
+**Consumed by:** nobody. Grepped for the route path and for `GetCuratedArtifactsRes`/`curated-artifacts` across `apps/workbench/src` — zero matches outside the server route itself.
 
 ##### Takeaway
 
-The web app achieves "curated artifacts for this param" a different way entirely: it fetches ALL curated artifacts for the flow version via `GET /api/artifacts?flowVersionId&curated=true` (`useListArtifactsQuery`, see Artifacts above) and filters client-side in [`RunInputRow.tsx`](../apps/web-app/src/components/workbench/flow-graph-panel/side-panel/RunInputRow.tsx) against each `ArtifactListItem.associations.paramCurations`, matching on `flowVersionId`+`paramName`. This dedicated, per-param-scoped server endpoint has no reason to exist for the current UI — it's not a matter of underused fields, the whole route is unreached.
+The web app achieves "curated artifacts for this param" a different way entirely: it fetches ALL curated artifacts for the flow version via `GET /api/artifacts?flowVersionId&curated=true` (`useListArtifactsQuery`, see Artifacts above) and filters client-side in [`RunInputRow.tsx`](../apps/workbench/src/components/workbench/flow-graph-panel/side-panel/RunInputRow.tsx) against each `ArtifactListItem.associations.paramCurations`, matching on `flowVersionId`+`paramName`. This dedicated, per-param-scoped server endpoint has no reason to exist for the current UI — it's not a matter of underused fields, the whole route is unreached.
 
 </details>
 
@@ -314,7 +314,7 @@ The web app achieves "curated artifacts for this param" a different way entirely
 <summary><code>GET</code> <code><b>/api/runs</b></code> — <code>RunListItem[]</code> — 2 of 9 fields used, plus the failure-branch <code>error</code> string is discarded in favor of a hardcoded message</summary>
 <br>
 
-**Consumed by:** `useListAllRunsQuery`, one call site: [`RunList.tsx:21`](../apps/web-app/src/components/workbench/explorer/version/RunList.tsx#L21) (FlowExplorer tree), passing selected items on through `onSelectRun` into `FlowExplorer.tsx`.
+**Consumed by:** `useListAllRunsQuery`, one call site: [`RunList.tsx:21`](../apps/workbench/src/components/workbench/explorer/version/RunList.tsx#L21) (FlowExplorer tree), passing selected items on through `onSelectRun` into `FlowExplorer.tsx`.
 
 ##### [`RunListItem`](../packages/types/src/run-index-store/run-list.ts)
 
@@ -340,7 +340,7 @@ Same shape as the `RunDetail` finding below — 2 of 9 fields read. On the failu
 <summary><code>POST</code> <code><b>/api/runs</b></code> — <code>runId</code> used on success, failure is entirely unhandled (no <code>else</code> branch at all)</summary>
 <br>
 
-**Consumed by:** `useRequestRunMutation`, one call site: [`use-flow-graph-panel.ts:290`](../apps/web-app/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L290) (`handleRun`).
+**Consumed by:** `useRequestRunMutation`, one call site: [`use-flow-graph-panel.ts:290`](../apps/workbench/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L290) (`handleRun`).
 
 On success (`result.data?.ok`), `result.data.runId` is used — dispatched into the panel's own Redux state, which then drives `useGetRunDetailQuery`/`useGetRunParamsQuery`/the event stream for that panel. On failure, there is no `else` branch at all: `result.data.error` is never read, and RTK Query's own transport-level `result.error` (a real HTTP/network failure, distinct from `{ ok: false }`) isn't checked either — a failed run request currently gives the user no feedback whatsoever.
 
@@ -352,10 +352,10 @@ On success (`result.data?.ok`), `result.data.runId` is used — dispatched into 
 
 **Consumed by:** `useGetRunDetailQuery`, called from two places:
 
-- [`use-flow-graph-panel.ts:96`](../apps/web-app/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L96)
-- [`event-graph-panel/Content.tsx:71`](../apps/web-app/src/components/workbench/event-graph-panel/Content.tsx#L71)
+- [`use-flow-graph-panel.ts:96`](../apps/workbench/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L96)
+- [`event-graph-panel/Content.tsx:71`](../apps/workbench/src/components/workbench/event-graph-panel/Content.tsx#L71)
 
-No other call sites in `apps/web-app` (confirmed via grep for the hook name).
+No other call sites in `apps/workbench` (confirmed via grep for the hook name).
 
 ##### `run` ([`RunRecord`](../packages/types/src/db-sql/run-record.ts))
 
@@ -390,12 +390,12 @@ All four entirely unread — zero fields from any of them, including their own n
 Not incidental — both consumers get the equivalent information from elsewhere already:
 
 - Step status/results: `useRunEventsWithStatus` (event-sourced, live) in `use-flow-graph-panel.ts`, not `steps`.
-- Run params: a dedicated `useGetRunParamsQuery` call, not `params` (this is the same derivability noted in PR 51 — `GET /api/runs/:runId/params` is itself just a projection of this same `RunDetail.params`, and even that dedicated lightweight endpoint isn't fed from this call).
+- Run params: a dedicated `useGetRunParamsQuery` call, not `params` (this is the same derivability noted in Change C51 — `GET /api/runs/:runId/params` is itself just a projection of this same `RunDetail.params`, and even that dedicated lightweight endpoint isn't fed from this call).
 - Flow/flow version: `useGetFlowVersionDefQuery`, not `flow`/`flowVersion`.
 
 ##### Takeaway
 
-Two call sites, both fetch the full `RunDetail`, both use it for exactly one thing: resolving `run.simId` (to look up a sim) and, in one of the two, `run.startTime` for a display label. Everything else — 18 of 20 `run` fields plus all of `steps`, `params`, `flow`, `flowVersion` — is dead weight on the wire for every request, and in three of those four cases (`steps`, `params`, `flow`/`flowVersion`) there's already a narrower, purpose-built endpoint or event stream supplying the real data instead. This is the endpoint PR 51 flagged as having "expanded way beyond what I wanted it to" — this confirms it's not just verbose, it's mostly unused by the only two things that call it today.
+Two call sites, both fetch the full `RunDetail`, both use it for exactly one thing: resolving `run.simId` (to look up a sim) and, in one of the two, `run.startTime` for a display label. Everything else — 18 of 20 `run` fields plus all of `steps`, `params`, `flow`, `flowVersion` — is dead weight on the wire for every request, and in three of those four cases (`steps`, `params`, `flow`/`flowVersion`) there's already a narrower, purpose-built endpoint or event stream supplying the real data instead. This is the endpoint Change C51 flagged as having "expanded way beyond what I wanted it to" — this confirms it's not just verbose, it's mostly unused by the only two things that call it today.
 
 </details>
 
@@ -403,7 +403,7 @@ Two call sites, both fetch the full `RunDetail`, both use it for exactly one thi
 <summary><code>GET</code> <code><b>/api/runs/:runId/params</b></code> — <code>RunParamManifest</code> — consumed wholesale, never per-key, and the failure-branch <code>error</code> is discarded again</summary>
 <br>
 
-**Consumed by:** `useGetRunParamsQuery`, one call site: [`use-flow-graph-panel.ts:127`](../apps/web-app/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L127).
+**Consumed by:** `useGetRunParamsQuery`, one call site: [`use-flow-graph-panel.ts:127`](../apps/workbench/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L127).
 
 `value` (a `Record<string, string>`, param name → artifact hash) is never read key-by-key at the call site — it's passed wholesale into `paramsSeeded`, which spreads it wholesale into this panel's Redux state. Every actual per-name lookup elsewhere in the panel (`handleParamChange`, `missingRequiredParams`, etc.) reads that post-seed Redux copy, not the raw query result. `ok` is checked; `error` on failure is reduced to a boolean (`paramsError`) and never shown — `RunInputTab.tsx` displays a hardcoded `"Couldn't load this run's params."` instead of the response's own message, the same pattern as `GET /api/runs` above.
 
@@ -413,7 +413,7 @@ Two call sites, both fetch the full `RunDetail`, both use it for exactly one thi
 <summary><code>GET</code> <code><b>/api/runs/details</b></code> — the hook's own call sites never read <code>data</code> at all; the real consumer is downstream through Redux</summary>
 <br>
 
-**Consumed by:** `useGetAllRunEventsQuery`, two call sites — [`use-run-events-with-status.ts:21`](../apps/web-app/src/components/workbench/shared/events/use-run-events-with-status.ts#L21) and [`event-payload-panel/Content.tsx:18`](../apps/web-app/src/components/workbench/event-payload-panel/Content.tsx#L18) — both destructure only `isFetching`, never `data`.
+**Consumed by:** `useGetAllRunEventsQuery`, two call sites — [`use-run-events-with-status.ts:21`](../apps/workbench/src/components/workbench/shared/events/use-run-events-with-status.ts#L21) and [`event-payload-panel/Content.tsx:18`](../apps/workbench/src/components/workbench/event-payload-panel/Content.tsx#L18) — both destructure only `isFetching`, never `data`.
 
 ##### The real path
 
@@ -433,7 +433,7 @@ Not a per-field usage question the way the other endpoints are — the endpoint'
 <summary><code>GET</code> <code><b>/api/sims</b></code> — <code>SimListItem[]</code> — 3 of 21 leaf fields used; <code>flow</code>/<code>flowVersion</code> fetched on every sim and entirely discarded</summary>
 <br>
 
-**Consumed by:** `useListAllSimsQuery`, one call site: [`SimList.tsx:21`](../apps/web-app/src/components/workbench/explorer/version/SimList.tsx#L21) (FlowExplorer tree), passing `sim` on through `onSelectSim`.
+**Consumed by:** `useListAllSimsQuery`, one call site: [`SimList.tsx:21`](../apps/workbench/src/components/workbench/explorer/version/SimList.tsx#L21) (FlowExplorer tree), passing `sim` on through `onSelectSim`.
 
 ##### [`SimListItem`](../packages/types/src/db-sql/sim-record.ts) = `{ sim, flow, flowVersion }`
 
@@ -460,7 +460,7 @@ Not a per-field usage question the way the other endpoints are — the endpoint'
 <summary><code>POST</code> <code><b>/api/sims</b></code> — success payload entirely discarded; the UI relies on tag-invalidation to refetch the list instead</summary>
 <br>
 
-**Consumed by:** `usePostSimsMutation`, one call site: [`SaveSimDialog.tsx:40`](../apps/web-app/src/components/workbench/flow-graph-panel/toolbar/SaveSimDialog.tsx#L40).
+**Consumed by:** `usePostSimsMutation`, one call site: [`SaveSimDialog.tsx:40`](../apps/workbench/src/components/workbench/flow-graph-panel/toolbar/SaveSimDialog.tsx#L40).
 
 On success, none of the created `SimRecord`'s 8 fields are read — `SaveSimDialog.tsx` shows a toast built from its own local form state (not the response), closes the dialog, and calls `onSaved()`. The list refresh comes entirely from RTK Query tag invalidation (`postSims` declares `invalidatesTags: ["Sim"]`, `listAllSims` declares `providesTags: ["Sim"]`) — not from reading anything in this response. `error` is read on failure.
 
@@ -472,9 +472,9 @@ On success, none of the created `SimRecord`'s 8 fields are read — `SaveSimDial
 
 **Consumed by:** `useGetSimQuery`, three call sites:
 
-- [`use-flow-graph-panel.ts:74`](../apps/web-app/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L74) — keyed on the panel's explicit `simId` prop
-- [`use-flow-graph-panel.ts:101`](../apps/web-app/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L101) — keyed on the _current run's_ `simId`, resolved from `RunDetail` (see above), passed through to `SimTab.tsx`
-- [`event-graph-panel/Content.tsx:75`](../apps/web-app/src/components/workbench/event-graph-panel/Content.tsx#L75) — same run-resolved pattern
+- [`use-flow-graph-panel.ts:74`](../apps/workbench/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L74) — keyed on the panel's explicit `simId` prop
+- [`use-flow-graph-panel.ts:101`](../apps/workbench/src/components/workbench/flow-graph-panel/use-flow-graph-panel.ts#L101) — keyed on the _current run's_ `simId`, resolved from `RunDetail` (see above), passed through to `SimTab.tsx`
+- [`event-graph-panel/Content.tsx:75`](../apps/workbench/src/components/workbench/event-graph-panel/Content.tsx#L75) — same run-resolved pattern
 
 ##### [`SimDefinition`](../packages/types/src/db-sql/sim-record.ts) = `{ sim: SimRecord; spec: ForkSpec }`
 

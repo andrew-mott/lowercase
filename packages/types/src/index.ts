@@ -1,8 +1,10 @@
+// generic helper types
 export * from "./result.type.js";
+export * from "./errors/domain-error.type.js";
 export * from "./json-simple-value.js";
 export * from "./json-value.js";
-export * from "./events/shared/index.js";
 
+export * from "./events/shared/index.js";
 export * from "./events/flow/data.js";
 
 export * from "./events/any-event.js";
@@ -63,3 +65,6 @@ export * from "./artifacts/artifact-list-item.js";
 
 // sql return types used in adapters / api responses
 export * from "./db-sql/index.js";
+
+// backend selection shared by every process profile
+export * from "./process-hosting/index.js";

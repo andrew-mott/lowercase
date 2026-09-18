@@ -1,7 +1,6 @@
-import {
+import type {
   AnyEvent,
   CapId,
-  EventType,
   JobCompletedType,
   JobDelayedType,
   JobEvent,
@@ -23,18 +22,15 @@ import {
   jobStartedTypeSchema,
   jobSubmittedTypeSchema,
 } from "../schemas/job/job.category.schema.js";
-import {
+import type {
   JobCompletedParsed,
   JobDelayedParsed,
   JobFailedParsed,
   JobParserPort,
   JobQueuedParsed,
-  JobResumedParsed,
   JobStartedParsed,
-  JobSubmittedParsed,
 } from "@lcase/ports";
-import { EventSchemaRegistry } from "../registries/event-schema.registry.js";
-import z from "zod";
+import type { EventSchemaRegistry } from "../registries/event-schema.registry.js";
 
 export class JobParser implements JobParserPort {
   constructor(private readonly eventRegistry: EventSchemaRegistry) {}

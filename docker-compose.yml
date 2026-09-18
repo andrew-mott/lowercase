@@ -1,0 +1,56 @@
+name: lowercase-test
+
+services:
+  minio:
+    image: bitnamilegacy/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:9000/minio/health/live || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Only the Prisma CLI talks to this today -- nothing in the application
+  # constructs a Postgres client yet. `prisma migrate dev` provisions a shadow
+  # database on the same server, which the default superuser can do.
+  postgres:
+    image: postgres:16-alpine
+    # POSTGRES_HOST_PORT is the single knob for this: it moves the binding here
+    # and every client-side default with it, since the Prisma configs and the
+    # test harness derive their URLs from the same variable. Compose reads it
+    # from the repo-root .env, which is where to put it.
+    #
+    # Set it on a machine already running native Postgres. An EnterpriseDB 15
+    # and 16 side by side claim 5432 and 5433, and Docker reports the collision
+    # as `ports are not available ... address already in use`, which reads as a
+    # Docker fault rather than a port conflict.
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: lcase
+      POSTGRES_PASSWORD: lcase
+      POSTGRES_DB: lcase
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lcase -d lcase"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

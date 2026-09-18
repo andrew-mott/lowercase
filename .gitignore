@@ -1,6 +1,7 @@
 # releases and packages
 node_modules/
 dist/
+bundle/
 dist-ssr/
 dist-electron/
 .turbo/
@@ -40,8 +41,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# prisma generated files
-packages/db-prisma/src/generated/client/
+# prisma generated files -- both provider clients, and the Postgres schema,
+# which is derived from the authored SQLite one by scripts/build-schemas.mjs
+packages/db-prisma/src/generated/
+packages/db-prisma/prisma/postgres/schema.prisma
 
 # database files
 lcase-db/

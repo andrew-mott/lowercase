@@ -1,4 +1,4 @@
-import { JobHttpJsonEventType } from "@lcase/types";
+import type { JobHttpJsonEventType } from "@lcase/types";
 import {
   JobHttpJsonCompletedSchema,
   JobHttpJsonDelayedSchema,
@@ -13,7 +13,7 @@ import {
   JobFailedDataSchema,
   JobHttpJsonDataSchema,
 } from "../../schemas/job/job.data.schema.js";
-import { ZodSchema } from "zod";
+import type { ZodSchema } from "zod";
 
 export const httpjsonSchemaMap = {
   "job.httpjson.submitted": {

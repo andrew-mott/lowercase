@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@lcase/db-prisma";
+import type { SqlClient } from "@lcase/db-prisma";
 import type {
   ArtifactIndex,
   ArtifactListFilter,
@@ -10,10 +10,13 @@ import type {
 } from "@lcase/types";
 import type { ArtifactRepositoryPort } from "@lcase/ports";
 
-type PrismaArtifactRepositoryDb = Pick<
-  PrismaClient,
-  "artifact" | "artifactParamCuration" | "$transaction"
->;
+export type PrismaArtifactRepositoryDb = {
+  artifact: Pick<
+    SqlClient["artifact"],
+    "findUnique" | "findMany" | "update" | "upsert"
+  >;
+  artifactParamCuration: Pick<SqlClient["artifactParamCuration"], "findMany">;
+};
 
 function definedFields<T extends Record<string, unknown>>(
   input: T,
@@ -153,7 +156,7 @@ export class PrismaArtifactRepository implements ArtifactRepositoryPort {
    * transaction, and nested writes are Prisma's own documented default for
    * "atomically write a parent plus related rows," not something to reach
    * past. Deliberately keeps Prisma's nested-write vocabulary
-   * (deleteMany/createMany) written inline at this call only -- curationRows
+   * (deleteMany/createMany) written inline at the call site -- curationRows
    * below stays plain data, never itself shaped like a Prisma instruction.
    */
   async writeArtifact(
@@ -243,21 +246,24 @@ export class PrismaArtifactRepository implements ArtifactRepositoryPort {
 
       const flowVersionId = metadata.flowVersionId;
       const paramCurations = metadata.paramCurations;
-      const updated = await this.db.$transaction(async (tx) => {
-        const artifact = await tx.artifact.update({ where: { hash }, data });
-        await tx.artifactParamCuration.deleteMany({
-          where: { artifactHash: hash, flowVersionId },
-        });
-        if (paramCurations.length > 0) {
-          await tx.artifactParamCuration.createMany({
-            data: paramCurations.map((paramName) => ({
-              artifactHash: hash,
-              flowVersionId,
-              paramName,
-            })),
-          });
-        }
-        return artifact;
+      const updated = await this.db.artifact.update({
+        where: { hash },
+        data: {
+          ...data,
+          paramCurations: {
+            deleteMany: { flowVersionId },
+            ...(paramCurations.length > 0
+              ? {
+                  createMany: {
+                    data: paramCurations.map((paramName) => ({
+                      flowVersionId,
+                      paramName,
+                    })),
+                  },
+                }
+              : {}),
+          },
+        },
       });
       return { ok: true, value: toArtifactIndex(updated) };
     } catch (error) {

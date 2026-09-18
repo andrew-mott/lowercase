@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@lcase/db-prisma";
+import type { SqlClient } from "@lcase/db-prisma";
 import type {
   FlowLatestVersionSummary,
   FlowListItem,
@@ -10,7 +10,10 @@ import type {
 } from "@lcase/types";
 import type { FlowRepositoryPort } from "@lcase/ports";
 
-type PrismaFlowRepositoryDb = Pick<PrismaClient, "flow" | "flowVersion">;
+export type PrismaFlowRepositoryDb = {
+  flow: Pick<SqlClient["flow"], "create" | "findUnique" | "findMany">;
+  flowVersion: Pick<SqlClient["flowVersion"], "findUnique" | "findMany">;
+};
 
 function toFlowRecord(flow: {
   id: string;

@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@lcase/db-prisma";
+import type { SqlClient } from "@lcase/db-prisma";
 import type { ArtifactRepositoryPort, RunQueryPort } from "@lcase/ports";
 import type {
   FlowRecord,
@@ -14,10 +14,16 @@ import type {
   RunStepProjectionRecord,
 } from "@lcase/types";
 
-type PrismaRunQueryDb = Pick<
-  PrismaClient,
-  "run" | "runStepProjection" | "flowVersion" | "runParam" | "runStepExport"
->;
+export type PrismaRunQueryDb = {
+  run: Pick<SqlClient["run"], "findUnique" | "findMany">;
+  runStepProjection: Pick<SqlClient["runStepProjection"], "findMany">;
+  runStepExport: Pick<SqlClient["runStepExport"], "findMany">;
+  runParam: Pick<SqlClient["runParam"], "findMany">;
+  flowVersion: Pick<
+    SqlClient["flowVersion"],
+    "findUnique" | "findFirst" | "findMany"
+  >;
+};
 
 function toRunStatus(status: string): RunStatus {
   switch (status) {

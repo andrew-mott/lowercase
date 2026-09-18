@@ -1,4 +1,4 @@
-import type { z, ZodSchema } from "zod";
+import type { z } from "zod";
 import type { EventType } from "@lcase/types";
 import {
   FlowAnalyzedSchema,

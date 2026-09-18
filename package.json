@@ -1,22 +1,30 @@
 {
   "name": "@lcase/platform",
-  "version": "0.1.0-alpha.13",
+  "version": "0.1.0-alpha.14",
   "type": "module",
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "bundle": "turbo run bundle",
+    "deploy:build": "turbo run bundle --filter=@lcase/http-server --filter=@lcase/worker-host --filter=@lcase/deploy-tasks && pnpm -F @lcase/db-prisma schema && docker compose -f deploy/remote-worker.compose.yaml build",
+    "deploy:up": "docker compose -f deploy/remote-worker.compose.yaml --profile infra up -d --wait",
+    "deploy:down": "docker compose -f deploy/remote-worker.compose.yaml --profile infra down -v",
+    "deploy:fresh": "pnpm deploy:down && pnpm deploy:build && pnpm deploy:up",
     "build-packages": "turbo run build --filter='!./apps/*'",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
+    "test:integration": "docker compose up -d --wait && S3_TEST_ENDPOINT=http://localhost:9000 S3_TEST_BUCKET=artifacts-test S3_TEST_ACCESS_KEY_ID=minioadmin S3_TEST_SECRET_ACCESS_KEY=minioadmin turbo run test:integration",
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:migrate": "pnpm --filter @lcase/db-prisma run migrate"
+    "db:migrate": "pnpm --filter @lcase/db-prisma run migrate",
+    "verify": "pnpm format && pnpm lint && pnpm build && pnpm bundle && pnpm deploy:build && pnpm typecheck && pnpm -r test && pnpm test:integration"
   },
   "packageManager": "pnpm@10.17.1",
   "devDependencies": {
     "@types/node": "^24.5.2",
+    "esbuild": "^0.27.2",
     "prettier": "^3.9.6",
     "tsx": "^4.20.6",
     "turbo": "^2.5.8",

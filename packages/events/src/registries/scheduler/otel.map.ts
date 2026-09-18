@@ -1,4 +1,4 @@
-import { SchedulerOtelAttributesMap } from "@lcase/types";
+import type { SchedulerOtelAttributesMap } from "@lcase/types";
 
 export const schedulerOtelAttributesMap: SchedulerOtelAttributesMap = {
   "scheduler.slot.requested": {

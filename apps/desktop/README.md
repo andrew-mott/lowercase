@@ -1,30 +1,16 @@
-# React + TypeScript + Vite
+# @lcase/desktop
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Electron shell that reuses the `workbench` UI in a desktop window rather than a
+browser tab. One of the two intended delivery targets, alongside the HTTP server
+plus browser.
 
-Currently, two official plugins are available:
+## Status: dormant
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Nothing in CI verifies this app. It has no `typecheck`, `lint` or `test` script,
+so it is the one workspace package that can stop compiling without anything
+noticing. Its Electron IPC bootstrap and root React shell live in
+[`packages/archive/`](../../packages/archive/) as `controller` and `ui` — real
+dependencies, kept as reference scaffolding for a rebuild rather than deleted.
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: "latest",
-    sourceType: "module",
-    project: ["./tsconfig.json", "./tsconfig.node.json"],
-    tsconfigRootDir: __dirname,
-  },
-};
-```
-
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+Treat it as a placeholder holding the target open. A revival would start by
+deciding how much of `archive/` survives, not by building on it as it stands.

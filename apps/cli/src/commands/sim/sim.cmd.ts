@@ -1,5 +1,5 @@
-import { ServicesPort } from "@lcase/ports";
-import { Command } from "commander";
+import type { ServicesPort } from "@lcase/ports";
+import type { Command } from "commander";
 
 export async function cliSimAction(
   services: ServicesPort,
@@ -7,7 +7,6 @@ export async function cliSimAction(
   reusedSteps: string[],
 ): Promise<void> {
   console.log("[cli] running replay command");
-  await services.system.startSystem();
   await services.sim.startForkedRunSim(runId, reusedSteps, "lowercase://cli");
 }
 

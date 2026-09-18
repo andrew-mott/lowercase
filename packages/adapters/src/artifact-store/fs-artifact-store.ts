@@ -1,4 +1,10 @@
-import type { ArtifactStorePort, ArtifactStorePutResult } from "@lcase/ports";
+import type {
+  ArtifactStorePort,
+  ArtifactStoreGetSuccess,
+  ArtifactStorePutResult,
+  ArtifactStoreGetError,
+} from "@lcase/ports";
+import type { Result } from "@lcase/types";
 import {
   readFile,
   writeFile,
@@ -9,101 +15,194 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-const artifactFileExtensions = [".json", ".txt", ".md", ".bin"] as const;
+// Extension -> contentType for LegacyFsArtifactStore's file layout, used only
+// by getLegacyBytes' fallback probe below. Mirrors the legacy Artifacts
+// class's own defaultContentType() mapping, duplicated locally rather than
+// imported -- same small duplication LegacyFsArtifactStore's own
+// artifactFileExtensions constant already accepts.
+const legacyExtensionContentTypes: Record<string, string> = {
+  ".json": "application/json",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".bin": "application/octet-stream",
+};
 
+// Content-type travels with the blob as a small sidecar file -- local disk
+// has no equivalent to an S3/MinIO object's native Content-Type metadata, so
+// this plays that role instead. Content itself has no extension: there's no
+// longer a closed set of formats to encode into a filename, and nothing
+// needs to probe for it on read since the sidecar always says what it is.
 export class FsArtifactStore implements ArtifactStorePort {
   baseDir: string;
-  rootPath: string;
   constructor(rootPath: string) {
-    this.rootPath = rootPath;
-    this.baseDir = path.join(this.rootPath);
+    this.baseDir = path.join(rootPath);
   }
+
   async putBytes(
     hash: string,
     bytes: Uint8Array,
-    extension: string,
+    contentType: string,
   ): Promise<ArtifactStorePutResult> {
-    const absoluteTempFilePath = this.getAbsoluteFilePath(
-      hash,
-      extension,
-      true,
-    );
-    const absoluteFilePath = this.getAbsoluteFilePath(hash, extension);
+    const absoluteFilePath = this.getAbsoluteFilePath(hash);
+    const absoluteMetaPath = this.getAbsoluteMetaPath(hash);
+    const tmpContentPath = absoluteFilePath + ".tmp";
+    const tmpMetaPath = absoluteMetaPath + ".tmp";
 
     try {
-      // idempotent writes
+      // idempotent: same hash means same content by definition. If a later
+      // save declares a different contentType for the same bytes, the first
+      // write's declared type wins -- hashing is content-only, not
+      // content+type (see docs/todo.md's ArtifactIndex naming-debt entry).
       if (await this.exists(absoluteFilePath)) {
         return { ok: true, path: absoluteFilePath };
       }
-      await mkdir(path.dirname(absoluteTempFilePath), { recursive: true });
-      await writeFile(absoluteTempFilePath, bytes);
-      await rename(absoluteTempFilePath, absoluteFilePath);
+
+      await mkdir(path.dirname(absoluteFilePath), { recursive: true });
+
+      // Write-then-rename: atomic per file (a reader sees the final path
+      // fully written or not at all, never partial) -- not atomic across the
+      // content+meta pair, see getBytes' fail-closed handling for that gap.
+      try {
+        await writeFile(tmpContentPath, bytes);
+        await writeFile(tmpMetaPath, JSON.stringify({ contentType }));
+        await rename(tmpContentPath, absoluteFilePath);
+        await rename(tmpMetaPath, absoluteMetaPath);
+      } finally {
+        await this.cleanupTmp(tmpContentPath);
+        await this.cleanupTmp(tmpMetaPath);
+      }
     } catch (e) {
       return {
         ok: false,
         cause: e instanceof Error ? e.message : "Error putting bytes",
       };
-    } finally {
-      try {
-        // in case renaming or writing fails
-        await unlink(absoluteTempFilePath);
-      } catch (e) {
-        // ignore file not found error, otherwise console log
-        if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
-          console.log("Error unlinking file:", e);
-        }
-      }
     }
 
     return { ok: true, path: absoluteFilePath };
   }
-  async getBytes(hash: string): Promise<Uint8Array | null> {
-    const absoluteFilePath = await this.findAbsoluteFilePath(hash);
-    if (!absoluteFilePath) return null;
+
+  async getBytes(
+    hash: string,
+  ): Promise<Result<ArtifactStoreGetSuccess, ArtifactStoreGetError>> {
+    const absoluteFilePath = this.getAbsoluteFilePath(hash);
+    const absoluteMetaPath = this.getAbsoluteMetaPath(hash);
+
+    // Read content and meta sequentially, not via Promise.all, so a missing
+    // content file (-> try the legacy layout) can be told apart from a
+    // present content file with a missing/corrupt sidecar (-> a real error,
+    // see below) -- a single combined catch can't distinguish the two.
+    let bytes: Uint8Array;
     try {
-      const buffer = await readFile(absoluteFilePath);
-      return buffer;
+      bytes = await readFile(absoluteFilePath);
     } catch (e) {
-      return null;
+      if (this.isEnoent(e)) {
+        return this.getLegacyBytes(hash);
+      }
+      return this.readError(e);
+    }
+
+    try {
+      const metaRaw = await readFile(absoluteMetaPath, "utf-8");
+      const { contentType } = JSON.parse(metaRaw) as { contentType: string };
+      return { ok: true, value: { bytes, contentType } };
+    } catch (e) {
+      // Content present but the sidecar is missing/corrupt: a genuine
+      // inconsistency, not "not found" -- legacy files never share this
+      // path (they're extensioned, this one isn't), so there's nothing to
+      // fall back to.
+      return this.readError(e);
     }
   }
 
-  getAbsoluteFilePath(
+  // Temporary fallback: params and flow defs are still written exclusively
+  // through LegacyFsArtifactStore's extensioned files (no sidecar), and both
+  // stores share the same root directory during the migration -- without
+  // this, a hash the legacy writer produced would be invisible here.
+  // Symmetric to LegacyFsArtifactStore's own bare-path fallback added for
+  // the same reason. Remove once legacy writers migrate onto
+  // ArtifactWriterPort.
+  private async getLegacyBytes(
     hash: string,
-    extension: string,
-    tmp: boolean = false,
-  ): string {
-    return path.join(
-      this.getAbsoluteDirPath(hash),
-      this.getFileName(hash, extension, tmp),
+  ): Promise<Result<ArtifactStoreGetSuccess, ArtifactStoreGetError>> {
+    for (const [extension, contentType] of Object.entries(
+      legacyExtensionContentTypes,
+    )) {
+      const legacyFilePath = path.join(
+        this.getAbsoluteDirPath(hash),
+        hash.slice(4) + extension,
+      );
+      try {
+        const bytes = await readFile(legacyFilePath);
+        return { ok: true, value: { bytes, contentType } };
+      } catch {
+        continue;
+      }
+    }
+    // fail closed: content without a recognizable sidecar or legacy
+    // extension is treated as not-found rather than an unknown content-type.
+    return {
+      ok: false,
+      error: {
+        code: "NOT_FOUND",
+        message: `No artifact found for hash "${hash}"`,
+      },
+    };
+  }
+
+  private isEnoent(e: unknown): boolean {
+    return (
+      e instanceof Error &&
+      "code" in e &&
+      (e as NodeJS.ErrnoException).code === "ENOENT"
     );
   }
 
-  getFileName(hash: string, extension: string, tmp: boolean = false): string {
-    return hash.slice(4) + extension + (tmp ? ".tmp" : "");
+  private readError(e: unknown): Result<never, ArtifactStoreGetError> {
+    return {
+      ok: false,
+      error: {
+        code: "STORE_ERROR",
+        message: e instanceof Error ? e.message : "Error reading artifact",
+        cause: e instanceof Error ? e.message : String(e),
+      },
+    };
   }
 
-  getAbsoluteDirPath(hash: string) {
-    const dirOne = hash.slice(0, 2);
-    const dirTwo = hash.slice(2, 4);
-    return path.join(this.baseDir, dirOne, dirTwo);
+  private getAbsoluteFilePath(hash: string): string {
+    return path.join(this.getAbsoluteDirPath(hash), hash.slice(4));
   }
 
-  async exists(path: string): Promise<boolean> {
+  private getAbsoluteMetaPath(hash: string): string {
+    return path.join(
+      this.getAbsoluteDirPath(hash),
+      hash.slice(4) + ".meta.json",
+    );
+  }
+
+  private getAbsoluteDirPath(hash: string): string {
+    return path.join(this.baseDir, hash.slice(0, 2), hash.slice(2, 4));
+  }
+
+  private async exists(filePath: string): Promise<boolean> {
     try {
-      await access(path);
+      await access(filePath);
       return true;
     } catch {
       return false;
     }
   }
 
-  async findAbsoluteFilePath(hash: string): Promise<string | null> {
-    for (const extension of Object.values(artifactFileExtensions)) {
-      const absoluteFilePath = this.getAbsoluteFilePath(hash, extension);
-      if (await this.exists(absoluteFilePath)) return absoluteFilePath;
+  // Always attempts the unlink rather than checking first -- on success
+  // rename() already moved the file away, so this is a guaranteed no-op.
+  private async cleanupTmp(tmpPath: string): Promise<void> {
+    try {
+      await unlink(tmpPath);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
+        // TODO: surface this through observability once a real error-handling
+        // convention exists (docs/todo.md) -- silently logged for now.
+        console.log("Error unlinking temp file:", e);
+      }
     }
-
-    return null;
   }
 }

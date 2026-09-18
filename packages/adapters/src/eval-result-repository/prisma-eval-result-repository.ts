@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@lcase/db-prisma";
+import type { SqlClient } from "@lcase/db-prisma";
 import type {
   CreateEvalResultInput,
   EvalResultRecord,
@@ -7,7 +7,9 @@ import type {
 } from "@lcase/types";
 import type { EvalResultRepositoryPort } from "@lcase/ports";
 
-type PrismaEvalResultRepositoryDb = Pick<PrismaClient, "evalResult">;
+export type PrismaEvalResultRepositoryDb = {
+  evalResult: Pick<SqlClient["evalResult"], "create" | "findMany">;
+};
 
 function toEvalResultRecord(row: {
   id: string;

@@ -1,0 +1,26 @@
+{
+  "name": "@lcase/controller",
+  "version": "0.1.0-alpha.14",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "echo test",
+    "lint": "echo lint"
+  },
+  "packageManager": "pnpm@10.17.1",
+  "dependencies": {
+    "@lcase/run-flow": "workspace:*"
+  },
+  "devDependencies": {
+    "@lcase/ports": "workspace:*",
+    "@lcase/types": "workspace:*"
+  }
+}

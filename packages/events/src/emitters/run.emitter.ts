@@ -8,7 +8,7 @@ import type {
 } from "@lcase/types";
 import type { OtelContext } from "../types.js";
 import { BaseEmitter } from "./base.emitter.js";
-import { EventBusPort } from "@lcase/ports";
+import type { EventBusPort } from "@lcase/ports";
 import { runOtelAttributesMap } from "../otel-attributes.js";
 import { eventSchemaRegistry } from "../registries/event-schema.registry.js";
 

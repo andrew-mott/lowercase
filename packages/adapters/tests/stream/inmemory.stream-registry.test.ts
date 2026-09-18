@@ -1,6 +1,5 @@
-import { describe, expect, expectTypeOf, it, assert } from "vitest";
+import { describe, expect, it } from "vitest";
 import { InMemoryStreamRegistry } from "../../src/stream/inmemory.stream-registry.js";
-import type { ProducerStreamPort } from "@lcase/ports";
 
 describe("in-memory stream registry", () => {
   it("returns a stream with the id supplied", () => {
@@ -44,7 +43,7 @@ describe("in-memory stream registry", () => {
 
   it("getProducer() and getConsumer() throw after stream is closed", async () => {
     const streamRegistry = new InMemoryStreamRegistry();
-    const { id, producer, consumer } = streamRegistry.createStream("new-id");
+    const { id } = streamRegistry.createStream("new-id");
     expect(id).toBe("new-id");
     await streamRegistry.closeStream(id);
 

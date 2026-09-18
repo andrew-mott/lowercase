@@ -1,4 +1,4 @@
-import { CloudScope } from "@lcase/types";
+import type { CloudScope } from "@lcase/types";
 
 export type EmitterContext = {
   traceId: string;

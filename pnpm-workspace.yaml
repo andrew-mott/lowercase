@@ -1,6 +1,10 @@
 packages:
   - packages/*
   - packages/use-cases/*
+  - packages/functional-core/*
+  - packages/components/*
+  - packages/process-hosting/*
+  - packages/archive/*
   - apps/*
   - examples/
 

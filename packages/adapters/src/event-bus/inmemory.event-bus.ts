@@ -51,7 +51,7 @@ export class InMemoryEventBus implements EventBusPort {
       try {
         handler(e, t ?? topic);
       } catch (err) {
-        console.error(`[safeHandler] error event ${e}, topic ${t}`);
+        console.error(`[safeHandler] error event ${e}, topic ${t}`, err);
       }
     };
     this.#ee.on(topic, safeHandler);

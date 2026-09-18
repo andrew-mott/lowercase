@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-While sketching Artifacts mode's v1 UI (`docs/milestones/ui-workspace/MILESTONE.md`), the plan leaned on a shortcut: since `flowId`/`flowVersionId` on `Artifact` can only ever be set through deliberate curation (ADR-0002's write-restriction, never the worker's content-put path), "has `flowVersionId` set" was going to double as the signal for "browse user-made artifacts" — no new schema needed, just a UI rule that artifact creation always associates with the current flow version.
+While sketching Artifacts mode's v1 UI (`docs/initiatives/ui-workspace/INITIATIVE.md`), the plan leaned on a shortcut: since `flowId`/`flowVersionId` on `Artifact` can only ever be set through deliberate curation (ADR-0002's write-restriction, never the worker's content-put path), "has `flowVersionId` set" was going to double as the signal for "browse user-made artifacts" — no new schema needed, just a UI rule that artifact creation always associates with the current flow version.
 
 That shortcut makes `flowId`/`flowVersionId` carry two different meanings at once: their original job (curation scope — which artifacts get offered as candidates for a flow version's params) and, now, a proxy for authorship intent (did a person make this, versus a run produce it as a byproduct). Those meanings can drift apart: a plausible future feature is the _system_ writing `flowVersionId` onto a run-produced artifact directly (for query convenience, since it's already derivable transitively through `Run.flowVersionId`), with nothing about that decision looking like a provenance choice at the time. Once that happens, the proxy silently breaks — the browse list would start showing things that were never authored by a person.
 

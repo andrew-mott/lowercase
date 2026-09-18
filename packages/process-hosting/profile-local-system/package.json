@@ -1,0 +1,50 @@
+{
+  "name": "@lcase/profile-local-system",
+  "version": "0.1.0-alpha.14",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../../scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "lint": "eslint .",
+    "clean:dist": "node ../../../scripts/clean-dist.mjs",
+    "clean:node-modules": "node ../../../scripts/clean-node-modules.mjs",
+    "test:integration": "vitest run -c vitest.integration.config.ts"
+  },
+  "packageManager": "pnpm@10.17.1",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
+    "@lcase/adapters": "workspace:*",
+    "@lcase/app-services": "workspace:*",
+    "@lcase/artifacts": "workspace:*",
+    "@lcase/assembly": "workspace:*",
+    "@lcase/db-prisma": "workspace:*",
+    "@lcase/engine": "workspace:*",
+    "@lcase/events": "workspace:*",
+    "@lcase/limiter": "workspace:*",
+    "@lcase/message-router": "workspace:*",
+    "@lcase/message-topology": "workspace:*",
+    "@lcase/observability": "workspace:*",
+    "@lcase/replay": "workspace:*",
+    "@lcase/worker": "workspace:*",
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "redis": "^6.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@lcase/ports": "workspace:*",
+    "@lcase/types": "workspace:*",
+    "dotenv": "^17.4.2",
+    "eslint": "^9.39.1",
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^3.2.4"
+  }
+}

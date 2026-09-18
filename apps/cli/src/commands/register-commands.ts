@@ -4,7 +4,7 @@ import { registerValidateCmd } from "./validate/validate.js";
 
 import { registerReplayCmd } from "./replay/replay.cmd.js";
 import { registerSimCmd } from "./sim/sim.cmd.js";
-import { ServicesPort } from "@lcase/ports";
+import type { ServicesPort } from "@lcase/ports";
 import { registerAddCmd } from "./add/add.cmd.js";
 
 export function registerCommands(program: Command, services: ServicesPort) {

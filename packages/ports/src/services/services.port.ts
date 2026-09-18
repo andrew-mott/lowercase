@@ -13,6 +13,7 @@ import type {
   CreateFlowRecordResult,
   EvalResultRecord,
   ForkSpec,
+  JsonValue,
   Result,
   RunDetail,
   RunListItem,
@@ -21,15 +22,24 @@ import type {
   SimListItem,
   SimRecord,
 } from "@lcase/types";
-import type { AutoGetResult } from "../artifacts/artifacts.port.js";
-import type { EventSink } from "../observability/observability-sink.port.js";
-import type { RuntimeStatus } from "../controller.port.js";
+import type { ArtifactLoadError } from "../artifacts/artifact-reader.port.js";
+
+// Relocated from the now-deleted artifacts.port.ts (legacy ArtifactsPort) --
+// ArtifactServicePort.getArtifact is its only remaining consumer. Error
+// branch now reuses ArtifactReaderPort's ArtifactLoadError instead of the
+// old bespoke GetError, which had no other consumer left once ArtifactsPort
+// was retired. See docs/todo.md for the deferred ArtifactIndex/error-type
+// direction this is a small preview of.
+export type AutoGetResult =
+  | { ok: true; format: "json"; value: JsonValue }
+  | { ok: true; format: "text" | "markdown"; value: string }
+  | { ok: true; format: "bytes"; value: Uint8Array }
+  | { ok: false; error: ArtifactLoadError };
 
 export interface ServicesPort {
   flow: FlowServicePort;
   sim: SimServicePort;
   replay: ReplayServicePort;
-  system: SystemServicePort;
   run: RunServicePort;
   artifact: ArtifactServicePort;
   eval: EvalServicePort;
@@ -70,13 +80,6 @@ export interface ReplayServicePort {
   getAllEvents(runId: string): Promise<{
     events: AnyEvent[];
   }>;
-}
-
-export interface SystemServicePort {
-  startSystem(): Promise<RuntimeStatus>;
-  stopSystem(): Promise<RuntimeStatus>;
-  attachSink(sink: EventSink): void;
-  detachSink(sink: EventSink): void;
 }
 
 export type RunRequest = {
@@ -132,16 +135,9 @@ export interface EvalServicePort {
   listByExperimentId(experimentId: string): Promise<EvalResultRecord[]>;
 }
 
-export interface WsServicePort {
-  monitorRun(runId: string, socket: WebSocket): void;
-  stopMonitoringRun(runId: string): void;
-  start(): Promise<void>;
-}
-
 export interface ArtifactServicePort {
   getArtifact(hash: string): Promise<AutoGetResult>;
   listArtifacts(filter?: ArtifactListFilter): Promise<ArtifactListItem[]>;
-  putArtifact(input: ArtifactPutInput): Promise<Result<string, string>>;
   createArtifact(
     input: ArtifactPutInput,
     metadata?: ArtifactUpdateMetadata,

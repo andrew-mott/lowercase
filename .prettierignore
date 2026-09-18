@@ -4,7 +4,8 @@ dist-ssr/
 dist-electron/
 .turbo/
 coverage/
-packages/db-prisma/src/generated/client/
+packages/db-prisma/src/generated/
+packages/db-prisma/prisma/postgres/schema.prisma
 lcase-db/
 *.db
 *.db-journal

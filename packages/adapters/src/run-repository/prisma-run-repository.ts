@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@lcase/db-prisma";
+import type { SqlClient } from "@lcase/db-prisma";
 import type {
   CreateRunRecordInput,
   Result,
@@ -8,10 +8,13 @@ import type {
 } from "@lcase/types";
 import type { RunRepositoryPort } from "@lcase/ports";
 
-type PrismaRunRepositoryDb = Pick<
-  PrismaClient,
-  "run" | "runParam" | "$transaction"
->;
+// Narrowed to the methods actually called, not the whole `run` delegate: a
+// delegate carries provider-specific signatures (`groupBy`, `aggregate`) that
+// no repository uses but that would make this seam reject the Postgres client.
+// Exported so tests/prisma-provider-parity.ts can assert both clients satisfy it.
+export type PrismaRunRepositoryDb = {
+  run: Pick<SqlClient["run"], "findUnique" | "findMany" | "update" | "upsert">;
+};
 
 function toRunStatus(status: string): RunStatus {
   switch (status) {
@@ -88,10 +91,24 @@ export class PrismaRunRepository implements RunRepositoryPort {
     input: CreateRunRecordInput,
   ): Promise<Result<RunRecord, string>> {
     try {
-      const created = await this.db.$transaction(async (tx) => {
-        const run = await tx.run.upsert({
-          where: { id: input.id },
-          update: definedFields({
+      // undefined means "leave params alone"; an empty object means "clear
+      // them" -- the same distinction the previous $transaction drew by
+      // guarding deleteMany on `!== undefined` rather than on row count.
+      const paramRows =
+        input.params === undefined
+          ? undefined
+          : Object.entries(input.params).map(([name, artifactHash]) => ({
+              name,
+              artifactHash,
+            }));
+
+      // params as a nested write rather than a transaction: Prisma wraps a
+      // nested write in its own implicit transaction, and the rows omit runId
+      // because the parent supplies it.
+      const created = await this.db.run.upsert({
+        where: { id: input.id },
+        update: {
+          ...definedFields({
             traceId: input.traceId,
             status: input.status,
             source: input.source,
@@ -109,42 +126,39 @@ export class PrismaRunRepository implements RunRepositoryPort {
             endTime: toOptionalDate(input.endTime),
             duration: input.duration,
           }),
-          create: {
-            id: input.id,
-            traceId: input.traceId,
-            status: input.status,
-            source: input.source,
-            flowId: input.flowId,
-            flowVersionId: input.flowVersionId,
-            flowDefHash: input.flowDefHash,
-            simId: input.simId,
-            parentRunId: input.parentRunId,
-            forkSpecHash: input.forkSpecHash,
-            experimentId: input.experimentId,
-            targetRunId: input.targetRunId,
-            targetStepId: input.targetStepId,
-            targetExportName: input.targetExportName,
-            startTime: toOptionalDate(input.startTime),
-            endTime: toOptionalDate(input.endTime),
-            duration: input.duration,
-          },
-        });
-
-        if (input.params !== undefined) {
-          await tx.runParam.deleteMany({ where: { runId: input.id } });
-          const entries = Object.entries(input.params);
-          if (entries.length > 0) {
-            await tx.runParam.createMany({
-              data: entries.map(([name, artifactHash]) => ({
-                runId: input.id,
-                name,
-                artifactHash,
-              })),
-            });
-          }
-        }
-
-        return run;
+          ...(paramRows
+            ? {
+                params: {
+                  deleteMany: {},
+                  ...(paramRows.length > 0
+                    ? { createMany: { data: paramRows } }
+                    : {}),
+                },
+              }
+            : {}),
+        },
+        create: {
+          id: input.id,
+          traceId: input.traceId,
+          status: input.status,
+          source: input.source,
+          flowId: input.flowId,
+          flowVersionId: input.flowVersionId,
+          flowDefHash: input.flowDefHash,
+          simId: input.simId,
+          parentRunId: input.parentRunId,
+          forkSpecHash: input.forkSpecHash,
+          experimentId: input.experimentId,
+          targetRunId: input.targetRunId,
+          targetStepId: input.targetStepId,
+          targetExportName: input.targetExportName,
+          startTime: toOptionalDate(input.startTime),
+          endTime: toOptionalDate(input.endTime),
+          duration: input.duration,
+          ...(paramRows && paramRows.length > 0
+            ? { params: { createMany: { data: paramRows } } }
+            : {}),
+        },
       });
 
       return { ok: true, value: toRunRecord(created) };

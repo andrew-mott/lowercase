@@ -1,4 +1,4 @@
-import { JobMcpEventType } from "@lcase/types";
+import type { JobMcpEventType } from "@lcase/types";
 
 export const mcpEventTypes = [
   "job.mcp.completed",

@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@lcase/db-prisma";
+import type { SqlClient } from "@lcase/db-prisma";
 import type {
   CreateSimRecordInput,
   FlowRecord,
@@ -9,7 +9,10 @@ import type {
 } from "@lcase/types";
 import type { SimRepositoryPort } from "@lcase/ports";
 
-type PrismaSimRepositoryDb = Pick<PrismaClient, "sim" | "flowVersion">;
+export type PrismaSimRepositoryDb = {
+  sim: Pick<SqlClient["sim"], "create" | "findUnique" | "findMany">;
+  flowVersion: Pick<SqlClient["flowVersion"], "findUnique">;
+};
 
 function toSimRecord(sim: {
   id: string;

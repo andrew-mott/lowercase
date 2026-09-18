@@ -78,7 +78,7 @@ describe("[inmemory-event-bus]", () => {
   it("calls generatPatterns once when getting topics for topics its already seen", () => {
     const bus = new InMemoryEventBus();
 
-    const spy = vi.spyOn(bus, "generatePatterns").mockImplementation(() => {
+    vi.spyOn(bus, "generatePatterns").mockImplementation(() => {
       return ["test"];
     });
 
@@ -89,7 +89,7 @@ describe("[inmemory-event-bus]", () => {
   it("calls generatPatterns again when getting topics for topics it has not seen", () => {
     const bus = new InMemoryEventBus();
 
-    const spy = vi.spyOn(bus, "generatePatterns").mockImplementation(() => {
+    vi.spyOn(bus, "generatePatterns").mockImplementation(() => {
       return ["test"];
     });
 

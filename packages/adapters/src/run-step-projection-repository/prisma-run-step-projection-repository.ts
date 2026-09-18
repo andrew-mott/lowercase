@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@lcase/db-prisma";
+import type { SqlClient } from "@lcase/db-prisma";
 import type {
   Result,
   RunStepExportRecord,
@@ -7,10 +7,15 @@ import type {
 } from "@lcase/types";
 import type { RunStepProjectionRepositoryPort } from "@lcase/ports";
 
-type PrismaRunStepProjectionRepositoryDb = Pick<
-  PrismaClient,
-  "runStepProjection" | "runStepExport" | "$transaction"
->;
+// runStepExport stays: getStepProjection and listStepProjections both read it
+// directly, only the write path moved onto the parent's nested write.
+export type PrismaRunStepProjectionRepositoryDb = {
+  runStepProjection: Pick<
+    SqlClient["runStepProjection"],
+    "findUnique" | "findMany" | "upsert"
+  >;
+  runStepExport: Pick<SqlClient["runStepExport"], "findMany">;
+};
 
 function toRunStepProjectionRecord(
   step: {
@@ -66,15 +71,31 @@ export class PrismaRunStepProjectionRepository implements RunStepProjectionRepos
     input: UpsertRunStepProjectionInput,
   ): Promise<Result<RunStepProjectionRecord, string>> {
     try {
-      const saved = await this.db.$transaction(async (tx) => {
-        const step = await tx.runStepProjection.upsert({
-          where: {
-            runId_stepId: {
-              runId: input.runId,
-              stepId: input.stepId,
-            },
+      // undefined means "leave exports alone"; an empty object means "clear
+      // them" -- the same distinction the previous $transaction drew by
+      // guarding deleteMany on `!== undefined` rather than on row count.
+      const exportRows =
+        input.exportHashes === undefined
+          ? undefined
+          : Object.entries(input.exportHashes).map(([name, artifactHash]) => ({
+              name,
+              artifactHash,
+            }));
+
+      // exports as a nested write rather than a transaction: Prisma wraps a
+      // nested write in its own implicit transaction, and `include` returns the
+      // resulting rows, replacing the read this used to do inside the tx. runId
+      // and stepId are omitted from the rows -- the parent supplies both halves
+      // of the composite key.
+      const step = await this.db.runStepProjection.upsert({
+        where: {
+          runId_stepId: {
+            runId: input.runId,
+            stepId: input.stepId,
           },
-          update: definedFields({
+        },
+        update: {
+          ...definedFields({
             status: input.status,
             startTime: toOptionalDate(input.startTime),
             endTime: toOptionalDate(input.endTime),
@@ -83,48 +104,39 @@ export class PrismaRunStepProjectionRepository implements RunStepProjectionRepos
             wasReused: input.wasReused,
             outputHash: input.outputHash,
           }),
-          create: {
-            runId: input.runId,
-            stepId: input.stepId,
-            status: input.status,
-            startTime: toOptionalDate(input.startTime),
-            endTime: toOptionalDate(input.endTime),
-            duration: input.duration,
-            reusedTime: toOptionalDate(input.reusedTime),
-            wasReused: input.wasReused,
-            outputHash: input.outputHash,
-          },
-        });
-
-        if (input.exportHashes !== undefined) {
-          await tx.runStepExport.deleteMany({
-            where: { runId: input.runId, stepId: input.stepId },
-          });
-          const entries = Object.entries(input.exportHashes);
-          if (entries.length > 0) {
-            await tx.runStepExport.createMany({
-              data: entries.map(([name, artifactHash]) => ({
-                runId: input.runId,
-                stepId: input.stepId,
-                name,
-                artifactHash,
-              })),
-            });
-          }
-        }
-
-        const exports = await tx.runStepExport.findMany({
-          where: { runId: input.runId, stepId: input.stepId },
-        });
-
-        return { step, exports };
+          ...(exportRows
+            ? {
+                exports: {
+                  deleteMany: {},
+                  ...(exportRows.length > 0
+                    ? { createMany: { data: exportRows } }
+                    : {}),
+                },
+              }
+            : {}),
+        },
+        create: {
+          runId: input.runId,
+          stepId: input.stepId,
+          status: input.status,
+          startTime: toOptionalDate(input.startTime),
+          endTime: toOptionalDate(input.endTime),
+          duration: input.duration,
+          reusedTime: toOptionalDate(input.reusedTime),
+          wasReused: input.wasReused,
+          outputHash: input.outputHash,
+          ...(exportRows && exportRows.length > 0
+            ? { exports: { createMany: { data: exportRows } } }
+            : {}),
+        },
+        include: { exports: true },
       });
 
       return {
         ok: true,
         value: toRunStepProjectionRecord(
-          saved.step,
-          saved.exports.map(toRunStepExportRecord),
+          step,
+          step.exports.map(toRunStepExportRecord),
         ),
       };
     } catch (error) {

@@ -45,7 +45,7 @@ describe("in-memory stream core", () => {
     expect(stream.status()).toBe("open");
     await stream.send(chunk);
     expect(stream.status()).toBe("active");
-    const value = await iterator.next();
+    await iterator.next();
     await stream.end();
     expect(stream.status()).toBe("ended");
     await stream.close();

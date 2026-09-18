@@ -1,4 +1,4 @@
-import { ShallowJsonValue } from "@lcase/types";
+import type { ShallowJsonValue } from "@lcase/types";
 import { z } from "zod";
 
 export const ShallowJsonValueSchema = z.union([

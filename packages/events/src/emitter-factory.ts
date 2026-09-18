@@ -21,7 +21,7 @@ import type {
 } from "@lcase/types";
 import { StepEmitter } from "./emitters/step.emitter.js";
 import { FlowEmitter } from "./emitters/flow.emitter.js";
-import { OtelContext } from "./types.js";
+import type { OtelContext } from "./types.js";
 import { randomBytes } from "crypto";
 import { EngineEmitter } from "./emitters/engine.emitter.js";
 import { RunEmitter } from "./emitters/run.emitter.js";

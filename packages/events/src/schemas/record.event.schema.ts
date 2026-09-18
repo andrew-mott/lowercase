@@ -1,4 +1,4 @@
-import { AnyEvent, ReplayScope } from "@lcase/types";
+import type { AnyEvent, ReplayScope } from "@lcase/types";
 import { CloudEventContextSchema } from "./cloud-context.schema.js";
 import { z } from "zod";
 import { ReplayModeSubmittedDataSchema } from "./record.data.schema.js";

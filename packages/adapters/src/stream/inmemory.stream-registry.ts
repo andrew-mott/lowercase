@@ -27,7 +27,6 @@ export class InMemoryStreamRegistry implements StreamRegistryPort {
     const producer = makeProducerView(streamCore);
 
     this.#registry.set(streamId, { p: producer, c: consumer, s: streamCore });
-    const { p, c } = this.#registry.get(streamId)!;
 
     return { id: streamId, consumer, producer };
   }

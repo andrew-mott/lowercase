@@ -1,9 +1,9 @@
-import { Command } from "commander";
+import type { Command } from "commander";
 import fs from "fs";
 import { resolveCliPath } from "../../resolve-path.js";
 
 import { FlowSchema } from "@lcase/specs";
-import { ServicesPort } from "@lcase/ports";
+import type { ServicesPort } from "@lcase/ports";
 
 export function cliValidateAction(flowPath: string) {
   const resolvedFlowPath = resolveCliPath(flowPath);
@@ -23,7 +23,7 @@ export function cliValidateAction(flowPath: string) {
     console.log("Error:", e);
   }
 }
-export function registerValidateCmd(program: Command, services: ServicesPort) {
+export function registerValidateCmd(program: Command, _services: ServicesPort) {
   program.command("validate <flowPath>").action(cliValidateAction);
   return program;
 }

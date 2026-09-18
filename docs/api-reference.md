@@ -10,7 +10,8 @@ body (see `packages/types`) rather than varying by HTTP status code, so each
 entry's "Response" section shows that union directly instead of a status-code
 table. The two multipart file-upload routes (`POST /api/artifacts`,
 `POST /api/flows/files`) are the real exception — they do send real `400`/`500`
-codes — and are called out individually where that applies.
+codes — and are called out individually where that applies. `GET /health`, outside
+`/api`, answers by status code alone.
 
 ## Base URL
 
@@ -546,7 +547,7 @@ curl http://localhost:3000/api/flows
 `PostFlowReq = { body: FlowDefinition }`, but the route itself types its body
 as plain `FlowDefinition` directly (`app.post<{ Body: FlowDefinition }>`) —
 `PostFlowReq` is never imported by the route at all. It's only used client-side,
-as `apps/web-app/src/redux/api/flows-api.ts`'s `addJsonFlow` mutation's own
+as `apps/workbench/src/redux/api/flows-api.ts`'s `addJsonFlow` mutation's own
 _argument_ shape (`builder.mutation<PostFlowRes, PostFlowReq>`) — its `query()`
 callback unwraps `arg.body` before sending, so the real wire payload is still
 plain `FlowDefinition`, matching the route. `PostFlowReq` describes a client-side
@@ -1140,7 +1141,7 @@ type RunParamManifest = Record<string, string>; // paramName -> artifactHash
 Derivable from `GET /api/runs/:runId`'s own `params` field, so used only where a
 panel hasn't already fetched full run detail — e.g. seeding a run-opened Flow
 Graph panel's Run Input tab display (`use-flow-graph-panel.ts`, see
-`arcs/run-input-params.md` PR 25) without pulling the whole `RunDetail` payload.
+`arcs/run-input-params.md` Change C25) without pulling the whole `RunDetail` payload.
 
 ##### Example response
 
@@ -1170,7 +1171,7 @@ curl http://localhost:3000/api/runs/<runId>/params
 **Service:** `ReplayService.getAllEvents()`
 
 Note the different base path — this route is registered under `/api/runs/details`,
-not `/api/runs/:runId/...` like the rest of this section (`apps/http-server/src/routes/routes.ts`).
+not `/api/runs/:runId/...` like the rest of this section (`apps/http-server/src/http/routes/routes.ts`).
 
 ##### Query parameters
 
@@ -1424,6 +1425,64 @@ type ForkSpec = {
 
 ```bash
 curl http://localhost:3000/api/sims/<simId>
+```
+
+</details>
+
+---
+
+## Health
+
+<details>
+<summary><code>GET</code> <code><b>/health</b></code> — the process's own readiness, by resource</summary>
+<br>
+
+**Type:** `SystemHealthReport` (`packages/process-hosting/assembly/src/managed-runtime.ts`)<br>
+**Source:** `apps/http-server/src/http/routes/health.ts`, registered by `serveHost`
+
+Not under `/api`, and the other exception to the envelope convention: callers such
+as a container healthcheck act on the status code alone, so it answers `200` when
+every resource reports healthy and `503` when any does not, with the report as the
+body either way. There is no `{ ok, ... }` wrapper.
+
+A resource with no health hook reports healthy. Today only `sql` performs a real
+check, so an unreachable S3 endpoint or Redis server does not yet appear here.
+
+##### Response
+
+```ts
+type SystemHealthReport = {
+  status: "healthy" | "unhealthy";
+  resources: readonly { id: string; health: HealthStatus }[];
+};
+
+type HealthStatus =
+  { status: "healthy" } | { status: "unhealthy"; reason: string };
+```
+
+##### Example response (`503`)
+
+```json
+{
+  "status": "unhealthy",
+  "resources": [
+    {
+      "id": "sql",
+      "health": {
+        "status": "unhealthy",
+        "reason": "Can't reach database server at postgres"
+      }
+    },
+    { "id": "artifacts", "health": { "status": "healthy" } },
+    { "id": "router", "health": { "status": "healthy" } }
+  ]
+}
+```
+
+##### Example request
+
+```bash
+curl -i http://localhost:3000/health
 ```
 
 </details>

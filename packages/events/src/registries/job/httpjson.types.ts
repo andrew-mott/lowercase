@@ -1,4 +1,4 @@
-import { JobHttpJsonEventType } from "@lcase/types";
+import type { JobHttpJsonEventType } from "@lcase/types";
 
 export const httpjsonEventTypes = [
   "job.httpjson.completed",

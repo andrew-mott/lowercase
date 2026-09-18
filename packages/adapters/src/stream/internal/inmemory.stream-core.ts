@@ -110,6 +110,9 @@ export class InMemoryStreamCore
     if (this.#iter) return this.#iter;
     if (this.#status === "idle") this.#status = "open";
 
+    // Async generators can't be arrow functions, so this is how the
+    // generator body below reaches the outer instance's private fields.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const core = this;
 
     async function* generator(): AsyncGenerator<Chunk> {
@@ -206,6 +209,8 @@ export class InMemoryStreamCore
    * @param err
    * @returns void
    */
+  // Reserved for when a producer-side failure path actually calls it.
+  // eslint-disable-next-line no-unused-private-class-members
   #fail(err: unknown): void {
     if (this.#isClosed) return;
     this.#status = "error";

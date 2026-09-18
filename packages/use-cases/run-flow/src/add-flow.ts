@@ -1,16 +1,18 @@
-import type { ArtifactsPort, JsonValue } from "@lcase/ports";
-import type { FlowDefinition } from "@lcase/types";
+import type { ArtifactWriterPort } from "@lcase/ports";
+import type { FlowDefinition, JsonValue } from "@lcase/types";
 import path from "node:path";
 import fs from "node:fs";
 
 export async function addFlowToCas(
   flowDef: FlowDefinition,
-  artifacts: ArtifactsPort,
+  writer: ArtifactWriterPort,
 ): Promise<string | undefined> {
   try {
-    const result = await artifacts.putJson(flowDef as JsonValue);
-    if (result.ok) return result.value;
-    console.log(`Unable to save flow in CAS: ${result.error}`);
+    const result = await writer.save(flowDef as JsonValue, "application/json");
+    if (result.status === "saved" || result.status === "content-only") {
+      return result.hash;
+    }
+    console.log(`Unable to save flow in CAS: ${result.error.message}`);
   } catch (e) {
     throw new Error(`Error adding file to CAS: ${e}`);
   }

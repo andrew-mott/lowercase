@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, afterAll, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { JsonlEventLog } from "../../src/event-store/jsonl.store.js";
 import path from "path";
 import { WriteStream } from "fs";
 import fs from "fs";
-import { AnyEvent } from "@lcase/types";
+import type { AnyEvent } from "@lcase/types";
 
 const testRunId = "test-runid";
 const relativePath = "./replay-test";

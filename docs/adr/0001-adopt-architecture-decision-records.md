@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-This project has been through many real design decisions — made through research, discussion, and rejected alternatives — that aren't captured anywhere durable once the moment passes. `docs/todo.md` and per-feature milestone docs (e.g. `docs/milestones/ui-workspace/MILESTONE.md`) already capture a lot of reasoning, but they're living documents: continuously rewritten as plans evolve, not point-in-time records of one specific decision. There's no artifact that answers "why is this built this way" for a settled, cross-cutting decision without digging through docs that have since moved on, or conversation history that isn't part of the repo at all.
+This project has been through many real design decisions — made through research, discussion, and rejected alternatives — that aren't captured anywhere durable once the moment passes. `docs/todo.md` and per-feature initiative docs (e.g. `docs/initiatives/ui-workspace/INITIATIVE.md`) already capture a lot of reasoning, but they're living documents: continuously rewritten as plans evolve, not point-in-time records of one specific decision. There's no artifact that answers "why is this built this way" for a settled, cross-cutting decision without digging through docs that have since moved on, or conversation history that isn't part of the repo at all.
 
 ## Decision
 
@@ -33,5 +33,5 @@ Adopt lightweight Architecture Decision Records (Nygard-style) for decisions tha
 
 - Small ongoing overhead: writing a short structured doc for each decision that clears the bar above.
 - Preserves reasoning that would otherwise only live in conversation history or a contributor's memory — directly useful the next time a "why is this like this" question comes up.
-- Does not replace `docs/todo.md` or milestone docs, which remain the right place for in-progress, evolving, or not-yet-decided design threads. An ADR only gets written once a decision is actually settled enough to be worth freezing.
+- Does not replace `docs/todo.md` or initiative docs, which remain the right place for in-progress, evolving, or not-yet-decided design threads. An ADR only gets written once a decision is actually settled enough to be worth freezing.
 - Retroactive ADRs for already-settled historical decisions are fine and expected, given this practice starts now rather than at the project's beginning — should say so explicitly in the doc when that's the case, rather than implying it was written at the time.

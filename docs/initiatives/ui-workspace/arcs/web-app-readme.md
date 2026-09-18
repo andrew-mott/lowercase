@@ -1,0 +1,44 @@
+# UI Workspace Initiative — Arc: `apps/web-app` + `apps/http-server` READMEs, real content (Change C54)
+
+**Previous:** [Activate the real production build](./production-build.md) (Change C53) · **Next:** [Repo version bump, prep for merge to `main`](./version-bump.md) (Change C55)
+
+Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log. Standalone docs work, not a continuation of any feature arc — the still-unedited Vite scaffolding stub was flagged during Change C49's "what's left outside `components/`" review of `apps/web-app`.
+
+**Scope widened 2026-08-23 to include `apps/http-server`.** This initiative made real changes to the backend along the way too (Change C53's build/lint work, `docs/api-reference.md`/`docs/api-usage-audit.md`), and it had no README at all. Added here rather than as a separate Change since it's the same shape and small — mostly commands plus links out to the existing API docs, not new narrative content to maintain.
+
+## Change C54 - `apps/web-app` + `apps/http-server` READMEs, real content - merged (PR #337)
+
+### Discussion
+
+**Content is genuinely open — not fully scoped yet.** Two pieces are confirmed inclusions, carried over from where this Change was first named:
+
+- **A short section on overriding `VITE_SERVER_URL`** — a real env var at build time, or a personal, gitignored `.env.local`. Follow-up from Change C53 (`arcs/production-build.md`), which introduced the var and its fallback but left the README explanation for this Change.
+- **A hand-traced "how data flows through this app" section**, verified hop-by-hop against real code rather than written from memory. Absorbs most of the original Change C52 idea rather than a separate deep audit — the user's own read (2026-08-22): reorganizing/renaming `components/` across Changes C42–C49 already delivered most of the "internalize the frontend" value a formal trace was meant to produce, so a short traced section in the README covers what's actually still wanted, without a dedicated deep-dive doc. Flows worth tracing, if this happens:
+  - A FlowExplorer tree click through to a panel actually opening (`dock-panels.ts`'s routing → dockview open/focus → `DockTabContent.tsx`'s switch → the panel's own hook → render).
+  - The flow-graph panel's own large hook.
+  - Where the authoring-preview panel's hook/toolbar diverges from the main Flow Graph panel's.
+  - A live SSE event landing through to a re-render.
+
+**Also named, same Change: go over `INITIATIVE.md` itself and clean it up**, per the user's own call — not yet started.
+
+**Originally also carried a comment pass across the Changes C29–C34 flow-graph code, folded in by default (2026-08-22) rather than decided** — its home only because Change C54's trace-reading touches that code anyway, not because that's where the need was judged greatest. **Split out 2026-08-23 into its own Change C55** (`INITIATIVE.md`'s Next up section) once it became clear the two are different kinds of review — docs content vs. cross-file code comment correctness — and that the comment pass's real scope is broader/unknown, not confined to flow-graph. The original trigger for flagging the comment pass is lost and not worth rediscovering; a fresh sweep will scope it instead. Change C54 ships first, on its own.
+
+### What actually landed
+
+**Ended up smaller than Discussion's "genuinely open" framing suggested — the data-flow trace was decided against outright, not just deferred.** Once the rest of the content existed, the user's own read (2026-08-23): "it's just smaller than I anticipated... not a full user guide on how to use the UI, just some commands and references. So it's fine." Neither README includes a data-flow trace; `VITE_SERVER_URL` is covered as planned.
+
+**`apps/web-app/README.md`**: what this is — including a link to [`apps/http-server`](../../../../apps/http-server) specifically (added per the user's own mid-draft correction: the app talks to `http-server` specifically, right now, not "the workflow engine" generically) — a link back to the root README, in-directory `dev`/`build`/`preview` commands, the `VITE_SERVER_URL` override section (build-time env var, or a gitignored `.env.local` for dev), `typecheck`/`lint`/`test`, and a bottom-of-file link to `docs/api-reference.md`. Ordering was a deliberate call: getting-started material first, the API reference last. `docs/api-usage-audit.md` deliberately not linked — it's an internal redesign-planning doc, not orientation material for this README.
+
+**`apps/http-server/README.md`**: new file, didn't exist before this Change. Same shape as `web-app`'s: what it is (linking to `apps/web-app`), dev/build/start commands, `PORT`/`HOST` overrides, `typecheck`/`test`, noting `lint` is currently a no-op stub, and the same `docs/api-reference.md` link at the bottom.
+
+**Scope widened well past the "go over `INITIATIVE.md` and clean it up" line — a full restructuring pass, not a light edit.** A **Status** line added under the title. **Summary** rewritten as a present-tense synchronic snapshot, absorbing the panel-state-persistence fact and the mode-nav-deletion/Evals-separate facts that used to live in a now-removed **Current state** section. The old "Summary" content renamed **Evolution** and split into five sub-headed beats (The original plan, The pivot, Sims and Artifacts folded in, Longer-term context — the near-duplicate "Motivation" beat was merged into Summary and dropped rather than kept as a fifth). **Design principles** regrouped into three sub-headed clusters (Tree & browsing, State & panels, Visual & audience); the dockview-adoption-timing bullet moved into Evolution's "The pivot" as a retrospective beat, since it's a story, not forward-looking guidance. **Skipped or superseded** (Change C8, Workspaces) folded into `Not yet scoped` as a live idea, dropping the "originally Change C8, skipped" bookkeeping framing. Several concrete staleness fixes along the way: a dead `/spike`-route bullet describing already-deleted code; pre-Change-47 "Explorer"/"explorer tree" terminology; a fully-dead "merge Run and Run History into one mode" parking-lot idea (neither mode still exists). The doc's own title changed too, `Flow-Version Workspace UI Rework` → `Workbench UI Rework`, since "Workspace" collided with Change C47's later, specific reservation of that word.
+
+**A new cross-file convention, not scoped in Discussion at all: a `**Previous:**`/`**Next:**` navigation header, applied to all 23 arc files in this initiative.** Order derived from each arc file's first appearance in the Change index, one file counted once even where its Changes interleave with another arc's (e.g. `event-graph.md`'s Changes C16–C17 sitting between `runs-and-sims-in-the-tree.md`'s Change C15 and Change C18). Fixes a real, inconsistent gap: early arcs (`right-panel-rail.md` and others) only linked forward; the chain broke outright after Change C38 (`code-editor-spacebar-bug.md` linked back but not forward, `websocket-to-sse.md` linked neither way, `sim-reuse-badge.md`'s "Continues from" pointed at a thematic precedent rather than its real chain predecessor). Documented as a standing convention in `docs/initiatives/README.md`'s new "Arc file header, fixed shape" block, so it applies to future initiatives' arc files too, not just this one.
+
+**`docs/initiatives/README.md`'s section skeleton updated to match, beyond just the nav header**: `Current state` dropped as a named section; `Summary` redefined as the synchronic-snapshot job it now does; `Evolution` added as the chronological-narrative counterpart — explicitly optional for a young/thin initiative, and expected to be periodically re-summarized as it grows, the same recurring maintenance Change C36 already established for the whole doc.
+
+**Change index renumbered**: Change C54 stayed README-only; the comment pass split out into a new Change C55 (scope not yet determined — flow-graph-only was always just a default, never a decision); the version bump moved from Change C55 to Change C56.
+
+Verified: `pnpm typecheck` and `pnpm lint` clean on both `apps/web-app` and `apps/http-server` (`http-server`'s `lint` is still its pre-existing no-op stub, unrelated to this Change).
+
+**Follow-up (2026-08-23, after this Change merged as #337): Change C55 (the comment pass) undone.** The user's own call, made while scoping it for real: a standalone full-codebase comment sweep isn't worth doing on its own, since a UI refactor is wanted eventually anyway and would rewrite most of the same comments as a side effect — better to fold comment correctness into that future refactor, piece by piece, than sweep the whole codebase now for something that might get redone. Change C55 removed from this initiative's numbered log entirely (deferred, not cancelled — tracked in `docs/todo.md` instead, tied to the future refactor idea) and the version bump renumbered back from Change C56 to Change C55, since neither had landed yet.

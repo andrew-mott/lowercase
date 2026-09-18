@@ -1,5 +1,5 @@
-import { Command } from "commander";
-import { ServicesPort } from "@lcase/ports";
+import type { Command } from "commander";
+import type { ServicesPort } from "@lcase/ports";
 
 export async function cliRunAction(
   services: ServicesPort,
@@ -8,7 +8,6 @@ export async function cliRunAction(
   flowDefHash: string,
 ): Promise<void> {
   console.log("[cli] running run command");
-  await services.system.startSystem();
   await services.run.requestRun({
     flowId,
     flowVersionId,

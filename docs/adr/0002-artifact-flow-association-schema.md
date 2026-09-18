@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-Artifacts mode (the next `apps/web-app` workspace mode, not yet built) needs a way for someone to create an artifact and deliberately associate it with a flow version — so that other pages (Sims, Run mode) can offer a curated, named set of artifacts to pick from for a run param, instead of every artifact that has ever existed globally.
+Artifacts mode (the next `apps/workbench` workspace mode, not yet built) needs a way for someone to create an artifact and deliberately associate it with a flow version — so that other pages (Sims, Run mode) can offer a curated, named set of artifacts to pick from for a run param, instead of every artifact that has ever existed globally.
 
 Today's `Artifact` table (`packages/db-prisma/prisma/schema.prisma`) has zero relations to anything — just `hash`, `time`, `label`, `filename`, `contentType`, `size`, `format`. Flow params themselves aren't modeled in SQL at all: `RunParam` ties a value to a bare `name: String` on a specific run, with no relation to any param-defining entity — the flow definition's own JSON (in CAS) is the only place a param's existence/type is recorded. The wider SQL schema was originally optimized for the fewest tables and simplest queries, to get off the old filesystem-based store — not for the most accurate structure — and is understood to have real gaps as a result.
 

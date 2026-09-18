@@ -7,17 +7,6 @@ import type {
   RunDeniedData,
 } from "@lcase/types";
 
-// removed descriptor for now to reduce duplication of data
-const RunDescriptorSchema = z.object({
-  run: z.object({
-    id: z.string(),
-    status: z.string(),
-  }),
-  engine: z.object({
-    id: z.string(),
-  }),
-});
-
 export const RunRequestedDataSchema = z
   .object({
     flowId: z.string(),

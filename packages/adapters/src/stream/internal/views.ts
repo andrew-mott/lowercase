@@ -1,4 +1,4 @@
-import { InMemoryStreamCore } from "./inmemory.stream-core.js";
+import type { InMemoryStreamCore } from "./inmemory.stream-core.js";
 import type {
   InputChunk,
   ConsumerStreamPort,

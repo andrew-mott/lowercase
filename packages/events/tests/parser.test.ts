@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AnyEvent } from "../../types/src";
+import type { AnyEvent } from "@lcase/types";
 import { EventParser } from "../src/parsers/event-parser.js";
 import { eventSchemaRegistry } from "../src/registries/event-schema.registry.js";
 
@@ -80,7 +80,7 @@ describe("parser", () => {
       toolid: "httpjson",
     } as AnyEvent;
 
-    const e = expect(() => {
+    expect(() => {
       ep.parse(testEvent1, "job.httpjson.submitted");
     }).toThrow();
   });

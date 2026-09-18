@@ -1,4 +1,4 @@
-import { JobMcpEventType } from "@lcase/types";
+import type { JobMcpEventType } from "@lcase/types";
 import {
   JobMcpCompletedSchema,
   JobMcpDelayedSchema,
@@ -12,7 +12,7 @@ import {
   JobFailedDataSchema,
   JobMcpDataSchema,
 } from "../../schemas/job/job.data.schema.js";
-import { ZodSchema } from "zod";
+import type { ZodSchema } from "zod";
 
 export const mcpSchemaMap = {
   "job.mcp.submitted": {

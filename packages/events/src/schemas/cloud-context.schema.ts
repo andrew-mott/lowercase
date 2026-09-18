@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { EventType } from "@lcase/types";
+import type { CloudEventContext } from "../registries/event-types.js";
 import {
   actionTypes,
-  CloudEventContext,
   domainTypes,
   entityTypes,
   eventTypes,

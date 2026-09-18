@@ -2,7 +2,7 @@
   "name": "layout-stress-test",
   "version": "v1",
   "start": "ingest",
-  "description": "Synthetic flow for eyeballing dagre's layout on reconvergence/skip-rank/multi-source-convergence shapes -- uses every step type, not meant to actually run. See docs/milestones/ui-workspace/MILESTONE.md's PR 33 entry for why this exists.",
+  "description": "Synthetic flow for eyeballing dagre's layout on reconvergence/skip-rank/multi-source-convergence shapes -- uses every step type, not meant to actually run. See docs/initiatives/ui-workspace/INITIATIVE.md's the related change entry for why this exists.",
   "steps": {
     "ingest": {
       "type": "httpjson",

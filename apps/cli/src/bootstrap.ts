@@ -1,7 +1,9 @@
-import { createServices } from "@lcase/runtime";
+import {
+  createLocalSystem,
+  type LocalSystem,
+} from "@lcase/profile-local-system";
 import { config } from "./runtime.config.js";
 
-export function bootstrap() {
-  const services = createServices(config);
-  return services;
+export function bootstrap(): LocalSystem {
+  return createLocalSystem(config);
 }

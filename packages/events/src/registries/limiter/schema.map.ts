@@ -1,5 +1,5 @@
 import type { LimiterEventType } from "@lcase/types";
-import { ZodSchema } from "zod";
+import type { ZodSchema } from "zod";
 import {
   LimiterStartedSchema,
   LimiterStoppedSchema,

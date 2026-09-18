@@ -1,4 +1,4 @@
-import { ReplayOtelAttributesMap } from "@lcase/types";
+import type { ReplayOtelAttributesMap } from "@lcase/types";
 
 export const replayOtelAttributesMap = {
   "replay.mode.submitted": {

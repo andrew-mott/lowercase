@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // The bundle carries the workbench's build, which is not a dependency of
+    // this app's own code, so nothing else would build it first or notice a
+    // frontend change. A package's outputs replace the root's rather than
+    // extending them, hence bundle again.
+    "bundle": {
+      "dependsOn": ["build", "@lcase/workbench#build"],
+      "outputs": ["bundle/**"]
+    }
+  }
+}

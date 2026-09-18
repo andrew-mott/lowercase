@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CloudEventContextSchema } from "./cloud-context.schema.js";
-import { RunScope, AnyEvent } from "@lcase/types";
+import type { RunScope, AnyEvent } from "@lcase/types";
 import {
   RunCompletedDataSchema,
   RunDeniedDataSchema,

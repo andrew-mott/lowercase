@@ -4,11 +4,9 @@ import type {
   ExportRef,
   JobCompletedData,
   JobDelayedData,
-  JobDescriptor,
   JobFailedData,
   JobHttpJsonData,
   JobStartedData,
-  PipeData,
   CapId,
   JobMcpData,
   JobHttpJsonSubmittedData,
@@ -20,15 +18,6 @@ export const CapIdSchema = z.enum([
   "mcp",
   "httpjson",
 ]) satisfies z.ZodType<CapId>;
-const JobDescriptorDataSchema = z
-  .object({
-    job: z.object({
-      id: z.string(),
-      toolid: z.string(),
-      capid: CapIdSchema,
-    }),
-  })
-  .strict() satisfies z.ZodType<JobDescriptor>;
 
 export const RefSchema = z
   .object({
@@ -59,23 +48,6 @@ export const ExportRefSchema = z
     schema: z.record(z.string(), z.unknown()).optional(),
   })
   .strict() satisfies z.ZodType<ExportRef>;
-
-const PipeDataSchema = z
-  .object({
-    to: z
-      .object({
-        id: z.string(),
-        payload: z.string(),
-      })
-      .optional(),
-    from: z
-      .object({
-        id: z.string(),
-        buffer: z.number().optional(),
-      })
-      .optional(),
-  })
-  .strict() satisfies z.ZodType<PipeData>;
 
 /* Mcp */
 

@@ -1,7 +1,7 @@
 {
   "name": "@lcase/desktop",
   "private": true,
-  "version": "0.1.0-alpha.13",
+  "version": "0.1.0-alpha.14",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -61,7 +61,6 @@
   },
   "dependencies": {
     "@lcase/controller": "workspace:*",
-    "@lcase/runtime": "workspace:*",
     "bufferutil": "^4.0.9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

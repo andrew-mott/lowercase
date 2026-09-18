@@ -1,6 +1,7 @@
 import type { AnyEvent } from "@lcase/types";
 import type { EventStorePort } from "@lcase/ports/event-store";
-import fs, { WriteStream } from "fs";
+import type { WriteStream } from "fs";
+import fs from "fs";
 import path from "path";
 import readline from "readline";
 
@@ -20,10 +21,13 @@ export class JsonlEventLog implements EventStorePort {
     if (!path.isAbsolute(dir)) {
       throw new Error("[json-event-log] dir must be absolute");
     }
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    // Recursive because the path is nested (`lcase-db/replay`) and nothing
+    // guarantees the parent exists -- a fresh checkout or a deployment that
+    // starts somewhere other than the repo has neither level.
+    fs.mkdirSync(dir, { recursive: true });
   }
 
-  async getEvent(eventId: string) {
+  async getEvent(_eventId: string) {
     throw new Error("not yet implemented");
     return {} as AnyEvent;
   }
@@ -57,12 +61,13 @@ export class JsonlEventLog implements EventStorePort {
         yield JSON.parse(line) as AnyEvent;
       }
     } catch (err) {
-      throw new Error("unable to read file");
+      throw new Error("unable to read file", { cause: err });
     } finally {
       rl.close();
       await new Promise<void>((resolve, reject) => {
         stream.close((err?: Error | null) => {
-          err ? reject(err) : resolve();
+          if (err) reject(err);
+          else resolve();
         });
       });
     }

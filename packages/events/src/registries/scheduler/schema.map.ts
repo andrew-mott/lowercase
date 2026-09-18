@@ -1,5 +1,5 @@
-import { SchedulerEventType } from "@lcase/types";
-import { ZodSchema } from "zod";
+import type { SchedulerEventType } from "@lcase/types";
+import type { ZodSchema } from "zod";
 import {
   SchedulerStartedSchema,
   SchedulerStoppedSchema,

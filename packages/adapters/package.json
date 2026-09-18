@@ -1,6 +1,6 @@
 {
   "name": "@lcase/adapters",
-  "version": "0.1.0-alpha.13",
+  "version": "0.1.0-alpha.14",
   "private": true,
   "type": "module",
   "exports": {
@@ -28,18 +28,6 @@
       "types": "./dist/run-query/index.d.ts",
       "import": "./dist/run-query/index.js"
     },
-    "./mcp-manager": {
-      "types": "./dist/mcp-manager/index.d.ts",
-      "import": "./dist/mcp-manager/index.js"
-    },
-    "./router": {
-      "types": "./dist/router/index.d.ts",
-      "import": "./dist/router/index.js"
-    },
-    "./queue": {
-      "types": "./dist/queue/index.d.ts",
-      "import": "./dist/queue/index.js"
-    },
     "./stream": {
       "types": "./dist/stream/index.d.ts",
       "import": "./dist/stream/index.js"
@@ -52,10 +40,6 @@
       "types": "./dist/artifact-store/index.d.ts",
       "import": "./dist/artifact-store/index.js"
     },
-    "./artifact-index-store": {
-      "types": "./dist/artifact-index-store/index.d.ts",
-      "import": "./dist/artifact-index-store/index.js"
-    },
     "./artifact-repository": {
       "types": "./dist/artifact-repository/index.d.ts",
       "import": "./dist/artifact-repository/index.js"
@@ -63,28 +47,40 @@
     "./eval-result-repository": {
       "types": "./dist/eval-result-repository/index.d.ts",
       "import": "./dist/eval-result-repository/index.js"
+    },
+    "./message-log": {
+      "types": "./dist/message-log/index.d.ts",
+      "import": "./dist/message-log/index.js"
     }
   },
   "scripts": {
-    "build": "tsc",
-    "clean-dist": "rm -rf dist",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "build": "node ../../scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+    "clean:dist": "node ../../scripts/clean-dist.mjs",
+    "clean:node-modules": "node ../../scripts/clean-node-modules.mjs",
+    "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "lint": "echo lint"
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "lint": "eslint ."
   },
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
-    "@lcase/events": "workspace:*",
-    "@lcase/specs": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@lcase/db-prisma": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.19.1",
+    "@lcase/specs": "workspace:*",
     "dotenv": "^17.4.2",
+    "redis": "^6.2.1",
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@lcase/ports": "workspace:*",
+    "@lcase/test-support": "workspace:*",
     "@lcase/types": "workspace:*",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@smithy/util-stream": "^4.8.2",
+    "aws-sdk-client-mock": "^4.1.0",
+    "eslint": "^9.39.1",
+    "typescript-eslint": "^8.46.4",
     "vitest": "^3.2.4"
   }
 }

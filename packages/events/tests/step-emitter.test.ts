@@ -1,8 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { StepEmitter } from "../src/emitters/step.emitter.js";
-import { EventBusPort } from "@lcase/ports";
-import { AnyEvent } from "@lcase/types";
-import { afterEach } from "node:test";
+import type { EventBusPort } from "@lcase/ports";
+import type { AnyEvent } from "@lcase/types";
 
 describe("[step-emitter]", () => {
   afterEach(() => {
@@ -17,7 +16,9 @@ describe("[step-emitter]", () => {
 
     const testTime = "test-time";
     const testId = "test-id";
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(testId as any);
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      testId as ReturnType<typeof crypto.randomUUID>,
+    );
     vi.spyOn(Date.prototype, "toISOString").mockReturnValue(testTime);
 
     const event: AnyEvent<"step.started"> = {

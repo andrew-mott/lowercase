@@ -49,10 +49,13 @@ export default defineConfig({
   resolve: {
     alias: {
       // Example aliases into your workspace packages’ *source* (adjust paths)
-      "@lcase/ui": path.resolve(__dirname, "../../packages/ui/src"),
+      "@lcase/ui": path.resolve(__dirname, "../../packages/archive/ui/src"),
       // "@lcase/runtime": path.resolve(__dirname, "../../packages/runtime/src"),
       // '@lcase/app-logic': path.resolve(__dirname, '../../packages/app-logic/src'),
-      "@lcase/engine": path.resolve(__dirname, "../../packages/engine/src"),
+      "@lcase/engine": path.resolve(
+        __dirname,
+        "../../packages/components/engine/src",
+      ),
       "@lcase/ports": path.resolve(__dirname, "../../packages/ports/src"),
       "@lcase/types": path.resolve(__dirname, "../../packages/types/src"),
     },

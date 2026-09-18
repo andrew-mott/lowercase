@@ -1,6 +1,6 @@
-import { CloudScope } from "@lcase/types";
-import { BaseEmitterPort, EnvelopeHeader } from "@lcase/ports";
-import { OtelContext } from "../types.js";
+import type { CloudScope } from "@lcase/types";
+import type { BaseEmitterPort, EnvelopeHeader } from "@lcase/ports";
+import type { OtelContext } from "../types.js";
 
 /**
  * NOTE: This current design of the emitters has a few loose ends:

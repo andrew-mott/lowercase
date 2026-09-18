@@ -1,5 +1,5 @@
 import type { ServicesPort } from "@lcase/ports";
-import { Command } from "commander";
+import type { Command } from "commander";
 import { resolveCliPath } from "../../resolve-path.js";
 
 export async function cliAddAction(
@@ -9,7 +9,6 @@ export async function cliAddAction(
   console.log("[cli] add command");
 
   const absolutePath = resolveCliPath(pathToFlow);
-  await services.system.startSystem();
   await services.flow.storeFlowInCas(absolutePath);
 }
 

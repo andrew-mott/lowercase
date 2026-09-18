@@ -1,4 +1,4 @@
-import { ReplayEventType } from "@lcase/types";
+import type { ReplayEventType } from "@lcase/types";
 
 export const replayEventTypes = [
   "replay.mode.submitted",

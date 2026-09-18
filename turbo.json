@@ -6,6 +6,11 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "bundle": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/bundle.mjs"],
+      "outputs": ["bundle/**"]
+    },
     "dev": {
       "dependsOn": ["^dev"],
       "cache": false,
@@ -24,13 +29,26 @@
     "test:e2e": {
       "dependsOn": ["^test:e2e"]
     },
+    "test:integration": {
+      "dependsOn": ["^test:integration"],
+      "cache": false,
+      "env": [
+        "S3_TEST_ENDPOINT",
+        "S3_TEST_BUCKET",
+        "S3_TEST_ACCESS_KEY_ID",
+        "S3_TEST_SECRET_ACCESS_KEY",
+        "REDIS_TEST_URL",
+        "POSTGRES_HOST_PORT",
+        "POSTGRES_TEST_URL"
+      ]
+    },
     "clean": {
       "cache": false
     },
-    "clean-dist": {
+    "clean:dist": {
       "cache": false
     },
-    "clean-node-modules": {
+    "clean:node-modules": {
       "cache": false
     }
   }

@@ -1,0 +1,42 @@
+{
+  "name": "@lcase/worker-host",
+  "version": "0.1.0-alpha.14",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/clean-dist.mjs && tsc --incremental false -p tsconfig.build.json",
+    "bundle": "node ../../scripts/bundle.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "lint": "eslint .",
+    "start": "node ./dist/main.js",
+    "dev": "npx tsx ./src/main.ts",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "clean:dist": "node ../../scripts/clean-dist.mjs",
+    "clean:node-modules": "node ../../scripts/clean-node-modules.mjs"
+  },
+  "packageManager": "pnpm@10.17.1",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
+    "@lcase/adapters": "workspace:*",
+    "@lcase/artifacts": "workspace:*",
+    "@lcase/assembly": "workspace:*",
+    "@lcase/db-prisma": "workspace:*",
+    "@lcase/message-router": "workspace:*",
+    "@lcase/message-topology": "workspace:*",
+    "@lcase/worker": "workspace:*",
+    "@prisma/adapter-pg": "^7.8.0",
+    "redis": "^6.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@lcase/events": "workspace:*",
+    "@lcase/ports": "workspace:*",
+    "@lcase/test-support": "workspace:*",
+    "@lcase/types": "workspace:*",
+    "dotenv": "^17.4.2",
+    "eslint": "^9.39.1",
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^3.2.4"
+  }
+}

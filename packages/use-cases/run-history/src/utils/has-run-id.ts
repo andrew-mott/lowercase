@@ -1,4 +1,4 @@
-import { AnyEvent } from "@lcase/types";
+import type { AnyEvent } from "@lcase/types";
 
 type RunScopedEvent = AnyEvent & { runid: string };
 

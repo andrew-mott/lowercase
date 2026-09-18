@@ -1,7 +1,7 @@
 import type { EventStorePort } from "@lcase/ports/event-store";
 import type { ReplayEnginePort } from "@lcase/ports/replay";
 import type { EmitterFactoryPort, EventBusPort } from "@lcase/ports";
-import { AnyEvent } from "@lcase/types";
+import type { AnyEvent } from "@lcase/types";
 export class ReplayEngine implements ReplayEnginePort {
   constructor(
     private readonly store: EventStorePort,

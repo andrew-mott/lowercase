@@ -21,8 +21,8 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"],
     "paths": {
-      "@lcase/ui": ["../../packages/ui/src/index.ts"],
-      "@lcase/ui/*": ["../../packages/ui/src/*"]
+      "@lcase/ui": ["../../packages/archive/ui/src/index.ts"],
+      "@lcase/ui/*": ["../../packages/archive/ui/src/*"]
     }
   },
 

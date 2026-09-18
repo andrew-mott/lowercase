@@ -7,21 +7,95 @@ jobs:
   build:
     runs-on: ubuntu-24.04
 
-    steps:
-      - uses: actions/checkout@v4
+    # bitnamilegacy/minio (not the official minio/minio image) runs correctly
+    # from env vars alone -- official minio/minio needs a `server /data`
+    # command argument that the services: block has no field to supply.
+    # (Bitnami's free-tier images moved to the bitnamilegacy namespace in
+    # 2025 -- plain bitnami/minio no longer resolves.)
+    services:
+      minio:
+        image: bitnamilegacy/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      # The SQL contract suites create and drop a database per vitest worker on
+      # this server, so it needs a superuser -- the image's default one is that.
+      # A runner has nothing on 5432, so it gets the same default everyone else
+      # does and sets no connection URL at all. An earlier revision published a
+      # different port here, which is how the migration check ended up pointed
+      # at a port with nothing on it.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lcase
+          POSTGRES_PASSWORD: lcase
+          POSTGRES_DB: lcase
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lcase -d lcase"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
-      - uses: pnpm/action-setup@v4
+    env:
+      S3_TEST_ENDPOINT: http://localhost:9000
+      S3_TEST_BUCKET: artifacts-test
+      S3_TEST_ACCESS_KEY_ID: minioadmin
+      S3_TEST_SECRET_ACCESS_KEY: minioadmin
+      REDIS_TEST_URL: redis://localhost:6379
+      # No POSTGRES_TEST_URL: the default in code already names this server.
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.17.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - run: pnpm install
       - run: pnpm run format:check
       - run: pnpm lint
       - run: pnpm build
+      # Each host's bundle fails when it contains a package that host's
+      # bundle.config.mjs forbids. Static entry points share one install, so
+      # this is the only place a host's boundary is enforced.
+      - run: pnpm bundle
       - run: pnpm typecheck
+
+      # The deployment file only, not the images it builds: this catches a
+      # broken anchor, an undefined service or a bad depends_on, which nothing
+      # else here would notice until someone ran a deployment. Building the
+      # images is deliberately left out -- with no layer cache it costs minutes
+      # per run and still proves only that they build.
+      - name: Check the deployment compose file
+        run: docker compose -f deploy/remote-worker.compose.yaml --profile infra config --quiet
+
+      - name: Wait for MinIO
+        run: until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done
+
+      - name: Wait for Redis
+        run: until (exec 3<>/dev/tcp/localhost/6379) 2>/dev/null; do sleep 1; done
+
+      # Postgres needs no wait step: its service declares a health check, which
+      # the runner gates on before any step runs.
+
+      # Both providers' committed migration histories still produce their
+      # schemas. Postgres is the half that needs a server, which is why this
+      # sits after the services rather than beside typecheck.
+      - name: Check migration histories
+        run: pnpm -F @lcase/db-prisma run check:migrations
+
       - run: pnpm turbo run test
+      - run: pnpm turbo run test:integration

@@ -4,7 +4,6 @@ import { bootstrap } from "./bootstrap.js";
 // import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { runtimeConfig } from "./runtime-config.js";
 import { ElectronSink } from "./electron.sink.js";
 
 // const require = createRequire(import.meta.url)
@@ -31,7 +30,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null;
-export const { controller } = bootstrap(runtimeConfig);
+export const { controller } = bootstrap();
 
 function createWindow() {
   win = new BrowserWindow({
