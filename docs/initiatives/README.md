@@ -10,7 +10,7 @@ One directory per initiative. See the convention below for shape, naming, and th
 | I2  | architecture-boundaries       | complete (PRs #341–#346)            | [`architecture-boundaries/INITIATIVE.md`](./architecture-boundaries/INITIATIVE.md)             |
 | I3  | events-refactor               | complete (PRs #347–#349)            | [`events-refactor/INITIATIVE.md`](./events-refactor/INITIATIVE.md)                             |
 | I4  | worker-tools-artifacts        | complete (PRs #350–#359)            | [`worker-tools-artifacts/INITIATIVE.md`](./worker-tools-artifacts/INITIATIVE.md)               |
-| I5  | swappable-infrastructure      | in progress                         | [`swappable-infrastructure/INITIATIVE.md`](./swappable-infrastructure/INITIATIVE.md)           |
+| I5  | swappable-infrastructure      | complete (v0.1.0-alpha.14, PR #390) | [`swappable-infrastructure/INITIATIVE.md`](./swappable-infrastructure/INITIATIVE.md)           |
 | I6  | json-schema-migration         | not started, scaffolded             | [`json-schema-migration/INITIATIVE.md`](./json-schema-migration/INITIATIVE.md)                 |
 | I7  | rate-limiting                 | not started, scaffolded             | [`rate-limiting/INITIATIVE.md`](./rate-limiting/INITIATIVE.md)                                 |
 | I8  | engine-hardening              | not started, scaffolded             | [`engine-hardening/INITIATIVE.md`](./engine-hardening/INITIATIVE.md)                           |

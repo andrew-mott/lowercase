@@ -1,6 +1,6 @@
 # v0.1.0-alpha.12 - Eval / Measurement Vertical Slice
 
-GitHub Milestone: https://github.com/lcaseio/lowercase/milestone/9
+GitHub Milestone: https://github.com/andrew-mott/lowercase/milestone/9
 
 ## Summary
 
