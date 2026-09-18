@@ -22,6 +22,11 @@ import {
   plannedPublisherFor,
   type MessageRouter,
 } from "../message-router.js";
+import {
+  DEFAULT_REDIS_KEY_PREFIX,
+  redisGroupName,
+  redisStreamKey,
+} from "./redis-naming.js";
 
 export type RedisMessageRouterConfig = {
   /**
@@ -163,7 +168,7 @@ export function createRedisMessageRouter(
   // No declaration checks here. `resolveHostPlan` runs them once, where both
   // the plan and the catalog are in scope, rather than each carrier repeating
   // them on whatever it happens to be handed.
-  const keyPrefix = config.keyPrefix ?? "lcase:";
+  const keyPrefix = config.keyPrefix ?? DEFAULT_REDIS_KEY_PREFIX;
   // Stable rather than per-boot: with every entry acknowledged there is no
   // pending backlog for a restarted process to inherit, so a fresh consumer
   // name per boot would only accumulate dead consumers in Redis.
@@ -172,11 +177,10 @@ export function createRedisMessageRouter(
   const readFailureBackoffMs = config.readFailureBackoffMs ?? 1_000;
   const reportFailure = config.reportFailure ?? defaultReportFailure;
 
-  // Keyed by the route, never the topic. A topic can travel several routes and
-  // several topics can share one, so a stream is a physical path through this
-  // deployment rather than a conversation -- which is why nothing below reaches
+  // Keyed by the route, never the topic -- which is why nothing below reaches
   // for a topic id to name one.
-  const streamFor = (routeId: string): string => `${keyPrefix}${routeId}`;
+  const streamFor = (routeId: string): string =>
+    redisStreamKey(keyPrefix, routeId);
 
   const bindings = new Map<string, BoundSubscription>();
   let sealed = false;
@@ -320,7 +324,7 @@ export function createRedisMessageRouter(
       );
       bindings.set(subscription.id, {
         subscription,
-        group: subscription.id,
+        group: redisGroupName(subscription.id),
         maxInFlight,
         readCount,
         lane: new DeliveryLane({

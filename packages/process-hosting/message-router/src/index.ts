@@ -22,3 +22,5 @@ export * from "./delivery.types.js";
 export * from "./message-router.js";
 export * from "./in-process/in-process-message-router.js";
 export * from "./redis/redis-message-router.js";
+export * from "./redis/redis-naming.js";
+export * from "./redis/provision-redis-topology.js";

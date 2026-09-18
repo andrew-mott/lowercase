@@ -186,22 +186,17 @@ Reordered from the original scaffold after runtime-composition research (see `ar
 | C25    | Build the Worker-host process                                                  | merged (PR #384) | [6]   |          |
 | C26    | Portability pass: cross-platform cleans, build config inversion, couplings     | merged (PR #385) | [5]   |          |
 | C27    | Build the API host process                                                     | merged (PR #386) | [6]   |          |
-| C28    | Build and package deployable artifacts                                         | in progress      | [6]   |          |
-| C29    | Prove the distributed deployment from a cold start                             | not started      | [6]   |          |
-| C30    | Give Worker truthful lifecycle and controlled ingress                          | not started      | [6]   |          |
+| C28    | Build and package deployable artifacts                                         | merged (PR #387) | [6]   |          |
+| C29    | Prove the distributed deployment from a cold start                             | in review        | [6]   |          |
+| C30    | Close out the Initiative and release it to main                                | not started      | [6]   |          |
 
 ## Next up
 
-1. **C28:** bundle each host into one artifact from its static entry point,
-   fail the build when an artifact leaves its boundary, package the API host and
-   Worker host as images, and run them together from one compose file with a
-   migration step and a readiness endpoint. The embedded image is deferred.
-2. **C29:** prove that deployment from a cold start -- cross-process
-   consumer-group readiness, a proof that fails without the Worker host, and one
-   deployment configuration for both hosts.
-3. **C30:** make Worker a truthful managed resource and coordinate command
-   intake with active-work settlement, now designed against a process that
-   hosts Worker alone.
+1. **C29:** prove that deployment from a cold start -- a one-shot command that
+   provisions every Redis route and consumer group from the deployment manifest
+   before either host publishes, proven against an empty Redis.
+2. **C30:** close out the Initiative -- a documentation pass including the root
+   README, a version bump across every package, and the `dev` to `main` merge.
 
 These are planned review seams, not fixed size targets. An unstarted Change
 should split before implementation if its rename-aware inventory or semantic
@@ -218,6 +213,17 @@ surface is too large for one review.
   work rather than part of C19–C30; the constraints, migration path, and open
   questions are sketched in
   [`research/configurable-component-placement.md`](./research/configurable-component-placement.md).
+- **Worker lifecycle and controlled ingress.** Scoped as the Remote Worker
+  Arc's last Change and moved out before it started: accepting, draining and
+  stopped states for Worker, an ordered host stop policy that ends command
+  ingress before active work settles while terminal egress stays available, and
+  explicit retained-entry and ephemeral policies per carrier. The current
+  runtime cannot express that order -- `stopAll` is one flat reverse list and
+  the router is a single resource owning both ingress and egress. It belongs
+  with later Redis delivery work (reclaim, consumer naming for replicas,
+  retries, liveness and deployment health), because a drain without reclaim
+  still strands an entry pending on a Worker that stops mid-job. See
+  [`research/worker-lifecycle-and-controlled-ingress.md`](./research/worker-lifecycle-and-controlled-ingress.md).
 - **The engine's own step/run self-loop (subscribing to events it publishes itself, purely to advance its own internal state)** — a real, precedented, low-risk fix (mirroring how `ExecuteHttpJsonJobFx` already avoids this), but decoupled from every Change in this initiative: nothing here depends on it, and it doesn't ease anything here either, since the self-loop never touches `MessageLogPort`/Redis at all. Deferred to whenever the engine gets its real core/inbound-outbound refactor. See `arcs/queue-adapter.md`'s Changes C5, C7–C9, and C11–C14 discussion for the full reasoning.
 - **`LifecycleEventIngress` — largely resolved by Changes C9, C12, and C13, for the three migrated types only.** The idea was a per-component sink that gets lifecycle facts to observability without the bus. The mailbox design answers both halves for `job.httpjson.submitted`/`.completed`/`.failed`: worker constructs the real event once and publishes it (producing), and observability holds its own explicit logical subscriptions rather than tapping a magic topic (consuming). What stays unscoped is the same thing for every _other_ event family — run, step, flow, replay, limiter, component lifecycle — which keeps using `EventBusPort` and the `observability` topic until each is migrated as its own protocol slice. The general question in the bullet below is unchanged for those.
 - **A real cancel/abort protocol across the transport boundary.** Cancellation works today only because everything is in-process: an `AbortSignal` is passed by reference all the way into `fetch` (`worker.ts`'s `combineForProtocolRun`, which merges it with the worker's own protocol timeout). No signal can travel in a Message, so a real cancel needs to become its own Message that a worker honors against its own `AbortController`, plus an engine-side publish at the moment abort is invoked (nothing publishes anything there today — the abort only ever shows up baked into the eventual failed outcome). Deliberately not built in Changes C9 and C11–C14, and the mailbox pivot makes the gap narrower rather than wider: nothing exercises the engine-side abort path today, and the worker's own timeout-driven cancellation keeps working untouched, since it never depended on a caller-supplied signal. Change C11 deleted `JobExecutionOptions` outright rather than rehoming it, threading `callerSignal?: AbortSignal` directly through worker instead — the local core keeps its signal without pretending the signal is part of the protocol. Recorded because leaving it out is an asymmetry between the two paths, not a non-issue. One concrete prerequisite found while scoping it: `JobFailedData` carries only `status`/`output`/`message`, so worker's already-existing `CANCELLED` error code (`job-result.factories.ts`) is dropped before the fact ever reaches a published event — cancellation is currently indistinguishable from any other failure without string-matching prose.

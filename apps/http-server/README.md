@@ -53,9 +53,15 @@ pnpm start:api  # API host:      node ./dist/hosts/api.js
 pnpm bundle     # bundle/api.mjs and bundle/embedded.mjs, each with a source map and esbuild metafile
 ```
 
-`bundle` reads `dist/`, so build first — from the repo root, `pnpm bundle` runs both in order through turbo. [`bundle.config.mjs`](bundle.config.mjs) lists this app's hosts, what each keeps external, and what each must not contain: the API host fails the bundle if Worker, the limiter, SQLite, or the embedded profile ends up inside it. The mechanics are shared across apps in [`scripts/bundle.mjs`](../../scripts/bundle.mjs).
+`bundle` reads `dist/`, so build first — from the repo root, `pnpm bundle` runs both in order through turbo. [`bundle.config.mjs`](bundle.config.mjs) lists this app's hosts, what each keeps external, and what each must not contain: the API host fails the bundle if Worker, the limiter, SQLite, or the embedded profile ends up inside it. It also lists [`apps/workbench`](../workbench)'s build as an asset, copied into `bundle/workbench` as it was produced — [`turbo.json`](turbo.json) is what makes that frontend build first. The mechanics are shared across apps in [`scripts/bundle.mjs`](../../scripts/bundle.mjs).
 
-[`api.Dockerfile`](api.Dockerfile) packages the API host bundle as an image, built and run as part of a deployment — see [`deploy/`](../../deploy). The embedded host has no image yet.
+[`api.Dockerfile`](api.Dockerfile) packages the API host bundle and that frontend as an image, built and run as part of a deployment — see [`deploy/`](../../deploy). The embedded host has no image yet.
+
+## Serving the workbench
+
+Set `WORKBENCH_DIR` to a directory holding the workbench's `vite build` output and either host serves it, so a deployment is one address with no separate frontend to run. The API image sets it; development leaves it unset and Vite serves the app instead.
+
+Everything this server answers stays the API's: `/api/*`, `/events` and `/health`, including unknown paths under them, which keep returning a JSON 404 rather than a page. Any other GET with no route falls back to `index.html`, which is what lets the workbench's own routes — `/workbench`, `/evals`, `/system` — survive a reload. A `WORKBENCH_DIR` with no `index.html` in it fails the process at startup rather than serving 404s.
 
 ## Other commands
 
