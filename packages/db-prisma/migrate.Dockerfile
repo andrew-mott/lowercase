@@ -1,7 +1,7 @@
 # The Postgres migration image: applies pending migrations and exits.
 #
 # Runs once per deployment, before any host starts, so no host carries the
-# Prisma CLI and no replica ever migrates. Built by `pnpm image` after this
+# Prisma CLI and no replica ever migrates. Built by `pnpm deploy:build` after this
 # package's `schema` step, because prisma/postgres/schema.prisma is derived at
 # build time rather than checked in.
 

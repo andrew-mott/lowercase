@@ -37,7 +37,7 @@ export const localSystemRole: MessagingRole = {
  * Three routes over two topics: each topic's work path, and one observation
  * path both topics converge onto.
  *
- * The convergence is the whole of C23. Observability is an ordinary
+ * The convergence is the entire mechanism. Observability is an ordinary
  * subscription and stays one; what makes its Redis realization ordered is that
  * both of its delivery edges name the same route, so one log carries the
  * command and the terminal it produced in the order they were admitted.

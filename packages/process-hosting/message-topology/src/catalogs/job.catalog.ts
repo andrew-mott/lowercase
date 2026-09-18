@@ -70,7 +70,7 @@ export const jobSubscriptions: readonly Subscription[] = [
 
 // The same graph as one value, which is what a deployment manifest is
 // validated against. Kept alongside the two lists rather than replacing them
-// because a carrier still takes them separately until C22.
+// because a carrier still takes them separately.
 export const jobCatalog: MessageCatalog = {
   topics: jobTopics,
   subscriptions: jobSubscriptions,

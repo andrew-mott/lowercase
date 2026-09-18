@@ -30,7 +30,7 @@ function submitted(): AnyEvent<"job.httpjson.submitted"> {
 }
 
 // One submitted Message in, one terminal out, through the real router and the
-// real component roots. What C9's router tests already prove about carrier
+// real component roots. What the router's own tests already prove about carrier
 // semantics -- admission-time resolution, snapshot isolation between
 // recipients -- is not re-asserted through the whole graph here.
 describe("HTTP JSON job vertical slice", () => {

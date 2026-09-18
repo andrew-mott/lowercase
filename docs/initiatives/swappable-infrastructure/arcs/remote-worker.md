@@ -1532,7 +1532,7 @@ lints `.mjs` files by default and began linting the bundles, so both apps ignore
 package, including ones nothing bundles, so `deploy:build` filters to the two
 apps whose hosts it deploys.
 
-## Change C29 - Prove the distributed deployment from a cold start - in review
+## Change C29 - Prove the distributed deployment from a cold start - merged (PR #388)
 
 ### Discussion
 

@@ -80,8 +80,8 @@ const routes: readonly DeliveryRoute[] = [
 /**
  * Redis only. An in-process carrier cannot realize this manifest, because a
  * host serving Worker's subscription would be delivering to lanes the other
- * host owns. C22 is what makes a carrier refuse it rather than seal an
- * object graph that silently drops half the deployment.
+ * host owns. A carrier refuses this outright rather than sealing an object
+ * graph that silently drops half the deployment.
  */
 export const remoteWorker: MessagingManifest = {
   id: "remote-worker",

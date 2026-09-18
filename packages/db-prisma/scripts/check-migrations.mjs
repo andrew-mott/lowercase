@@ -1,7 +1,7 @@
 // Verifies that each provider's committed migration history still produces the
-// models in its schema. Change C16 could only do this for SQLite, which is the
-// one provider Prisma can diff a migrations directory for offline; Postgres
-// needs a shadow database, so this check needs a running server.
+// models in its schema. It covers SQLite only, which is the one provider Prisma
+// can diff a migrations directory for offline; Postgres needs a shadow
+// database, so checking it would need a running server.
 //
 // Run it with `pnpm -F @lcase/db-prisma run check:migrations`, and note the
 // Postgres half is skipped rather than failed when no server is reachable, so
