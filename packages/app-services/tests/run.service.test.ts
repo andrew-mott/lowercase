@@ -132,7 +132,7 @@ describe("RunService", () => {
         source: "lowercase://test",
         runId: "run-1",
       }),
-    ).rejects.toThrow(/Invalid step export reference\(s\)/);
+    ).rejects.toThrow(/Invalid step reference\(s\)/);
   });
 
   it("still accepts a compatible flow after the export-validation addition", async () => {

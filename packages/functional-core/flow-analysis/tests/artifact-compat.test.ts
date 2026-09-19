@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isArtifactCompatible } from "../src/artifact-compat.js";
+import {
+  classifyContentType,
+  isArtifactCompatible,
+} from "../src/artifact-compat.js";
 
 describe("isArtifactCompatible()", () => {
   it("returns true when contentType matches exactly", () => {
@@ -19,5 +22,22 @@ describe("isArtifactCompatible()", () => {
 
   it("returns false when contentType is undefined", () => {
     expect(isArtifactCompatible(undefined, "application/json")).toBe(false);
+  });
+});
+
+describe("classifyContentType()", () => {
+  it("classifies application/json as json", () => {
+    expect(classifyContentType("application/json")).toBe("json");
+  });
+
+  it("classifies any text/* MIME type as text", () => {
+    expect(classifyContentType("text/plain")).toBe("text");
+    expect(classifyContentType("text/markdown")).toBe("text");
+    expect(classifyContentType("text/csv")).toBe("text");
+  });
+
+  it("classifies everything else as binary, including real text formats outside text/*", () => {
+    expect(classifyContentType("audio/wav")).toBe("binary");
+    expect(classifyContentType("application/xml")).toBe("binary");
   });
 });

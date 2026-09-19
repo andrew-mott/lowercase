@@ -1,3 +1,5 @@
+import type { TextSafeContentType } from "./content-type.js";
+
 export type StepCapCommonFields = {
   args?: Record<string, unknown>;
   tool?: string;
@@ -17,7 +19,7 @@ export type EvalContextSource =
 
 export type ExportDeclaration = {
   ref: string;
-  type: "application/json" | "text/plain" | "text/markdown";
+  type: TextSafeContentType;
   // JSON Schema, validated only when type is application/json
   schema?: Record<string, unknown>;
   // declares, once, what other refs from the same run are useful context

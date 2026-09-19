@@ -1,8 +1,10 @@
 # Voice Pipeline — Arc A1: The http step (Changes C1–C1)
 
+**Next:** [Content types](./content-types.md) (Changes C2)
+
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc makes the `http` step a real flow step, starting with its definition: the schema pipeline it pilots, parsing and flow analysis.
 
-## Change C1 - Schema pipeline and the http step definition - in review
+## Change C1 - Schema pipeline and the http step definition - merged (#393)
 
 A flow containing an `http` step parses, validates and analyzes. The step's shape is written once, as JSON Schema, and its TypeScript type is generated from that schema. Nothing executes the step yet, so a run of such a flow is refused rather than started.
 

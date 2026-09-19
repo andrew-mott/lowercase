@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
-import type {
-  ArtifactUpdateMetadata,
-  FlowParamContentType,
+import {
+  type ArtifactUpdateMetadata,
+  type TextSafeContentType,
 } from "@lcase/types";
 import {
   defaultContentTypeForFormat,
   isArtifactCompatible,
+  isTextSafeContentType,
 } from "@lcase/flow-analysis";
 import {
   Dialog,
@@ -38,7 +39,7 @@ import { toast } from "sonner";
 // type, when arriving via the Run Input picker's create-shortcut -- a soft
 // hint only (drag-and-drop or "all files" can bypass it), so handleFileChange
 // still verifies the actual picked file below.
-const CONTENT_TYPE_ACCEPT: Record<FlowParamContentType, string> = {
+const CONTENT_TYPE_ACCEPT: Record<TextSafeContentType, string> = {
   "application/json": ".json,application/json",
   "text/plain": ".txt,text/plain",
   "text/markdown": ".md,text/markdown",
@@ -284,7 +285,7 @@ export function CreateArtifactDialog({
               ref={fileInputRef}
               type="file"
               accept={
-                targetParamDef
+                targetParamDef && isTextSafeContentType(targetParamDef.type)
                   ? CONTENT_TYPE_ACCEPT[targetParamDef.type]
                   : ".json,.txt,.md,application/json,text/plain,text/markdown"
               }

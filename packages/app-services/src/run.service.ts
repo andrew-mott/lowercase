@@ -126,7 +126,7 @@ export class RunService implements RunServicePort {
     analyzeRefs(flow, analysis);
 
     this.#validateStringParamRefs(flow, analysis);
-    this.#validateExportRefProblems(analysis);
+    this.#validateRefProblems(analysis);
 
     if (!request.params || Object.keys(request.params).length === 0) return;
 
@@ -197,16 +197,15 @@ export class RunService implements RunServicePort {
     }
   }
 
-  #validateExportRefProblems(analysis: FlowAnalysis): void {
+  #validateRefProblems(analysis: FlowAnalysis): void {
     const problems = analysis.problems.filter(
       (problem) =>
         problem.type === "InvalidExportRef" ||
-        problem.type === "InvalidExportRefPath",
+        problem.type === "InvalidExportRefPath" ||
+        problem.type === "InvalidBinaryRefPosition",
     );
     if (problems.length > 0) {
-      throw new Error(
-        `Invalid step export reference(s): ${JSON.stringify(problems)}`,
-      );
+      throw new Error(`Invalid step reference(s): ${JSON.stringify(problems)}`);
     }
   }
 

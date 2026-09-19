@@ -2,8 +2,10 @@ import type {
   FlowAnalysis,
   FlowDefinition,
   FlowProblem,
+  Path,
   Ref,
 } from "@lcase/types";
+import { classifyContentType } from "./artifact-compat.js";
 import { parseStepRefs } from "./parse-references.js";
 import { stepExports } from "./step-exports.js";
 
@@ -30,7 +32,8 @@ export function analyzeRefs(fd: FlowDefinition, fa: FlowAnalysis) {
     const problem =
       validateRefTargetStep(ref, fd, fa) ??
       validateRefTargetParam(ref, fd) ??
-      validateExportRefPath(ref, fd);
+      validateExportRefPath(ref, fd) ??
+      validateBinaryRefPosition(ref, fd);
     if (problem) fa.problems.push(problem);
   }
   return fa;
@@ -145,6 +148,48 @@ export function validateExportRefPath(
     };
   }
 }
+/**
+ * A binary-classified param may only be referenced as the whole value of an
+ * http step's body.artifact or a multipart file's artifact field -- anywhere
+ * else, the ref would have to be turned into a string, which a binary value
+ * can't be. Only params can be binary today (exports are always
+ * JSON-derived), so this only ever looks at params-scope refs.
+ */
+export function validateBinaryRefPosition(
+  ref: Ref,
+  fd: FlowDefinition,
+): FlowProblem | undefined {
+  if (ref.scope !== "params") return;
+  const paramName = ref.valuePath[1];
+  if (typeof paramName !== "string") return;
+
+  const declaration = fd.params?.[paramName];
+  if (!declaration || classifyContentType(declaration.type) !== "binary") {
+    return;
+  }
+
+  const step = fd.steps[ref.stepId];
+  if (
+    step?.type === "http" &&
+    !ref.interpolated &&
+    isArtifactBindPath(ref.bindPath)
+  ) {
+    return;
+  }
+
+  return { type: "InvalidBinaryRefPosition", ref, paramName };
+}
+
+function isArtifactBindPath(bindPath: Path): boolean {
+  if (bindPath[0] !== "body") return false;
+  if (bindPath.length === 2 && bindPath[1] === "artifact") return true;
+  return (
+    bindPath.length === 4 &&
+    bindPath[1] === "multipart" &&
+    bindPath[3] === "artifact"
+  );
+}
+
 /**
  * Recursively checks out edges from the target stepId to the stepId with the
  * reference.  A depth first type sort.
