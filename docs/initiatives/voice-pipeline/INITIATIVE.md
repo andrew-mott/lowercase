@@ -16,7 +16,7 @@ The Initiative also pilots schema-first definitions. Every new type it introduce
 
 Settled in discussion before any Change was written, so each Change can build on them without re-deciding them.
 
-- **A new `http` step, beside `httpjson`.** `httpjson` stays exactly as it is. Whether it later becomes a preset of `http` is decided once `http` exists, not before. Adding a protocol to the worker is the extension model [ADR-0006](../../adr/0006-worker-tool-extensibility-model.md) chose, not a reopening of the worker work in `worker-tools-artifacts`.
+- **A new `http` step, beside `httpjson`.** `httpjson` stays exactly as it is at the flow step-type and event-family levels — Change C3 kept the event families additive, not reopened here. The open question this bullet originally deferred — whether `httpjson` becomes a preset of `http` — is now settled at exactly one layer, decided while scoping arc [A4](./arcs/worker-http-executor.md): the worker's _execution logic_ is shared rather than duplicated, with `httpjson`'s submission normalized into `http`'s request shape before hitting the same executor. The step-type and event layers stay separate; whether they ever unify the same way remains undecided. Adding a protocol to the worker is the extension model [ADR-0006](../../adr/0006-worker-tool-extensibility-model.md) chose, not a reopening of the worker work in `worker-tools-artifacts`.
 - **Steps hand each other references, never bytes.** Binary content lives in CAS, and a step, a Message or a ref only ever carries its hash. The terminal Message already carries only the output hash and export hashes, so this extends an existing rule rather than introducing one. It is also what keeps streaming possible later: a reference can come to mean something still being written without changing how flows are authored.
 - **`body` names its kind, because binary cannot be interpolated.** `{{...}}` templating inserts values into JSON, and audio can only _be_ a body or _be_ a part. The `http` step's `body` is one of:
 
@@ -38,17 +38,21 @@ Settled in discussion before any Change was written, so each Change can build on
 
 ## Change index
 
-| Change | Description                                  | Status        | Where | See also |
-| ------ | -------------------------------------------- | ------------- | ----- | -------- |
-| C1     | Schema pipeline and the http step definition | merged (#393) | [1]   |          |
-| C2     | Widen content types past JSON/text/markdown  | merged (#394) | [2]   |          |
-| C3     | The http job's command and terminal Messages | in progress   | [3]   |          |
-| C4     | The worker's http executor                   | not started   |       |          |
-| C5     | Engine planning and dispatch for http        | not started   |       |          |
+| Change | Description                                                   | Status        | Where | See also |
+| ------ | ------------------------------------------------------------- | ------------- | ----- | -------- |
+| C1     | Schema pipeline and the http step definition                  | merged (#393) | [1]   |          |
+| C2     | Widen content types past JSON/text/markdown                   | merged (#394) | [2]   |          |
+| C3     | The http job's command and terminal Messages                  | merged (#395) | [3]   |          |
+| C4     | A shared executor for http and httpjson                       | in progress   | [4]   |          |
+| C5     | Ref resolution carries the artifact's content type            | not started   | [4]   |          |
+| C6     | Worker and JobRunner wiring for two submissions, one executor | not started   | [4]   |          |
+| C7     | Output storage stores a response as what it says it is        | not started   | [4]   |          |
+| C8     | Engine planning and dispatch for http                         | not started   |       |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
 [3]: ./arcs/http-job.md
+[4]: ./arcs/worker-http-executor.md
 
 ## Not yet scoped
 

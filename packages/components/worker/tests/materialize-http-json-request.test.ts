@@ -32,7 +32,7 @@ describe("materializeHttpJsonRequest", () => {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        json: { x: 1 },
+        body: { kind: "json", value: { x: 1 } },
       },
     });
   });
