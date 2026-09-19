@@ -71,7 +71,9 @@ export function materializeHttpJsonRequest(
       // body is only ever JSON.parse'd/authored JSON), but not structurally
       // assignable (ShallowJsonValue's array/object members are `unknown[]`/
       // `Record<string, unknown>`, not recursively typed).
-      ...(hasJsonBody ? { json: bound.body as JsonValue } : {}),
+      ...(hasJsonBody
+        ? { body: { kind: "json" as const, value: bound.body as JsonValue } }
+        : {}),
     },
   };
 }

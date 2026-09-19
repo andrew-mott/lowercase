@@ -1,10 +1,10 @@
 # Voice Pipeline — Arc A3: The http job (Changes C3–C3)
 
-**Previous:** [Content types](./content-types.md) (Changes C2)
+**Previous:** [Content types](./content-types.md) (Changes C2) · **Next:** [The worker's http executor](./worker-http-executor.md) (Changes C4)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc adds the `http` capability's job command and terminal Messages, running the events layer's existing hand-rolled pattern forward rather than migrating it.
 
-## Change C3 - The http job's command and terminal Messages - in progress
+## Change C3 - The http job's command and terminal Messages - merged (#395)
 
 `httpjson` already has its own job command/terminal event family. `http` needs the same three events — `submitted`, `completed`, `failed` — before the engine can dispatch it (C5) or the worker can execute it (C4).
 

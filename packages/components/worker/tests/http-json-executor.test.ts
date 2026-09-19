@@ -23,7 +23,11 @@ describe("createHttpJsonExecutor", () => {
 
     const result = await executor.execute(req());
 
-    expect(result).toEqual({ ok: true, payload: { hello: "world" } });
+    expect(result).toEqual({
+      ok: true,
+      payload: { hello: "world" },
+      contentType: "application/json",
+    });
   });
 
   it("204 (empty body) succeeds with a null payload", async () => {
@@ -44,7 +48,7 @@ describe("createHttpJsonExecutor", () => {
     const executor = createHttpJsonExecutor({ fetch });
 
     const result = await executor.execute(
-      req({ method: "POST", json: { x: 1 } }),
+      req({ method: "POST", body: { kind: "json", value: { x: 1 } } }),
     );
 
     expect(result).toEqual({
@@ -55,6 +59,7 @@ describe("createHttpJsonExecutor", () => {
         retryable: false,
       },
       payload: { detail: "server exploded" },
+      contentType: "application/json",
     });
   });
 
@@ -84,7 +89,7 @@ describe("createHttpJsonExecutor", () => {
 
     const getResult = await executor.execute(req({ method: "GET" }));
     const postResult = await executor.execute(
-      req({ method: "POST", json: {} }),
+      req({ method: "POST", body: { kind: "json", value: {} } }),
     );
 
     expect(getResult.ok).toBe(false);
@@ -100,7 +105,9 @@ describe("createHttpJsonExecutor", () => {
     const { fetch } = createFakeFetch(() => jsonResponse(404, {}));
     const executor = createHttpJsonExecutor({ fetch });
 
-    const result = await executor.execute(req({ method: "POST", json: {} }));
+    const result = await executor.execute(
+      req({ method: "POST", body: { kind: "json", value: {} } }),
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -121,20 +128,34 @@ describe("createHttpJsonExecutor", () => {
     });
   });
 
-  it("GET with a json body is rejected before fetch is ever called", async () => {
-    const { fetch, fetchFn } = createFakeFetch(() => jsonResponse(200, {}));
-    const executor = createHttpJsonExecutor({ fetch });
+  it.each([
+    ["json", { kind: "json", value: { x: 1 } } as const],
+    [
+      "artifact",
+      {
+        kind: "artifact",
+        value: { contentType: "audio/wav", bytes: new Uint8Array([1, 2, 3]) },
+      } as const,
+    ],
+    [
+      "multipart",
+      { kind: "multipart", parts: { model: "whisper-1" } } as const,
+    ],
+  ])(
+    "GET with a %s body is rejected before fetch is ever called",
+    async (_kind, body) => {
+      const { fetch, fetchFn } = createFakeFetch(() => jsonResponse(200, {}));
+      const executor = createHttpJsonExecutor({ fetch });
 
-    const result = await executor.execute(
-      req({ method: "GET", json: { x: 1 } }),
-    );
+      const result = await executor.execute(req({ method: "GET", body }));
 
-    expect(result).toMatchObject({
-      ok: false,
-      error: { code: "HTTP_REQUEST_INVALID" },
-    });
-    expect(fetchFn).not.toHaveBeenCalled();
-  });
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "HTTP_REQUEST_INVALID" },
+      });
+      expect(fetchFn).not.toHaveBeenCalled();
+    },
+  );
 
   it("a non-http(s) URL scheme is rejected before fetch is ever called", async () => {
     const { fetch, fetchFn } = createFakeFetch(() => jsonResponse(200, {}));
@@ -177,7 +198,7 @@ describe("createHttpJsonExecutor", () => {
     await expect(resultPromise).rejects.toThrow();
   });
 
-  it("json !== undefined drives serialization, not truthiness -- false/0/null bodies are actually sent", async () => {
+  it("body !== undefined drives serialization, not truthiness -- false/0/null JSON bodies are actually sent", async () => {
     let capturedBody: string | undefined;
     const { fetch } = createFakeFetch((_url, init) => {
       capturedBody = init?.body as string | undefined;
@@ -185,7 +206,9 @@ describe("createHttpJsonExecutor", () => {
     });
     const executor = createHttpJsonExecutor({ fetch });
 
-    await executor.execute(req({ method: "POST", json: false }));
+    await executor.execute(
+      req({ method: "POST", body: { kind: "json", value: false } }),
+    );
 
     expect(capturedBody).toBe("false");
   });
@@ -201,5 +224,85 @@ describe("createHttpJsonExecutor", () => {
     await executor.execute(req({ headers: { "X-Custom": "yes" } }));
 
     expect(capturedHeaders).toEqual({ "X-Custom": "yes" });
+  });
+
+  it("an artifact body sends the artifact's raw bytes as-is", async () => {
+    let capturedBody: unknown;
+    const { fetch } = createFakeFetch((_url, init) => {
+      capturedBody = init?.body;
+      return jsonResponse(200, null);
+    });
+    const executor = createHttpJsonExecutor({ fetch });
+
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    await executor.execute(
+      req({
+        method: "POST",
+        body: {
+          kind: "artifact",
+          value: { contentType: "audio/wav", bytes },
+        },
+      }),
+    );
+
+    expect(capturedBody).toBeInstanceOf(Buffer);
+    expect(new Uint8Array(capturedBody as Buffer)).toEqual(bytes);
+  });
+
+  it("a multipart body sends a FormData with a string part and a file part", async () => {
+    let capturedBody: unknown;
+    const { fetch } = createFakeFetch((_url, init) => {
+      capturedBody = init?.body;
+      return jsonResponse(200, null);
+    });
+    const executor = createHttpJsonExecutor({ fetch });
+
+    const bytes = new Uint8Array([1, 2, 3]);
+    await executor.execute(
+      req({
+        method: "POST",
+        body: {
+          kind: "multipart",
+          parts: {
+            model: "whisper-1",
+            file: {
+              contentType: "audio/wav",
+              bytes,
+              filename: "input.wav",
+            },
+          },
+        },
+      }),
+    );
+
+    expect(capturedBody).toBeInstanceOf(FormData);
+    const formData = capturedBody as FormData;
+    expect(formData.get("model")).toBe("whisper-1");
+
+    const filePart = formData.get("file");
+    expect(filePart).toBeInstanceOf(Blob);
+    const file = filePart as File;
+    expect(file.type).toBe("audio/wav");
+    expect(file.name).toBe("input.wav");
+    expect(new Uint8Array(await file.arrayBuffer())).toEqual(bytes);
+  });
+
+  it("captures a non-JSON response's Content-Type", async () => {
+    const { fetch } = createFakeFetch(
+      () =>
+        new Response("hello", {
+          status: 200,
+          headers: { "content-type": "text/plain" },
+        }),
+    );
+    const executor = createHttpJsonExecutor({ fetch });
+
+    const result = await executor.execute(req());
+
+    expect(result).toEqual({
+      ok: true,
+      payload: "hello",
+      contentType: "text/plain",
+    });
   });
 });

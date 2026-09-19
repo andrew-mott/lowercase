@@ -8,6 +8,7 @@ import type {
   HttpJsonFailure,
   HttpJsonResponse,
   HttpJsonResult,
+  ResolvedHttpBinary,
   ResolvedHttpJsonRequest,
 } from "./http-json.types.js";
 
@@ -59,6 +60,40 @@ function toJobExecutionError(
   }
 }
 
+function toBlob(binary: ResolvedHttpBinary): Blob {
+  // Buffer.from, not the Uint8Array directly -- TS pins BlobPart/BodyInit to
+  // Uint8Array<ArrayBuffer>, and a Uint8Array read back from storage is
+  // typed Uint8Array<ArrayBufferLike> (could in principle back onto a
+  // SharedArrayBuffer), so it isn't structurally assignable as-is.
+  return new Blob([Buffer.from(binary.bytes)], { type: binary.contentType });
+}
+
+// The executor never sets or infers a header from `body` -- Content-Type
+// (including a multipart boundary, which fetch derives from a FormData body
+// on its own) is either already in `request.headers` or left to fetch.
+function toFetchBody(
+  body: ResolvedHttpJsonRequest["body"],
+): BodyInit | undefined {
+  if (body === undefined) return undefined;
+  switch (body.kind) {
+    case "json":
+      return JSON.stringify(body.value);
+    case "artifact":
+      return Buffer.from(body.value.bytes);
+    case "multipart": {
+      const formData = new FormData();
+      for (const [key, part] of Object.entries(body.parts)) {
+        if (typeof part === "string") {
+          formData.append(key, part);
+        } else {
+          formData.append(key, toBlob(part), part.filename);
+        }
+      }
+      return formData;
+    }
+  }
+}
+
 async function readResponseBody(response: Response): Promise<JsonValue> {
   const contentType = response.headers.get("content-type");
   if (response.status === 204 || response.status === 205) {
@@ -81,10 +116,10 @@ async function invoke(
     response = await deps.fetch(request.url, {
       method: request.method,
       headers: request.headers,
-      // `json !== undefined`, not truthiness -- `false`/`0`/`null` are valid
-      // JSON bodies
-      ...(request.json !== undefined
-        ? { body: JSON.stringify(request.json) }
+      // `body !== undefined`, not truthiness -- a falsy JSON value (`false`,
+      // `0`, `null`) is still a body to send.
+      ...(request.body !== undefined
+        ? { body: toFetchBody(request.body) }
         : {}),
       ...(signal ? { signal } : {}),
     });
@@ -127,7 +162,11 @@ async function invoke(
     };
   }
 
-  const httpJsonResponse: HttpJsonResponse = { status: response.status, body };
+  const httpJsonResponse: HttpJsonResponse = {
+    status: response.status,
+    body,
+    contentType: response.headers.get("content-type") ?? undefined,
+  };
   if (!isSuccess) {
     return {
       ok: false,
@@ -149,7 +188,7 @@ export function createHttpJsonExecutor(
     async execute(request, options): Promise<ProtocolResult> {
       if (
         (request.method === "GET" || request.method === "HEAD") &&
-        request.json !== undefined
+        request.body !== undefined
       ) {
         return {
           ok: false,
@@ -187,12 +226,21 @@ export function createHttpJsonExecutor(
 
       const result = await invoke(deps, request, options?.signal);
       if (result.ok) {
-        return { ok: true, payload: result.response.body };
+        return {
+          ok: true,
+          payload: result.response.body,
+          contentType: result.response.contentType,
+        };
       }
       return {
         ok: false,
         error: toJobExecutionError(result.failure, request.method),
-        ...(result.response ? { payload: result.response.body } : {}),
+        ...(result.response
+          ? {
+              payload: result.response.body,
+              contentType: result.response.contentType,
+            }
+          : {}),
       };
     },
   };
