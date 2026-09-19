@@ -1,7 +1,10 @@
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "./node_modules/turbo/schema.json",
   "globalEnv": ["NODE_ENV"],
   "tasks": {
+    // Code generation. Each package with a gen script says what it reads and
+    // writes in its own turbo.json.
+    "gen": {},
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]

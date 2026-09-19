@@ -25,11 +25,7 @@ export function bindStepRefs<T extends StepDefinition>(
  * step definition to mutate the value, either by assigning or interpolation
  * as a string.
  */
-export function bindReference(
-  ref: Ref,
-  bindData: Record<string, unknown> | unknown[],
-  value: unknown,
-) {
+export function bindReference(ref: Ref, bindData: object, value: unknown) {
   if (!ref.bindPath.length) return;
 
   let current: unknown = bindData;

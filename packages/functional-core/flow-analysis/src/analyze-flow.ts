@@ -1,6 +1,7 @@
 import type {
   FlowDefinition,
   StepDefinition,
+  StepHttp,
   StepHttpJson,
   StepMcp,
   StepParallel,
@@ -71,7 +72,11 @@ export function analyzeFlow(flow: FlowDefinition): FlowAnalysis {
       addBranchEdges(stepId, step, fa, flow);
       continue;
     }
-    if (step.type === "httpjson" || step.type === "mcp") {
+    if (
+      step.type === "httpjson" ||
+      step.type === "http" ||
+      step.type === "mcp"
+    ) {
       addCapEdges(stepId, step, fa, flow);
     }
   }
@@ -184,7 +189,7 @@ export function addBranchEdges(
 
 export function addCapEdges(
   stepId: string,
-  step: StepMcp | StepHttpJson,
+  step: StepMcp | StepHttpJson | StepHttp,
   fa: FlowAnalysis,
   flow: FlowDefinition,
 ) {

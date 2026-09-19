@@ -1,13 +1,17 @@
 ## Summary
 
-<!-- One short paragraph: what changed and why, in plain terms. -->
+<!-- Two short paragraphs of plain prose. First the problem: what was missing or broken, and why it mattered. Then what is true now. Written for someone picking this up later who wants the idea without opening the diff. -->
 
 ## Changes
 
-<!-- Bullet list of the concrete changes. Not exhaustive line-by-line — group related edits. -->
+<!-- One ### section per theme, each a paragraph or two describing what the system now does. Name a file or path only where it is the name of the thing. The details live in the code, its comments and the arc file, not here. Only what landed: no abandoned approaches. -->
 
--
+### <!-- Theme -->
 
-## Notes
+## Verification <!-- optional -->
 
-<!-- Anything worth flagging: known limitations, deliberate scope cuts, follow-up work, things you're unsure about. Delete this section if there's nothing to add. -->
+<!-- What the tests prove, stated as behaviors, and anything checked by hand. -->
+
+## Smaller pieces <!-- optional, can be name Notes or other things -->
+
+<!-- A short bullet list for the leftovers: small fixes, known limitations, follow-ups. Delete this section if there is nothing to add. -->

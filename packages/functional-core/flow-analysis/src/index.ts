@@ -7,3 +7,4 @@ export * from "./toposort.js";
 export * from "./artifact-compat.js";
 export * from "./artifact-format.js";
 export * from "./format-problem.js";
+export * from "./step-exports.js";

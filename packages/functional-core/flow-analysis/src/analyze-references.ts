@@ -5,6 +5,7 @@ import type {
   Ref,
 } from "@lcase/types";
 import { parseStepRefs } from "./parse-references.js";
+import { stepExports } from "./step-exports.js";
 
 /**
  * Takes a flow definition, loops through steps, parses, and adds references
@@ -130,9 +131,9 @@ export function validateExportRefPath(
   }
 
   const sourceStep = fd.steps[sourceStepId];
-  if (!sourceStep || sourceStep.type !== "httpjson") return;
+  if (!sourceStep) return;
 
-  const declaration = sourceStep.exports?.[exportName];
+  const declaration = stepExports(sourceStep)?.[exportName];
   if (!declaration || declaration.type === "application/json") return;
 
   if (ref.valuePath.length > 4) {

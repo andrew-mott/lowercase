@@ -4,6 +4,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "noEmit": false,
+    "allowImportingTsExtensions": false,
     "incremental": true,
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },

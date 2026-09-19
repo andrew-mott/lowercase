@@ -8,7 +8,10 @@ import type {
   StepCapCommonFields,
   StepOnField,
   FlowDefinition,
+  StepDefinition,
 } from "@lcase/types";
+import { schemaIssues } from "./ajv/schema-issues.js";
+import { validateHttpStep } from "./http.schema.js";
 import { StepParallelSchema } from "./parallel.schema.js";
 import { StepJoinSchema } from "./join.schema.js";
 import { StepBranchSchema } from "./branch.schema.js";
@@ -111,13 +114,41 @@ export const StepHttpJsonSchema = StepCapBaseSchema.extend({
   exports: z.record(z.string(), ExportDeclarationSchema).optional(),
 }).strict() satisfies z.ZodType<StepHttpJson>;
 
-export const StepSchema = z.discriminatedUnion("type", [
+const ZodStepSchema = z.discriminatedUnion("type", [
   StepHttpJsonSchema,
   StepMcpSchema,
   StepParallelSchema,
   StepJoinSchema,
   StepBranchSchema,
 ]);
+
+/**
+ * Validates one step. An http step is defined by JSON Schema and validated by
+ * AJV, whose errors become this parse's issues; every other step goes to the
+ * Zod union. The dispatch on `type` is done here rather than by adding a member
+ * to the union because a Zod discriminated union only accepts Zod objects: it
+ * reads each member's `type` literal from its shape.
+ */
+export const StepSchema = z
+  .custom<StepDefinition>()
+  .transform((value: unknown, ctx): StepDefinition => {
+    if (isObject(value) && value.type === "http") {
+      if (validateHttpStep(value)) return value;
+      for (const issue of schemaIssues(validateHttpStep)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, ...issue });
+      }
+      return z.NEVER;
+    }
+
+    const result = ZodStepSchema.safeParse(value);
+    if (result.success) return result.data;
+    for (const issue of result.error.issues) ctx.addIssue(issue);
+    return z.NEVER;
+  });
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 export const FlowParamDefinitionSchema = z
   .object({

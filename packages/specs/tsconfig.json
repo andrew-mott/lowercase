@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "noEmit": true
+    "noEmit": true,
+    // scripts/ runs directly under Node, which needs the .ts in its imports
+    "allowImportingTsExtensions": true
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "scripts"]
 }

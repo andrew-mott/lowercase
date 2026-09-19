@@ -19,6 +19,7 @@ const FLOW_STEP_ACCENTS: Partial<
     label: "httpjson",
     colorClassName: "bg-teal-300 dark:bg-teal-800",
   },
+  http: { label: "http", colorClassName: "bg-cyan-300 dark:bg-cyan-800" },
   mcp: { label: "mcp", colorClassName: "bg-lime-300 dark:bg-lime-800" },
   join: { label: "join", colorClassName: "bg-pink-300 dark:bg-pink-800" },
   branch: {

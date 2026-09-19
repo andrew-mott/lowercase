@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/turbo/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // Generates packages/types/src/generated from this package's JSON Schema
+    // files. The output lives in another package, hence $TURBO_ROOT$: turbo
+    // still caches it and restores it there. Only *.gen.ts files are outputs,
+    // so a cache hit never overwrites the hand-written index.ts beside them.
+    // .prettierrc is an input because the generator formats its output with it.
+    "gen": {
+      "inputs": ["src/schemas/**", "scripts/**", "$TURBO_ROOT$/.prettierrc"],
+      "outputs": ["$TURBO_ROOT$/packages/types/src/generated/*.gen.ts"]
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "../../node_modules/turbo/schema.json",
   "extends": ["//"],
   "tasks": {
     // `prisma generate` writes the clients to the gitignored src/generated, so
