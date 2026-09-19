@@ -5,7 +5,9 @@ import type {
   JobCompletedData,
   JobDelayedData,
   JobFailedData,
+  JobHttpData,
   JobHttpJsonData,
+  JobHttpSubmittedData,
   JobStartedData,
   CapId,
   JobMcpData,
@@ -17,6 +19,7 @@ import type {
 export const CapIdSchema = z.enum([
   "mcp",
   "httpjson",
+  "http",
 ]) satisfies z.ZodType<CapId>;
 
 export const RefSchema = z
@@ -29,9 +32,10 @@ export const RefSchema = z
     hash: z.union([z.string(), z.null()]),
     scope: z.enum(["steps", "input", "env", "params"]),
     json: z.literal(true).optional(),
-    paramType: z
-      .enum(["application/json", "text/plain", "text/markdown"])
-      .optional(),
+    // Any MIME type, not the closed three-literal set: matches ContentType,
+    // widened by voice-pipeline Change C2. exportType stays closed below --
+    // an export is always JSON-derived, so it can never legally be binary.
+    paramType: z.string().min(1).optional(),
     exportType: z
       .enum(["application/json", "text/plain", "text/markdown"])
       .optional(),
@@ -102,6 +106,48 @@ export const JobHttpJsonSubmittedDataSchema = z
   .strict() satisfies z.ZodType<JobHttpJsonSubmittedData>;
 
 export const JobHttpJsonQueuedDataSchema = JobHttpJsonSubmittedDataSchema;
+
+/* Http */
+
+const HttpBodyJsonSchema = z.object({ json: ShallowJsonValueSchema }).strict();
+const HttpBodyArtifactSchema = z.object({ artifact: z.string() }).strict();
+const HttpMultipartFileSchema = z
+  .object({ artifact: z.string(), filename: z.string().optional() })
+  .strict();
+const HttpBodyMultipartSchema = z
+  .object({
+    multipart: z.record(
+      z.string(),
+      z.union([z.string(), HttpMultipartFileSchema]),
+    ),
+  })
+  .strict();
+
+export const JobHttpDataSchema = z
+  .object({
+    url: z.string(),
+    method: z
+      .enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+      .optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+    body: z
+      .union([
+        HttpBodyJsonSchema,
+        HttpBodyArtifactSchema,
+        HttpBodyMultipartSchema,
+      ])
+      .optional(),
+  })
+  .strict() satisfies z.ZodType<JobHttpData>;
+
+export const JobHttpSubmittedDataSchema = z
+  .object({
+    ...JobHttpDataSchema.shape,
+    refs: z.array(RefSchema),
+    exportRefs: z.record(z.string(), ExportRefSchema).optional(),
+  })
+  .strict() satisfies z.ZodType<JobHttpSubmittedData>;
+
 export const JobDelayedDataSchema = z.object({
   reason: z.string(),
 }) satisfies z.ZodType<JobDelayedData>;

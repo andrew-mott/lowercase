@@ -1,10 +1,10 @@
 # Voice Pipeline — Arc A2: Content types (Changes C2–C2)
 
-**Previous:** [The http step](./http-step.md) (Changes C1)
+**Previous:** [The http step](./http-step.md) (Changes C1) · **Next:** [The http job](./http-job.md) (Changes C3)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc widens the flow definition's content-type fields past the three fixed MIME strings they allow today, and closes the interpolation-legality gap that widening opens.
 
-## Change C2 - Widen content types past three exact values - in progress
+## Change C2 - Widen content types past three exact values - merged (#394)
 
 `FlowParamContentType`, `Ref.paramType`, `Ref.exportType` and `ExportRef.type` each allow only `application/json`, `text/plain` and `text/markdown` today. This Change widens a param's declared type to any MIME type, adds the classification that widening needs, and stops a binary value from being interpolated somewhere only a string belongs.
 

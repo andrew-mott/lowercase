@@ -34,17 +34,21 @@ Settled in discussion before any Change was written, so each Change can build on
 - **A response is stored as what it says it is.** The step's output artifact takes the response's `Content-Type`. Exports select from JSON, so they apply only when that type is JSON.
 - **Messages keep the CloudEvents envelope.** A command is a CloudEvent with its own `type`, carried on the existing topics and typed through the existing `EventMap`. A `kind` extension attribute (command or event) may be added to the shared envelope, optional at first, because Messages already in replay logs and Redis streams do not carry it.
 - **The capability goes in a type name only when the payload depends on it.** The command's data is the capability's request, so it is named for the capability (`job.http.<verb>`). Completed and failed data are identical for every capability, so the new family's terminals can be generic, with the capability read from the envelope's `entity`/`capid`. Only types that are actually emitted are declared. The new family does not copy the queued, started, delayed and resumed types `httpjson` declares.
-- **Schema-first, bridged to Zod where Zod is the interface.** A JSON Schema file is the source of truth and AJV does the validating. Where existing code expects a Zod schema (the flow's step union, and `eventSchemaRegistry`, which `buildEvent` validates against), Zod hands the new type to the AJV validator and reports AJV's errors as its own issues, so the shape is never written twice. A Zod discriminated union cannot hold an AJV-backed member, so the step union dispatches on `type` before validating (see Change C1). A command's schema covers the whole Message: a shared CloudEvents envelope schema, then the `type` and `data`. The envelope then exists in both Zod and JSON Schema until the migration, so a test runs the same fixture Messages through both.
+- **Schema-first, bridged to Zod where Zod is the interface.** A JSON Schema file is the source of truth and AJV does the validating. Where existing code expects a Zod schema (the flow's step union, and `eventSchemaRegistry`, which `buildEvent` validates against), Zod hands the new type to the AJV validator and reports AJV's errors as its own issues, so the shape is never written twice. A Zod discriminated union cannot hold an AJV-backed member, so the step union dispatches on `type` before validating (see Change C1). A command's schema covering the whole Message this way — a shared CloudEvents envelope schema, then the `type` and `data`, existing in both Zod and JSON Schema until a migration — was the original intent here, but Change C3 found `packages/events`'s `eventSchemaRegistry` is entirely hand-rolled Zod with no AJV bridge anywhere in it, and is itself the `json-schema-migration` Initiative's (I7) refactor target. So this Initiative's schema-first trial stays scoped to flow-definition shapes, proven by C1; new job command/terminal Messages are hand-rolled the same way their siblings already are, until I7 does that migration for real.
 
 ## Change index
 
 | Change | Description                                  | Status        | Where | See also |
 | ------ | -------------------------------------------- | ------------- | ----- | -------- |
 | C1     | Schema pipeline and the http step definition | merged (#393) | [1]   |          |
-| C2     | Widen content types past JSON/text/markdown  | in progress   | [2]   |          |
+| C2     | Widen content types past JSON/text/markdown  | merged (#394) | [2]   |          |
+| C3     | The http job's command and terminal Messages | in progress   | [3]   |          |
+| C4     | The worker's http executor                   | not started   |       |          |
+| C5     | Engine planning and dispatch for http        | not started   |       |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
+[3]: ./arcs/http-job.md
 
 ## Not yet scoped
 
@@ -54,9 +58,6 @@ Roughly in dependency order:
 
   Unlike a param, a step's output has no declared type anywhere in the flow definition — what it actually is isn't known until the step runs. So this can't be checked statically the way C2's `validateBinaryRefPosition` checks a param's declared type; the check has to be dynamic, against the real thing. The worker is the natural place for it: `ArtifactReaderPort.load(hash)`'s untyped overload already returns `{ contentType, value }` together, so resolving a `steps.X.output` ref already hands back the real content type right where it's about to be used. The worker asking itself "is this the right content type for what I'm about to do with it" at that point is the same rule `validateBinaryRefPosition` enforces for params, just checked dynamically instead of statically — not necessarily the same function, the mechanism is still open. Whether the engine also gets a pre-dispatch check, to fail before a job is even sent rather than only once the worker looks, is a separate, undecided enhancement on top.
 
-- **The command and terminal Messages.** Schemas, `EventMap` entries, the registries a new type needs (`eventSchemaRegistry`, the `CloudEventContextSchema` enums, `otelAttributesRegistry`, `category.registry.ts`), and the job catalog's type unions and topic lists.
-- **The worker's `http` executor.** Request materialization that reads artifact bodies from CAS rather than binding them through `bindStepRefs`, multipart encoding, and output storage by response content type.
-- **Engine planning and dispatch** for the new step, and acceptance of its terminals.
 - **Flow outputs.** `FlowDefinition.outputs` is parsed as an untyped record and nothing reads it. It is the natural place for "this flow's result is this artifact".
 - **The read path.** A route streaming an artifact's raw bytes with its content type (today `GET /artifacts/:hash` returns only `byteLength` for bytes), and playback or download in the workbench.
 - **Getting a result back to the caller.** `POST /api/runs` returns only `{ ok: true, runId }`. To get a flow's result, a client has to wait on its own (polling the run or watching `/events`), then work out which step's output is the result and fetch it. Flow outputs answer the second part. The first needs a shape: a synchronous endpoint that holds the request until the run finishes, a route returning a finished run's outputs, or both. Starting a run is also awkward from outside: the request takes `flowId`, `flowVersionId` and `flowDefHash`, so a client needs three identifiers to name one flow.

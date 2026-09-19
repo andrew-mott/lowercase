@@ -11,6 +11,7 @@ import type {
 // job.*.submitted
 export const jobSubmittedTypes = [
   "job.httpjson.submitted",
+  "job.http.submitted",
   "job.mcp.submitted",
 ] as const satisfies readonly JobSubmittedType[];
 
@@ -78,6 +79,7 @@ const _checkStartedTypes: _ListsAllStartedTypes = true;
 // job.*.completed
 export const jobCompletedTypes = [
   "job.httpjson.completed",
+  "job.http.completed",
   "job.mcp.completed",
 ] as const satisfies readonly JobCompletedType[];
 
@@ -93,6 +95,7 @@ const _checkCompletedTypes: _ListsAllCompletedTypes = true;
 // job.*.failed
 export const jobFailedTypes = [
   "job.httpjson.failed",
+  "job.http.failed",
   "job.mcp.failed",
 ] as const satisfies readonly JobFailedType[];
 

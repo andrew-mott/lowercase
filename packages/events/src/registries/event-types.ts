@@ -6,6 +6,7 @@ import type {
   EventEntities,
 } from "@lcase/types";
 import { httpjsonEventTypes } from "./job/httpjson.types.js";
+import { httpEventTypes } from "./job/http.types.js";
 import { mcpEventTypes } from "./job/mcp.types.js";
 import { replayEventTypes } from "./replay/replay.types.js";
 import { schedulerEventTypes } from "./scheduler/event-types.js";
@@ -13,6 +14,7 @@ import { limiterEventTypes } from "./limiter/event-types.js";
 
 export const eventTypes = [
   ...httpjsonEventTypes,
+  ...httpEventTypes,
   ...mcpEventTypes,
   ...replayEventTypes,
   ...schedulerEventTypes,
@@ -110,6 +112,7 @@ export const domainTypes = [
 export const entityTypes = [
   "mcp",
   "httpjson",
+  "http",
   "job",
   "slot",
 ] as const satisfies readonly EventEntities[];
