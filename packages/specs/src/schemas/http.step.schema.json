@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http.step.schema.json",
+  "title": "StepHttp",
+  "description": "A capability step that makes one HTTP request. Its body is JSON, a stored artifact's bytes, or a multipart form, and its response is stored under the response's own content type.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "http" },
+    "url": { "type": "string" },
+    "method": {
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "body": {
+      "oneOf": [
+        { "$ref": "#/$defs/HttpBodyJson" },
+        { "$ref": "#/$defs/HttpBodyArtifact" },
+        { "$ref": "#/$defs/HttpBodyMultipart" }
+      ]
+    },
+    "exports": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/HttpExportDeclaration" }
+    },
+    "on": { "$ref": "#/$defs/HttpStepOn" }
+  },
+  "required": ["type", "url"],
+  "additionalProperties": false,
+  "$defs": {
+    "HttpBodyJson": {
+      "title": "HttpBodyJson",
+      "description": "A JSON body. String values are templated, as in an httpjson step's body.",
+      "type": "object",
+      "properties": {
+        "json": {}
+      },
+      "required": ["json"],
+      "additionalProperties": false
+    },
+    "HttpBodyArtifact": {
+      "title": "HttpBodyArtifact",
+      "description": "A stored artifact's bytes as the whole body, sent with the artifact's own content type.",
+      "type": "object",
+      "properties": {
+        "artifact": { "type": "string" }
+      },
+      "required": ["artifact"],
+      "additionalProperties": false
+    },
+    "HttpBodyMultipart": {
+      "title": "HttpBodyMultipart",
+      "description": "A multipart/form-data body, keyed by part name. A string part is a templated field, and an artifact part is a file.",
+      "type": "object",
+      "properties": {
+        "multipart": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/HttpMultipartFile" }
+            ]
+          }
+        }
+      },
+      "required": ["multipart"],
+      "additionalProperties": false
+    },
+    "HttpMultipartFile": {
+      "title": "HttpMultipartFile",
+      "description": "A file part, carrying a stored artifact's bytes and content type.",
+      "type": "object",
+      "properties": {
+        "artifact": { "type": "string" },
+        "filename": { "type": "string" }
+      },
+      "required": ["artifact"],
+      "additionalProperties": false
+    },
+    "HttpExportDeclaration": {
+      "title": "HttpExportDeclaration",
+      "description": "A value selected from a JSON response and stored as its own artifact.",
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string" },
+        "type": { "enum": ["application/json", "text/plain", "text/markdown"] },
+        "schema": { "type": "object", "additionalProperties": {} }
+      },
+      "required": ["ref", "type"],
+      "additionalProperties": false
+    },
+    "HttpStepOn": {
+      "title": "HttpStepOn",
+      "type": "object",
+      "properties": {
+        "success": { "type": "string" },
+        "failure": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

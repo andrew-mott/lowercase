@@ -20,8 +20,14 @@ import type {
   RunDetail,
   RunListItem,
   RunParamManifest,
+  StepDefinition,
 } from "@lcase/types";
 import { FlowSchema } from "@lcase/specs";
+
+// `http` is not dispatched by the engine yet, and `mcp` lost its worker executor
+// when packages/tools was deleted (docs/todo.md).
+const STEP_TYPES_WITHOUT_EXECUTOR: ReadonlySet<StepDefinition["type"]> =
+  new Set(["http", "mcp"]);
 
 type RunServiceDeps = {
   artifactRepository: ArtifactRepositoryPort;
@@ -115,6 +121,7 @@ export class RunService implements RunServicePort {
 
   async #validateRunRequest(request: RunRequest): Promise<void> {
     const flow = await this.#getFlowDefinition(request.flowDefHash);
+    this.#validateStepsExecutable(flow);
     const analysis = analyzeFlow(flow);
     analyzeRefs(flow, analysis);
 
@@ -156,6 +163,22 @@ export class RunService implements RunServicePort {
     }
 
     return parsed.data;
+  }
+
+  /**
+   * Refuses a flow with a step type that parses but that nothing executes, so
+   * the caller learns before a run exists instead of watching one wait forever:
+   * the engine would dispatch the step and no worker would ever answer.
+   */
+  #validateStepsExecutable(flow: FlowDefinition): void {
+    const unexecutable = Object.entries(flow.steps)
+      .filter(([, step]) => STEP_TYPES_WITHOUT_EXECUTOR.has(step.type))
+      .map(([stepId, step]) => `${stepId} (${step.type})`);
+    if (unexecutable.length > 0) {
+      throw new Error(
+        `Flow has steps that cannot run yet: ${unexecutable.join(", ")}`,
+      );
+    }
   }
 
   #validateStringParamRefs(flow: FlowDefinition, analysis: FlowAnalysis): void {

@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/turbo/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // src/generated is written by @lcase/specs' gen task from its JSON Schema
+    // files, so everything that reads this package's source waits for it. A
+    // package's dependsOn replaces the root's rather than extending it, hence
+    // the root's entries again.
+    "build": {
+      "dependsOn": ["^build", "@lcase/specs#gen"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck", "@lcase/specs#gen"]
+    },
+    "lint": {
+      "dependsOn": ["@lcase/specs#gen"]
+    },
+    "test": {
+      "dependsOn": ["^test", "@lcase/specs#gen"]
+    }
+  }
+}

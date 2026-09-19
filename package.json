@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "gen": "turbo run gen",
     "build": "turbo run build",
     "bundle": "turbo run bundle",
     "deploy:build": "turbo run bundle --filter=@lcase/http-server --filter=@lcase/worker-host --filter=@lcase/deploy-tasks && pnpm -F @lcase/db-prisma schema && docker compose -f deploy/remote-worker.compose.yaml build",

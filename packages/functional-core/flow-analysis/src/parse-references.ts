@@ -4,9 +4,9 @@ import type {
   FlowProblem,
   Path,
   Ref,
-  StepHttpJson,
   StepDefinition,
 } from "@lcase/types";
+import { stepExports } from "./step-exports.js";
 import { traverse } from "./traverse.js";
 
 export function parseStepRefs<D extends StepDefinition>(
@@ -32,15 +32,12 @@ export function parseStepRefs<D extends StepDefinition>(
     );
   }
 
-  if (step.type === "httpjson") {
-    const httpStep = step as StepHttpJson;
-    if (!httpStep.exports) return { refs, exportRefs, problems };
-
-    for (const [exportName, declaration] of Object.entries(httpStep.exports)) {
-      const ref = parseExportRef(declaration, stepId, exportName, problems);
-      if (!ref) continue;
-      exportRefs[exportName] = ref;
-    }
+  for (const [exportName, declaration] of Object.entries(
+    stepExports(step) ?? {},
+  )) {
+    const ref = parseExportRef(declaration, stepId, exportName, problems);
+    if (!ref) continue;
+    exportRefs[exportName] = ref;
   }
 
   return { refs, exportRefs, problems };

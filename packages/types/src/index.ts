@@ -4,6 +4,9 @@ export * from "./errors/domain-error.type.js";
 export * from "./json-simple-value.js";
 export * from "./json-value.js";
 
+// types generated from JSON Schema in packages/specs
+export * from "./generated/index.js";
+
 export * from "./events/shared/index.js";
 export * from "./events/flow/data.js";
 

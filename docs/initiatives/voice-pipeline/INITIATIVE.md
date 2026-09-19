@@ -34,14 +34,20 @@ Settled in discussion before any Change was written, so each Change can build on
 - **A response is stored as what it says it is.** The step's output artifact takes the response's `Content-Type`. Exports select from JSON, so they apply only when that type is JSON.
 - **Messages keep the CloudEvents envelope.** A command is a CloudEvent with its own `type`, carried on the existing topics and typed through the existing `EventMap`. A `kind` extension attribute (command or event) may be added to the shared envelope, optional at first, because Messages already in replay logs and Redis streams do not carry it.
 - **The capability goes in a type name only when the payload depends on it.** The command's data is the capability's request, so it is named for the capability (`job.http.<verb>`). Completed and failed data are identical for every capability, so the new family's terminals can be generic, with the capability read from the envelope's `entity`/`capid`. Only types that are actually emitted are declared. The new family does not copy the queued, started, delayed and resumed types `httpjson` declares.
-- **Schema-first, bridged to Zod where Zod is the interface.** A JSON Schema file is the source of truth and AJV does the validating. Where existing code expects a Zod schema (the flow's step union, and `eventSchemaRegistry`, which `buildEvent` validates against), the new member is a thin `z.custom` wrapper around the AJV validator, so the shape is never written twice. A command's schema covers the whole Message: a shared CloudEvents envelope schema, then the `type` and `data`. The envelope then exists in both Zod and JSON Schema until the migration, so a test runs the same fixture Messages through both.
+- **Schema-first, bridged to Zod where Zod is the interface.** A JSON Schema file is the source of truth and AJV does the validating. Where existing code expects a Zod schema (the flow's step union, and `eventSchemaRegistry`, which `buildEvent` validates against), Zod hands the new type to the AJV validator and reports AJV's errors as its own issues, so the shape is never written twice. A Zod discriminated union cannot hold an AJV-backed member, so the step union dispatches on `type` before validating (see Change C1). A command's schema covers the whole Message: a shared CloudEvents envelope schema, then the `type` and `data`. The envelope then exists in both Zod and JSON Schema until the migration, so a test runs the same fixture Messages through both.
+
+## Change index
+
+| Change | Description                                  | Status    | Where | See also |
+| ------ | -------------------------------------------- | --------- | ----- | -------- |
+| C1     | Schema pipeline and the http step definition | in review | [1]   |          |
+
+[1]: ./arcs/http-step.md
 
 ## Not yet scoped
 
-No Change is numbered yet. Roughly in dependency order:
+Roughly in dependency order:
 
-- **Schema pipeline.** JSON Schema source files, type generation (`json-schema-to-typescript` or similar), AJV, and the Zod bridge. Decide whether generated types are committed or built, and where they land relative to `packages/types`.
-- **The `http` step definition.** Its schema, generated `StepHttp`, a member in `packages/specs`' `StepSchema` union, and flow analysis learning the new step type. `validateExportRefPath` checks `sourceStep.type !== "httpjson"`, so parts of flow analysis are `httpjson`-specific today.
 - **Content types beyond three.** `FlowParamContentType`, `Ref.paramType`, `Ref.exportType` and `ExportRef.type` each allow only `application/json`, `text/plain` and `text/markdown`. An `audio/wav` param needs them widened, together with `RunService`'s param checks. Uploading the audio already works: `POST /artifacts` multipart stores an unrecognised MIME type as bytes, and run params are already artifact hashes.
 - **Referencing a whole step output.** Refs reach only `steps.X.exports.Y` today. A binary response has nothing to select with a JSON path, so `{{steps.X.output}}` is needed. In an `artifact` position it passes the hash through. Interpolated into a string, as when a transcript feeds an LLM prompt, it makes sense only for a text output.
 - **The command and terminal Messages.** Schemas, `EventMap` entries, the registries a new type needs (`eventSchemaRegistry`, the `CloudEventContextSchema` enums, `otelAttributesRegistry`, `category.registry.ts`), and the job catalog's type unions and topic lists.

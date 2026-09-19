@@ -66,6 +66,9 @@ jobs:
 
       - run: pnpm install
       - run: pnpm run format:check
+      # Types generated from JSON Schema are committed; this fails when one is
+      # missing or no longer matches its schema.
+      - run: pnpm -F @lcase/specs gen:check
       - run: pnpm lint
       - run: pnpm build
       # Each host's bundle fails when it contains a package that host's
