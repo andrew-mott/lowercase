@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { ArtifactUpdateMetadata } from "@lcase/types";
-import { isArtifactCompatible } from "@lcase/flow-analysis";
+import {
+  isArtifactCompatible,
+  isTextSafeContentType,
+} from "@lcase/flow-analysis";
 import { useGetFlowVersionDefQuery } from "@/redux/api/flows-api";
 import {
   artifactsApi,
@@ -76,9 +79,17 @@ export function useArtifactAuthoringPanel(
         }),
       );
     }
-    dispatch(
-      setAuthoringContentType({ panelId, contentType: returnToParamDef.type }),
-    );
+    // This panel only authors text-safe content -- a binary-typed target
+    // param (e.g. audio/wav) can't be authored here, so its contentType is
+    // left alone rather than passed through as-is.
+    if (isTextSafeContentType(returnToParamDef.type)) {
+      dispatch(
+        setAuthoringContentType({
+          panelId,
+          contentType: returnToParamDef.type,
+        }),
+      );
+    }
   }, [returnTo, returnToParamDef, curatedParamNames, panelId, dispatch]);
 
   const [createArtifact, { isLoading: isSaving }] = useCreateArtifactMutation();

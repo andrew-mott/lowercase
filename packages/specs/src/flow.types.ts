@@ -152,7 +152,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 export const FlowParamDefinitionSchema = z
   .object({
-    type: z.enum(["application/json", "text/plain", "text/markdown"]),
+    // Any MIME string is legal now (see ContentType in @lcase/types) --
+    // application/json is the only one anything downstream special-cases, so
+    // there's nothing more specific worth validating here.
+    type: z.string().min(1),
     optional: z.literal(true).optional(),
   })
   .strict() satisfies z.ZodType<FlowParamDefinition>;

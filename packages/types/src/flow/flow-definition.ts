@@ -1,10 +1,8 @@
+import type { ContentType } from "./content-type.js";
 import type { StepDefinition } from "./step.type.js";
 
-export type FlowParamContentType =
-  "application/json" | "text/plain" | "text/markdown";
-
 export type FlowParamDefinition = {
-  type: FlowParamContentType;
+  type: ContentType;
   optional?: true;
 };
 

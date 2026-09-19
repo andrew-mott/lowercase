@@ -1,11 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { FlowParamContentType } from "@lcase/types";
+import type { TextSafeContentType } from "@lcase/types";
 import type { RootState } from "../store";
 import { panelRemoved } from "./panel-lifecycle-actions";
 
 export type ArtifactAuthoringPanelState = {
   content: string;
-  contentType: FlowParamContentType;
+  contentType: TextSafeContentType;
   label: string;
   share: boolean;
   curatedParamNames: string[];
@@ -48,7 +48,7 @@ export const artifactAuthoringPanelsSlice = createSlice({
       state,
       action: PayloadAction<{
         panelId: string;
-        contentType: FlowParamContentType;
+        contentType: TextSafeContentType;
       }>,
     ) => {
       ensurePanel(state, action.payload.panelId).contentType =

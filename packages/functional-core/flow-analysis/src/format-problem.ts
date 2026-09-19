@@ -20,6 +20,8 @@ export function formatProblem(problem: FlowProblem): string {
       return `Step "${problem.ref.stepId}" references step "${problem.targetStepId}", which isn't guaranteed to run before it.`;
     case "InvalidRefScope":
       return `Step "${problem.stepId}" has an invalid reference scope in "${problem.refString}".`;
+    case "InvalidBinaryRefPosition":
+      return `Step "${problem.ref.stepId}" references binary param "${problem.paramName}" somewhere other than an http step's body.artifact or a multipart file's artifact field.`;
     case "CycleDetected":
       return "This flow has a cycle somewhere among its steps.";
   }

@@ -38,18 +38,22 @@ Settled in discussion before any Change was written, so each Change can build on
 
 ## Change index
 
-| Change | Description                                  | Status    | Where | See also |
-| ------ | -------------------------------------------- | --------- | ----- | -------- |
-| C1     | Schema pipeline and the http step definition | in review | [1]   |          |
+| Change | Description                                  | Status        | Where | See also |
+| ------ | -------------------------------------------- | ------------- | ----- | -------- |
+| C1     | Schema pipeline and the http step definition | merged (#393) | [1]   |          |
+| C2     | Widen content types past JSON/text/markdown  | in progress   | [2]   |          |
 
 [1]: ./arcs/http-step.md
+[2]: ./arcs/content-types.md
 
 ## Not yet scoped
 
 Roughly in dependency order:
 
-- **Content types beyond three.** `FlowParamContentType`, `Ref.paramType`, `Ref.exportType` and `ExportRef.type` each allow only `application/json`, `text/plain` and `text/markdown`. An `audio/wav` param needs them widened, together with `RunService`'s param checks. Uploading the audio already works: `POST /artifacts` multipart stores an unrecognised MIME type as bytes, and run params are already artifact hashes.
 - **Referencing a whole step output.** Refs reach only `steps.X.exports.Y` today. A binary response has nothing to select with a JSON path, so `{{steps.X.output}}` is needed. In an `artifact` position it passes the hash through. Interpolated into a string, as when a transcript feeds an LLM prompt, it makes sense only for a text output.
+
+  Unlike a param, a step's output has no declared type anywhere in the flow definition — what it actually is isn't known until the step runs. So this can't be checked statically the way C2's `validateBinaryRefPosition` checks a param's declared type; the check has to be dynamic, against the real thing. The worker is the natural place for it: `ArtifactReaderPort.load(hash)`'s untyped overload already returns `{ contentType, value }` together, so resolving a `steps.X.output` ref already hands back the real content type right where it's about to be used. The worker asking itself "is this the right content type for what I'm about to do with it" at that point is the same rule `validateBinaryRefPosition` enforces for params, just checked dynamically instead of statically — not necessarily the same function, the mechanism is still open. Whether the engine also gets a pre-dispatch check, to fail before a job is even sent rather than only once the worker looks, is a separate, undecided enhancement on top.
+
 - **The command and terminal Messages.** Schemas, `EventMap` entries, the registries a new type needs (`eventSchemaRegistry`, the `CloudEventContextSchema` enums, `otelAttributesRegistry`, `category.registry.ts`), and the job catalog's type unions and topic lists.
 - **The worker's `http` executor.** Request materialization that reads artifact bodies from CAS rather than binding them through `bindStepRefs`, multipart encoding, and output storage by response content type.
 - **Engine planning and dispatch** for the new step, and acceptance of its terminals.

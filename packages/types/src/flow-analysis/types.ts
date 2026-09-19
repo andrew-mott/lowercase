@@ -1,3 +1,5 @@
+import type { ContentType, TextSafeContentType } from "../flow/content-type.js";
+
 type StepId = string;
 
 export type EdgeType = "control" | "join" | "parallel" | "branch";
@@ -76,6 +78,11 @@ export type InvalidRefStepIdProblem = {
   ref: Ref;
   targetStepId: StepId;
 };
+export type InvalidBinaryRefPositionProblem = {
+  type: "InvalidBinaryRefPosition";
+  ref: Ref;
+  paramName: string;
+};
 export type UnreachableRefProblem = {
   type: "UnreachableRef";
   ref: Ref;
@@ -98,7 +105,8 @@ export type FlowProblem =
   | InvalidRefStepIdProblem
   | UnreachableRefProblem
   | CycleDetectedProblem
-  | InvalidRefScopeProblem;
+  | InvalidRefScopeProblem
+  | InvalidBinaryRefPositionProblem;
 
 export type ProblemType = FlowProblem["type"];
 
@@ -113,8 +121,8 @@ export type Ref = {
   hash: string | null;
   // later more robust tranforms should be implemented
   json?: true; // whether to parse this as json, simple transform flag
-  paramType?: "application/json" | "text/plain" | "text/markdown";
-  exportType?: "application/json" | "text/plain" | "text/markdown";
+  paramType?: ContentType;
+  exportType?: TextSafeContentType;
 };
 
 export type ExportRef = {
@@ -122,6 +130,6 @@ export type ExportRef = {
   valuePath: Path;
   scope: "output";
   string: string;
-  type: "application/json" | "text/plain" | "text/markdown";
+  type: TextSafeContentType;
   schema?: Record<string, unknown>;
 };
