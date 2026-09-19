@@ -1,4 +1,11 @@
-import type { ExportRef, JsonValue, Ref } from "@lcase/types";
+import type {
+  ExportRef,
+  HttpBodyArtifact,
+  HttpBodyJson,
+  HttpBodyMultipart,
+  JsonValue,
+  Ref,
+} from "@lcase/types";
 
 // Minimal, deliberately provisional -- the doc's own "Open Questions That Do
 // Not Block Phase 1" leaves the final artifact/export reference shape open.
@@ -10,24 +17,38 @@ export type HttpJsonMethod =
   "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 // The template shape -- ref placeholders (`{{...}}`) may still be present in
-// `url`/`headers`/`body`. Deliberately not `StepHttpJson` itself: that type is
-// flow-authoring-shaped (carries `on`, `exports`, routing concerns) and must
-// never reach a ProtocolExecutor. `kind` (not `type`) deliberately avoids flow
-// vocabulary: `type` names a step in a flow definition and an event type on a
-// Message, and this is neither.
-export type ProtocolRequest = {
-  kind: "httpjson";
-  url: string;
-  method?: HttpJsonMethod;
-  headers?: Record<string, string>;
-  body?: JsonValue;
-};
+// `url`/`headers`/`body`. Deliberately not `StepHttpJson`/`StepHttp`
+// themselves: those types are flow-authoring-shaped (carry `on`, `exports`,
+// routing concerns) and must never reach a ProtocolExecutor. `kind` (not
+// `type`) deliberately avoids flow vocabulary: `type` names a step in a flow
+// definition and an event type on a Message, and this is neither. A real
+// discriminant, not just a label: `httpjson`'s body stays the bare JSON shape
+// its own wire format has always had, while `http`'s carries the fuller
+// json/artifact/multipart union -- the two submissions normalize differently
+// even though one executor (see http-json.executor.ts) runs both.
+export type ProtocolRequest =
+  | {
+      kind: "httpjson";
+      url: string;
+      method?: HttpJsonMethod;
+      headers?: Record<string, string>;
+      body?: JsonValue;
+    }
+  | {
+      kind: "http";
+      url: string;
+      method?: HttpJsonMethod;
+      headers?: Record<string, string>;
+      body?: HttpBodyJson | HttpBodyArtifact | HttpBodyMultipart;
+    };
 
 // What JobRunner executes: the work itself, with no job identity, scope,
 // trace, or source. Splitting this from JobRunContext is what stops the old
 // command shape from becoming JobRunner's permanent contract -- see
 // docs/initiatives/swappable-infrastructure/research/worker-protocol-boundary.md.
-export type HttpJsonWork = {
+// Named for what it is, not which capability produced it -- `protocol` is the
+// only part that ever varied by capability, and it now carries its own tag.
+export type Work = {
   readonly protocol: ProtocolRequest;
   readonly refs: Ref[];
   // `exportRefs` (not `exports`) deliberately: these are ExportRef

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createHttpJsonExecutor } from "../src/protocol/http-json/http-json.executor.js";
 import { Worker } from "../src/worker.js";
-import { makeSubmission } from "./helpers/fixtures.js";
+import { makeHttpSubmission, makeSubmission } from "./helpers/fixtures.js";
 import { createFakeArtifactReaderPort } from "./helpers/fake-artifact-reader.js";
 import { createFakeArtifactWriterPort } from "./helpers/fake-artifact-writer.js";
 import { createFakeLifecycleSink } from "./helpers/fake-lifecycle-sink.js";
@@ -192,14 +192,14 @@ describe("Worker", () => {
   // Worker's Message boundary: the handler is what runtime binds, so what it
   // publishes and when it rejects is the contract, not an implementation
   // detail of executeSubmission.
-  describe("handleHttpJsonSubmitted", () => {
+  describe("handleJobSubmitted", () => {
     it("publishes exactly one terminal Message scoped to the submission", async () => {
       const { worker, published } = makeWorker({
         protocolResult: () => ({ ok: true, payload: { foo: "bar" } }),
       });
       const submission = makeSubmission();
 
-      await worker.handleHttpJsonSubmitted(submission);
+      await worker.handleJobSubmitted(submission);
 
       expect(published).toHaveLength(1);
       expect(published[0]).toMatchObject({
@@ -224,7 +224,7 @@ describe("Worker", () => {
         }),
       });
 
-      await worker.handleHttpJsonSubmitted(makeSubmission());
+      await worker.handleJobSubmitted(makeSubmission());
 
       expect(published).toHaveLength(1);
       expect(published[0]!.type).toBe("job.httpjson.failed");
@@ -240,9 +240,9 @@ describe("Worker", () => {
         },
       });
 
-      await expect(
-        worker.handleHttpJsonSubmitted(makeSubmission()),
-      ).rejects.toThrow(thrown);
+      await expect(worker.handleJobSubmitted(makeSubmission())).rejects.toThrow(
+        thrown,
+      );
       expect(published).toHaveLength(0);
     });
 
@@ -252,9 +252,95 @@ describe("Worker", () => {
       });
       terminal.failNextPublish(new Error("not admitted"));
 
-      await expect(
-        worker.handleHttpJsonSubmitted(makeSubmission()),
-      ).rejects.toThrow("not admitted");
+      await expect(worker.handleJobSubmitted(makeSubmission())).rejects.toThrow(
+        "not admitted",
+      );
     });
+
+    // Two normalizers, one executor: an `http` submission dispatches through
+    // toHttpWork instead of toHttpJsonWork, and publishes the capability's
+    // own terminal family -- job.http.*, never job.httpjson.*.
+    it("dispatches an http submission through its own normalizer and publishes a job.http.* terminal", async () => {
+      const { worker, published } = makeWorker({
+        protocolResult: () => ({ ok: true, payload: { foo: "bar" } }),
+      });
+      const submission = makeHttpSubmission();
+
+      await worker.handleJobSubmitted(submission);
+
+      expect(published).toHaveLength(1);
+      expect(published[0]).toMatchObject({
+        type: "job.http.completed",
+        runid: submission.runid,
+        stepid: submission.stepid,
+        jobid: submission.jobid,
+      });
+    });
+
+    it("publishes a job.http.failed terminal for a modelled http failure", async () => {
+      const { worker, published } = makeWorker({
+        protocolResult: () => ({
+          ok: false,
+          error: {
+            code: "HTTP_STATUS_FAILED" as const,
+            message: "upstream said no",
+            retryable: true,
+          },
+        }),
+      });
+
+      await worker.handleJobSubmitted(makeHttpSubmission());
+
+      expect(published).toHaveLength(1);
+      expect(published[0]!.type).toBe("job.http.failed");
+    });
+  });
+
+  it("end to end: a real http job (fake fetch) with a json body completes", async () => {
+    const { sink, events } = createFakeLifecycleSink();
+    const { port: permits } = createFakePermitPort();
+    const { reader } = createFakeArtifactReaderPort();
+    const { writer, store } = createFakeArtifactWriterPort();
+    const fakeFetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ greeting: "hello world" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const worker = new Worker(
+      {
+        permits,
+        lifecycle: sink,
+        protocol: createHttpJsonExecutor({
+          fetch: fakeFetch as unknown as typeof fetch,
+        }),
+        artifacts: { ...reader, ...writer },
+        terminal: createFakeTerminalPublisher().publisher,
+      },
+      GENEROUS_CONFIG,
+    );
+    const submission = makeHttpSubmission({
+      data: {
+        url: "https://example.test/greet",
+        method: "POST",
+        body: { json: { name: "world" } },
+      },
+    });
+
+    const result = await worker.executeSubmission(submission);
+
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+    if (result.status !== "completed") {
+      throw new Error(`expected completed, got ${JSON.stringify(result)}`);
+    }
+    expect(store.get(result.output.hash)).toEqual({
+      contentType: "application/json",
+      content: { greeting: "hello world" },
+    });
+    expect(events.map((e) => e.kind)).toEqual([
+      "job-execution-started",
+      "job-execution-completed",
+    ]);
   });
 });

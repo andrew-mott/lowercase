@@ -3,7 +3,9 @@ import { materializeHttpJsonRequest } from "../src/protocol/http-json/materializ
 import type { ProtocolRequest } from "../src/job.contracts.js";
 import type { Ref } from "@lcase/types";
 
-function protocol(overrides?: Partial<ProtocolRequest>): ProtocolRequest {
+type HttpJsonProtocol = Extract<ProtocolRequest, { kind: "httpjson" }>;
+
+function protocol(overrides?: Partial<HttpJsonProtocol>): HttpJsonProtocol {
   return {
     kind: "httpjson",
     url: "https://example.test/resource",

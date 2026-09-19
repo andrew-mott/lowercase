@@ -8,24 +8,33 @@ import { defineTopicFor, defineSubscription } from "../define-topic.js";
  * name, or an acknowledgement -- a log-backed carrier consumes these same
  * declarations.
  *
- * The conversation is jobs, not one capability. `httpjson` is the only
- * protocol its Message types name today, and an `mcp` job belongs on these
- * same topics rather than on a parallel set. The type unions are what keep
- * that honest: `defineTopicFor` proves each list covers its union exactly, so
- * adding a type to `JobCommandType` without listing it on the topic fails to
- * compile rather than silently never being published.
+ * The conversation is jobs, not one capability. `httpjson` and `http` are the
+ * two protocols its Message types name today, and an `mcp` job belongs on
+ * these same topics rather than on a parallel set. The type unions are what
+ * keep that honest: `defineTopicFor` proves each list covers its union
+ * exactly, so adding a type to `JobCommandType` without listing it on the
+ * topic fails to compile rather than silently never being published.
  */
-export type JobCommandType = "job.httpjson.submitted";
-export type JobTerminalType = "job.httpjson.completed" | "job.httpjson.failed";
+export type JobCommandType = "job.httpjson.submitted" | "job.http.submitted";
+export type JobTerminalType =
+  | "job.httpjson.completed"
+  | "job.httpjson.failed"
+  | "job.http.completed"
+  | "job.http.failed";
 
 export const jobCommandTopic = defineTopicFor<JobCommandType>()({
   id: "job-command.v1",
-  types: ["job.httpjson.submitted"],
+  types: ["job.httpjson.submitted", "job.http.submitted"],
 });
 
 export const jobTerminalTopic = defineTopicFor<JobTerminalType>()({
   id: "job-terminal.v1",
-  types: ["job.httpjson.completed", "job.httpjson.failed"],
+  types: [
+    "job.httpjson.completed",
+    "job.httpjson.failed",
+    "job.http.completed",
+    "job.http.failed",
+  ],
 });
 
 // Three independent subscriptions, each with its own delivery lane.

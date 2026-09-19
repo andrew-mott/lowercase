@@ -1,5 +1,5 @@
 import type { AnyEvent, JsonValue } from "@lcase/types";
-import type { HttpJsonWork } from "./job.contracts.js";
+import type { Work } from "./job.contracts.js";
 
 /**
  * The Message that starts one HTTP JSON job, and worker's only origin for one.
@@ -14,6 +14,10 @@ export type HttpJsonSubmission = AnyEvent<"job.httpjson.submitted">;
  * nothing anywhere builds one of these. Capacity accounting and lifecycle
  * recording need job identity, not the envelope, and a submitted Message
  * satisfies this shape as it stands, so no mapping step sits between them.
+ * Picked off HttpJsonSubmission but not httpjson-specific: these four
+ * envelope fields are identical in shape on any AnyEvent<...>, so an
+ * HttpSubmission (see http-submitted-message.ts) already satisfies this
+ * structurally, with no separate JobIdentity needed for it.
  */
 export type JobIdentity = Pick<
   HttpJsonSubmission,
@@ -28,7 +32,7 @@ export type JobIdentity = Pick<
 // Nothing about job identity, scope, trace or source appears in the result.
 // That is the whole point: JobRunner executes work, and only Worker knows
 // which job the work belongs to.
-export function toHttpJsonWork(submission: HttpJsonSubmission): HttpJsonWork {
+export function toHttpJsonWork(submission: HttpJsonSubmission): Work {
   const data = submission.data;
   return {
     protocol: {

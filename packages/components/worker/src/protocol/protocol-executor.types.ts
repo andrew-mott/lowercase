@@ -7,7 +7,7 @@ export type ResolvedProtocolRequest = ResolvedHttpJsonRequest;
 
 export type ProtocolResult =
   // `contentType` is the response's real Content-Type header, captured for a
-  // future caller (see worker-http-executor.md, Change C7) -- `payload` is
+  // future caller (see worker-http-executor.md, Change C6) -- `payload` is
   // still always JSON-or-text, unchanged.
   | { ok: true; payload: JsonValue; contentType?: string }
   // `payload` here is a parseable failure response body -- carried so it can

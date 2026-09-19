@@ -43,11 +43,10 @@ Settled in discussion before any Change was written, so each Change can build on
 | C1     | Schema pipeline and the http step definition                  | merged (#393) | [1]   |          |
 | C2     | Widen content types past JSON/text/markdown                   | merged (#394) | [2]   |          |
 | C3     | The http job's command and terminal Messages                  | merged (#395) | [3]   |          |
-| C4     | A shared executor for http and httpjson                       | in progress   | [4]   |          |
-| C5     | Ref resolution carries the artifact's content type            | not started   | [4]   |          |
-| C6     | Worker and JobRunner wiring for two submissions, one executor | not started   | [4]   |          |
-| C7     | Output storage stores a response as what it says it is        | not started   | [4]   |          |
-| C8     | Engine planning and dispatch for http                         | not started   |       |          |
+| C4     | A shared executor for http and httpjson                       | merged (#396) | [4]   |          |
+| C5     | Worker and JobRunner wiring for two submissions, one executor | in progress   | [4]   |          |
+| C6     | Output storage stores a response as what it says it is        | not started   | [4]   |          |
+| C7     | Engine planning and dispatch for http                         | not started   |       |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md

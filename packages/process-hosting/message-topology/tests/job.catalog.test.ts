@@ -16,11 +16,16 @@ describe("job catalog", () => {
   it("declares one command topic and one terminal topic", () => {
     expect(jobCommandTopic).toEqual({
       id: "job-command.v1",
-      types: ["job.httpjson.submitted"],
+      types: ["job.httpjson.submitted", "job.http.submitted"],
     });
     expect(jobTerminalTopic).toEqual({
       id: "job-terminal.v1",
-      types: ["job.httpjson.completed", "job.httpjson.failed"],
+      types: [
+        "job.httpjson.completed",
+        "job.httpjson.failed",
+        "job.http.completed",
+        "job.http.failed",
+      ],
     });
   });
 

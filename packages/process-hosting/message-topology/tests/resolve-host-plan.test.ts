@@ -25,6 +25,8 @@ describe("resolveHostPlan", () => {
     expect(resolved.publishesTo[0]?.topic.types).toEqual([
       "job.httpjson.completed",
       "job.httpjson.failed",
+      "job.http.completed",
+      "job.http.failed",
     ]);
     expect(resolved.publishesTo[0]?.routeIds).toEqual([
       "job.terminal-work.v1",
