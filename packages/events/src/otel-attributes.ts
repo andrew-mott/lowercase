@@ -183,6 +183,21 @@ export const jobOtelAttributesMap = {
     domain: "job",
     entity: "httpjson",
   },
+  "job.http.submitted": {
+    action: "submitted",
+    domain: "job",
+    entity: "http",
+  },
+  "job.http.completed": {
+    action: "completed",
+    domain: "job",
+    entity: "http",
+  },
+  "job.http.failed": {
+    action: "failed",
+    domain: "job",
+    entity: "http",
+  },
 } satisfies JobOtelAttributesMap;
 
 export const toolOtelAttributesMap = {

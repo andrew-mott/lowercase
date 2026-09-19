@@ -87,6 +87,7 @@ import { replaySchemaMap } from "./replay/schema.map.js";
 import { schedulerSchemaMap } from "./scheduler/schema.map.js";
 import { limiterSchemaMap } from "./limiter/schema.map.js";
 import { httpjsonSchemaMap } from "./job/httpjson.schema.map.js";
+import { httpSchemaMap } from "./job/http.schema.map.js";
 
 export type EventTopic =
   | "steps.lifecycle"
@@ -107,6 +108,7 @@ export type EventTopic =
 // topics to publish the event to
 export const eventSchemaRegistry = {
   ...httpjsonSchemaMap,
+  ...httpSchemaMap,
   ...mcpSchemaMap,
   ...replaySchemaMap,
   ...schedulerSchemaMap,

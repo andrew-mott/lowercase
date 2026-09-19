@@ -1,5 +1,6 @@
 import type { CapId } from "../../flow/map.js";
 import type { JobHttpJsonEventMap } from "./httpjson/map.js";
+import type { JobHttpEventMap } from "./http/map.js";
 import type { JobMcpEventMap } from "./mcp/map.js";
 
 export type DomainCapActionDescriptor<
@@ -14,7 +15,9 @@ export type DomainCapActionDescriptor<
   data: Data;
 };
 
-export type JobEventMap = JobHttpJsonEventMap & JobMcpEventMap;
+export type JobEventMap = JobHttpJsonEventMap &
+  JobMcpEventMap &
+  JobHttpEventMap;
 
 export type JobEventType = keyof JobEventMap;
 
