@@ -13,7 +13,7 @@ export type MaterializeHttpJsonRequestOutcome =
 // interpolation logic here -- then projects the bound result into the
 // resolved, wire-ready shape.
 export function materializeHttpJsonRequest(
-  protocol: ProtocolRequest,
+  protocol: Extract<ProtocolRequest, { kind: "httpjson" }>,
   refs: Ref[],
   resolved: Record<string, unknown>,
 ): MaterializeHttpJsonRequestOutcome {

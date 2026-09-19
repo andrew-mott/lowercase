@@ -1,5 +1,6 @@
 import { buildEvent } from "@lcase/events";
 import { describe, expect, it } from "vitest";
+import type { HttpSubmission } from "../src/http-submitted-message.js";
 import type { JobResult } from "../src/job.contracts.js";
 import type { HttpJsonSubmission } from "../src/submitted-message.js";
 import { buildJobTerminal } from "../src/terminal-message.js";
@@ -30,6 +31,23 @@ function makeSubmitted(): HttpJsonSubmission {
       jobid: "job-1",
       capid: "httpjson",
       toolid: "httpjson",
+      source: "lowercase://engine",
+    },
+  );
+}
+
+function makeHttpSubmitted(): HttpSubmission {
+  return buildEvent(
+    "job.http.submitted",
+    { url: "https://example.test/resource", refs: [] },
+    {
+      flowid: "flow-1",
+      flowversionid: "flowversion-1",
+      runid: "run-1",
+      stepid: "step-1",
+      jobid: "job-1",
+      capid: "http",
+      toolid: "http",
       source: "lowercase://engine",
     },
   );
@@ -144,6 +162,41 @@ describe("buildJobTerminal", () => {
       expect(terminal).not.toHaveProperty(leaked);
       expect(terminal.data).not.toHaveProperty(leaked);
     }
+  });
+
+  // Capability read from the submission's own type, not the result: an
+  // http submission gets a job.http.* terminal even though JobResult itself
+  // carries no capability of its own.
+  it("maps a completed result on an http submission to job.http.completed, not job.httpjson.completed", () => {
+    const terminal = buildJobTerminal(
+      makeHttpSubmitted(),
+      completed,
+      WORKER_SOURCE,
+    );
+
+    expect(terminal.type).toBe("job.http.completed");
+    expect(terminal.data).toEqual({
+      status: "success",
+      output: "output-hash",
+      exportHashes: { greeting: "greeting-hash" },
+    });
+  });
+
+  it("maps a failed result on an http submission to job.http.failed, not job.httpjson.failed", () => {
+    const terminal = buildJobTerminal(
+      makeHttpSubmitted(),
+      {
+        status: "failed",
+        error: {
+          code: "HTTP_STATUS_FAILED",
+          message: "upstream said no",
+          retryable: true,
+        },
+      },
+      WORKER_SOURCE,
+    );
+
+    expect(terminal.type).toBe("job.http.failed");
   });
 
   // A deliberate limitation, asserted so it cannot be quietly assumed away:

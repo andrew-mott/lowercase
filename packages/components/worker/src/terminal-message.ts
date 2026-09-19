@@ -1,10 +1,15 @@
 import { buildEvent } from "@lcase/events";
 import type { MessageOf } from "@lcase/ports";
 import type { JobCompletedData, JobFailedData } from "@lcase/types";
+import type { HttpSubmission } from "./http-submitted-message.js";
 import type { JobResult } from "./job.contracts.js";
 import type { HttpJsonSubmission } from "./submitted-message.js";
 
-export type JobTerminalType = "job.httpjson.completed" | "job.httpjson.failed";
+export type JobTerminalType =
+  | "job.httpjson.completed"
+  | "job.httpjson.failed"
+  | "job.http.completed"
+  | "job.http.failed";
 
 // MessageOf, not AnyEvent<JobTerminalType>: the latter collapses into one
 // envelope whose `type` is the union and whose `data` is the union of both
@@ -23,7 +28,7 @@ export type JobTerminalMessage = MessageOf<JobTerminalType>;
 // bus. Construction is where validation belongs; publishing is someone else's
 // concern.
 export function buildJobTerminal(
-  submitted: HttpJsonSubmission,
+  submitted: HttpJsonSubmission | HttpSubmission,
   result: JobResult,
   source: string,
 ): JobTerminalMessage {
@@ -50,9 +55,17 @@ export function buildJobTerminal(
   // Built per branch rather than through a union-typed type/data pair:
   // buildEvent's generic cannot correlate a union type with a union data shape
   // across a call boundary, so narrowing inside each branch is what avoids a
-  // cast.
-  return result.status === "completed"
-    ? buildEvent("job.httpjson.completed", toCompletedData(result), options)
+  // cast. Capability read from the submission's own type, not reconstructed --
+  // JobCompletedData/JobFailedData are already capability-agnostic (C3), so
+  // only the terminal's type string needs picking here.
+  const isHttp = submitted.type === "job.http.submitted";
+  if (result.status === "completed") {
+    return isHttp
+      ? buildEvent("job.http.completed", toCompletedData(result), options)
+      : buildEvent("job.httpjson.completed", toCompletedData(result), options);
+  }
+  return isHttp
+    ? buildEvent("job.http.failed", toFailedData(result), options)
     : buildEvent("job.httpjson.failed", toFailedData(result), options);
 }
 

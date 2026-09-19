@@ -146,7 +146,7 @@ export function createLocalSystem(config: LocalSystemConfig): LocalSystem {
 
   router.bind({
     subscription: workerJobCommandSubscription,
-    handler: worker.handleHttpJsonSubmitted,
+    handler: worker.handleJobSubmitted,
     // Worker's own capacity bound still applies underneath this. The two are
     // not redundant: this bounds what one mailbox presents, and worker's bounds
     // the component however work arrives.

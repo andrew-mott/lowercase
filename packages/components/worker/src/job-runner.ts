@@ -8,14 +8,15 @@ import {
 import type { StoredExecutionOutputs } from "./job-result.factories.js";
 import type {
   ArtifactRef,
-  HttpJsonWork,
   JobExecutionError,
   JobRunContext,
+  Work,
 } from "./job.contracts.js";
 import type { ResourcePermitPort } from "./ports/outbound/resource-permit.port.js";
 import { combineForProtocolRun } from "./protocol/combine-for-protocol-run.js";
 import type { ResolvedHttpJsonRequest } from "./protocol/http-json/http-json.types.js";
 import { materializeHttpJsonRequest } from "./protocol/http-json/materialize-http-json-request.js";
+import { materializeHttpRequest } from "./protocol/http-json/materialize-http-request.js";
 import type {
   ProtocolExecutor,
   ProtocolResult,
@@ -85,10 +86,7 @@ export class JobRunner {
     this.#resolveKey = deps.resourceKeyResolver ?? defaultResourceKeyResolver;
   }
 
-  async run(
-    work: HttpJsonWork,
-    context: JobRunContext,
-  ): Promise<JobRunOutcome> {
+  async run(work: Work, context: JobRunContext): Promise<JobRunOutcome> {
     const prepared = await this.#prepareProtocolRun(work);
     if (!prepared.ok) {
       return { kind: "failed", error: prepared.error };
@@ -136,17 +134,25 @@ export class JobRunner {
     return { kind: "completed", outputs: stored.outputs };
   }
 
-  async #prepareProtocolRun(
-    work: HttpJsonWork,
-  ): Promise<PrepareProtocolRunOutcome> {
+  async #prepareProtocolRun(work: Work): Promise<PrepareProtocolRunOutcome> {
     const refsOutcome = await this.#resolveRefs(work.refs);
     if (!refsOutcome.ok) return refsOutcome;
 
-    const materialized = materializeHttpJsonRequest(
-      work.protocol,
-      work.refs,
-      refsOutcome.resolved,
-    );
+    // Two normalizers, one executor: both produce the same
+    // ResolvedHttpJsonRequest shape C4 settled on, so everything below this
+    // point is already capability-agnostic.
+    const materialized =
+      work.protocol.kind === "httpjson"
+        ? materializeHttpJsonRequest(
+            work.protocol,
+            work.refs,
+            refsOutcome.resolved,
+          )
+        : materializeHttpRequest(
+            work.protocol,
+            work.refs,
+            refsOutcome.resolved,
+          );
     if (!materialized.ok) {
       return {
         ok: false,

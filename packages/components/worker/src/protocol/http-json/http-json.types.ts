@@ -38,7 +38,7 @@ export type ResolvedHttpJsonRequest = {
 // `statusText`/final `url`/every header are not durable workflow output.
 // `contentType` is captured for a future caller to decide what to do with
 // (see docs/initiatives/voice-pipeline/arcs/worker-http-executor.md, Change
-// C7) -- `body` itself is still parsed as JSON-or-text only, unchanged.
+// C6) -- `body` itself is still parsed as JSON-or-text only, unchanged.
 export type HttpJsonResponse = {
   status: number;
   body: JsonValue;

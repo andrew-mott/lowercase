@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { makeContext, makeWork } from "./helpers/fixtures.js";
+import { makeContext, makeHttpWork, makeWork } from "./helpers/fixtures.js";
 import { createControllablePermitPort } from "./helpers/fake-resource-permit.js";
 import type { ResourceKeyResolver } from "../src/resource-key-resolver.js";
 import { makeJobRunner } from "./helpers/worker-fakes.js";
@@ -32,6 +32,38 @@ describe("JobRunner", () => {
     });
     expect(requestArg).not.toHaveProperty("jobId");
     expect(requestArg).not.toHaveProperty("runId");
+  });
+
+  // Two normalizers, one executor: work.protocol.kind picks which
+  // materializer runs, but everything downstream (permits, storage) is the
+  // same code path either way.
+  it("dispatches http work through its own normalizer, resolving the fuller body union", async () => {
+    const { runner, protocolExecute } = makeJobRunner({
+      protocolResult: () => ({ ok: true, payload: { foo: "bar" } }),
+    });
+    const work = makeHttpWork({
+      protocol: {
+        kind: "http",
+        url: "https://example.test/resource",
+        method: "POST",
+        body: { json: { x: 1 } },
+      },
+    });
+
+    const outcome = await runner.run(work, makeContext());
+
+    expect(outcome.kind).toBe("completed");
+    expect(protocolExecute).toHaveBeenCalledTimes(1);
+    const [requestArg] = protocolExecute.mock.calls[0]!;
+    expect(requestArg).toEqual({
+      url: "https://example.test/resource",
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: { kind: "json", value: { x: 1 } },
+    });
   });
 
   it("reports an expected protocol failure as a failed outcome rather than throwing", async () => {

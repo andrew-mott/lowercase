@@ -210,19 +210,25 @@ export class Engine {
   }
 
   /**
-   * The engine's half of the HTTP JSON job conversation coming back.
+   * The engine's half of the job conversation coming back, across every
+   * capability the worker can execute.
    *
    * An arrow property so runtime binds it directly. It feeds the literal
    * delivered Message into the existing JobFinished path rather than
    * reconstructing anything -- worker built that Message and the engine has
-   * nothing to add to it.
+   * nothing to add to it. A type-signature widen only: `handleJobFinished`
+   * below already dispatches structurally on `.completed`/`.failed`, never on
+   * which capability produced the Message.
    *
    * `handleJobFinished` -> `enqueue` -> `processAll()` is fully synchronous, so
    * this resolving means run state has already advanced.
    */
   handleJobTerminal = async (
     message:
-      AnyEvent<"job.httpjson.completed"> | AnyEvent<"job.httpjson.failed">,
+      | AnyEvent<"job.httpjson.completed">
+      | AnyEvent<"job.httpjson.failed">
+      | AnyEvent<"job.http.completed">
+      | AnyEvent<"job.http.failed">,
   ): Promise<void> => {
     this.handleJobFinished(message);
   };

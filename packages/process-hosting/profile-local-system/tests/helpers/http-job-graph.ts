@@ -194,7 +194,7 @@ export function buildHttpJobGraph(options: HttpJobGraphOptions = {}) {
 
   router.bind({
     subscription: workerJobCommandSubscription,
-    handler: worker.handleHttpJsonSubmitted,
+    handler: worker.handleJobSubmitted,
     maxInFlight: options.maxConcurrentJobs ?? 4,
   });
   router.bind({

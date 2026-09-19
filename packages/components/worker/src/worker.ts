@@ -5,6 +5,7 @@ import {
   completedResult,
   failedResult,
 } from "./job-result.factories.js";
+import { toHttpWork, type HttpSubmission } from "./http-submitted-message.js";
 import type { JobResult } from "./job.contracts.js";
 import type { ResourcePermitPort } from "./ports/outbound/resource-permit.port.js";
 import type { WorkerLifecycleEventSink } from "./ports/outbound/worker-event-sink.port.js";
@@ -51,15 +52,17 @@ export type WorkerConfig = {
 // The submitted Message is schema-validated at construction, so these are the
 // checks a valid envelope can still fail. Protocol kind is deliberately not
 // among them -- it is fixed by the Message type and cannot be wrong.
-function validateSubmission(submission: HttpJsonSubmission): void {
+function validateSubmission(
+  submission: HttpJsonSubmission | HttpSubmission,
+): void {
   if (!submission.jobid) {
-    throw new Error("job.httpjson.submitted jobid is required");
+    throw new Error(`${submission.type} jobid is required`);
   }
   if (!submission.runid) {
-    throw new Error("job.httpjson.submitted runid is required");
+    throw new Error(`${submission.type} runid is required`);
   }
   if (!submission.stepid) {
-    throw new Error("job.httpjson.submitted stepid is required");
+    throw new Error(`${submission.type} stepid is required`);
   }
 }
 
@@ -98,8 +101,8 @@ export class Worker {
    * an unexpected throw from execution rejects here and publishes nothing
    * rather than leaving a job that silently ended.
    */
-  handleHttpJsonSubmitted = async (
-    submission: HttpJsonSubmission,
+  handleJobSubmitted = async (
+    submission: HttpJsonSubmission | HttpSubmission,
   ): Promise<void> => {
     const result = await this.executeSubmission(submission);
     await this.#terminal.publish(
@@ -118,7 +121,7 @@ export class Worker {
    * reopening this path.
    */
   async executeSubmission(
-    submission: HttpJsonSubmission,
+    submission: HttpJsonSubmission | HttpSubmission,
     callerSignal?: AbortSignal,
   ): Promise<JobResult> {
     const acquisition = await this.#capacity.acquire(submission, callerSignal);
@@ -135,7 +138,7 @@ export class Worker {
   }
 
   async #executeAdmitted(
-    submission: HttpJsonSubmission,
+    submission: HttpJsonSubmission | HttpSubmission,
     callerSignal: AbortSignal | undefined,
   ): Promise<JobResult> {
     validateSubmission(submission);
@@ -148,11 +151,19 @@ export class Worker {
 
     await this.#lifecycle.record(makeJobExecutionStartedEvent(submission));
 
+    // Two normalizers, one executor: each submission shape becomes Work
+    // through its own normalizer, and everything from here on (permits,
+    // JobRunner, storage) is already capability-agnostic.
+    const work =
+      submission.type === "job.httpjson.submitted"
+        ? toHttpJsonWork(submission)
+        : toHttpWork(submission);
+
     // The one place job identity stops travelling: JobRunner receives the work
     // and the mechanics for this invocation, never run/step/trace/source.
     // Worker keeps those to record facts and to construct the terminal from
     // the submission it retains.
-    const outcome = await this.#runner.run(toHttpJsonWork(submission), {
+    const outcome = await this.#runner.run(work, {
       permitRequestId: submission.jobid,
       signal: callerSignal,
     });
