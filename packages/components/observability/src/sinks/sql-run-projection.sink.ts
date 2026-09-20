@@ -22,7 +22,14 @@ type ShadowRunState = {
   status: RunStatus;
   dirty: boolean;
   flushing: boolean;
+  // Whether this sink has written the run row at least once. Steps hold a
+  // foreign key to it, so they can only be written ahead of a terminal status
+  // if the row is already there.
+  rowWritten?: boolean;
 };
+
+const isTerminal = (status: RunStatus) =>
+  status === "completed" || status === "failed";
 
 export class SqlRunProjectionSink implements EventSink {
   id = "sql-run-projection-sink";
@@ -141,31 +148,24 @@ export class SqlRunProjectionSink implements EventSink {
   }
 
   async #flushState(runId: string, state: ShadowRunState): Promise<void> {
-    if (!state.flowDefHash) return;
+    const flowDefHash = state.flowDefHash;
+    if (!flowDefHash) return;
 
-    const runResult = await this.runs.createRun({
-      id: runId,
-      traceId: state.traceId,
-      status: state.status,
-      source: state.source,
-      ...(state.flowId ? { flowId: state.flowId } : {}),
-      ...(state.flowVersionId ? { flowVersionId: state.flowVersionId } : {}),
-      flowDefHash: state.flowDefHash,
-      ...(state.simId ? { simId: state.simId } : {}),
-      ...(state.forkSpecHash ? { forkSpecHash: state.forkSpecHash } : {}),
-      ...(state.experimentId ? { experimentId: state.experimentId } : {}),
-      ...(state.targetRunId ? { targetRunId: state.targetRunId } : {}),
-      ...(state.targetStepId ? { targetStepId: state.targetStepId } : {}),
-      ...(state.targetExportName
-        ? { targetExportName: state.targetExportName }
-        : {}),
-      ...(state.index.startTime ? { startTime: state.index.startTime } : {}),
-      ...(state.index.endTime ? { endTime: state.index.endTime } : {}),
-      ...(state.index.duration !== undefined
-        ? { duration: state.index.duration }
-        : {}),
-    });
-    if (!runResult.ok) throw new Error(runResult.error);
+    // A terminal status is stored last, after every step. The writes are not
+    // transactional, so a reader that saw "completed" first could find the
+    // run's final steps stale or missing.
+    const status = state.status;
+    const terminal = isTerminal(status);
+
+    if (!terminal || !state.rowWritten) {
+      await this.#writeRun(
+        runId,
+        state,
+        flowDefHash,
+        terminal ? "started" : status,
+      );
+      state.rowWritten = true;
+    }
 
     for (const [stepId, step] of Object.entries(state.index.steps)) {
       const stepResult = await this.steps.upsertStepProjection({
@@ -183,5 +183,38 @@ export class SqlRunProjectionSink implements EventSink {
 
       if (!stepResult.ok) throw new Error(stepResult.error);
     }
+
+    if (terminal) await this.#writeRun(runId, state, flowDefHash, status);
+  }
+
+  async #writeRun(
+    runId: string,
+    state: ShadowRunState,
+    flowDefHash: string,
+    status: RunStatus,
+  ): Promise<void> {
+    const runResult = await this.runs.createRun({
+      id: runId,
+      traceId: state.traceId,
+      status,
+      source: state.source,
+      ...(state.flowId ? { flowId: state.flowId } : {}),
+      ...(state.flowVersionId ? { flowVersionId: state.flowVersionId } : {}),
+      flowDefHash,
+      ...(state.simId ? { simId: state.simId } : {}),
+      ...(state.forkSpecHash ? { forkSpecHash: state.forkSpecHash } : {}),
+      ...(state.experimentId ? { experimentId: state.experimentId } : {}),
+      ...(state.targetRunId ? { targetRunId: state.targetRunId } : {}),
+      ...(state.targetStepId ? { targetStepId: state.targetStepId } : {}),
+      ...(state.targetExportName
+        ? { targetExportName: state.targetExportName }
+        : {}),
+      ...(state.index.startTime ? { startTime: state.index.startTime } : {}),
+      ...(state.index.endTime ? { endTime: state.index.endTime } : {}),
+      ...(state.index.duration !== undefined
+        ? { duration: state.index.duration }
+        : {}),
+    });
+    if (!runResult.ok) throw new Error(runResult.error);
   }
 }

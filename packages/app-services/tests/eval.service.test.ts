@@ -16,6 +16,7 @@ function makeRunService(): RunServicePort {
     listRunsByFlowVersionId: vi.fn(),
     getRunDetail: vi.fn(),
     getRunParams: vi.fn(),
+    getRunOutputs: vi.fn(),
   };
 }
 

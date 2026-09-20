@@ -6,7 +6,7 @@ Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep th
 
 **Not in this arc:** starting a run from inline data and waiting for it (A8), and using a whole step output as another step's input (C16).
 
-## Change C10 - Flow outputs
+## Change C10 - Flow outputs - merged (#402)
 
 ### Discussion
 
@@ -31,3 +31,31 @@ Matches the discussion, with one addition found while building: `RunService` ref
 - **Result computation.** `resolveFlowOutputs(flow, steps)` is a pure function over the run's recorded steps. Every declared output gets an entry: a failed step gives `step-failed`, a recorded hash gives success, and anything else, including a step with no record, gives `not-produced`. It does not look at the run's status, which C11 does by refusing a run still in progress.
 - **Tests.** A new small file each for the schema, payload parsing, output validation, problem formatting, result computation, and the `RunService` refusal.
 - **Deliberately not done.** The route that returns results (C11), reading bytes (C12), asserted output types, composite payloads, payloads in `params` or `input` scope, and an explicit skipped-step state in the engine.
+
+## Change C11 - Run outputs route
+
+### Discussion
+
+Settled so far. Nothing further is open in the discussion.
+
+- **Settled: a manifest, with small text and JSON inlined, and no binary bytes.** Multipart responses and base64 inside JSON were both considered. Multipart has no Fastify support, does not fit the API's `{ ok, ... }` JSON convention, and has poor client support. Base64 inflates the payload and builds the whole result in memory. Each output instead returns its hash, so a caller reads the content separately through the raw-bytes route (C12). Small `json` and `text` values are inlined so a caller does not need a second request for them.
+- **Settled: one request returns every output, keyed by output name.** This matches the flow's `outputs` record and `resolveFlowOutputs`'s return.
+- **Settled: the response is not wrapped in `value`.** The API's constant is `ok`, and routes already name the rest per route (`runId`, `events`, `runList`). The response is `{ ok: true, outputs }`.
+- **Settled: each output is flat, with `error` holding the string.** A produced output is `{ ok: true, hash, contentType, size }` plus `payload` when inlined. A missing one is `{ ok: false, error: "not-produced" }` or `{ ok: false, error: "step-failed" }`. The route flattens `resolveFlowOutputs`'s `Result` when it builds the response; the internal type stays as C10 landed it.
+- **Settled: `payload` is present only for `json` and `text` content at or under 1 MB.** A JSON output's `payload` is the JSON value and a text output's is a string, so no separate encoding field is needed. Binary, and anything over the cap, has no `payload` key and is fetched by hash. The cap keeps the response size predictable.
+- **Settled: `size` is included.** It comes from the artifact metadata, so a caller can decide whether to fetch.
+- **Settled: the route is `GET /runs/:runId/outputs`,** backed by a `RunService` method that loads the flow definition and the run's steps.
+- **Settled: C11 is a static, historic read.** It returns outputs for a finished run and refuses one still in progress (`requested` or `started`). A `failed` run returns its outputs too, since steps that succeeded before the failure have hashes and the rest report `step-failed`. There is no flag for "every output is missing": a caller sees that from each entry being `ok: false`, and the run's own status is on run detail.
+- **Principle for the API: an outside caller never needs the event or message taxonomy.** An application that calls a flow gives inputs and gets outputs, and may get progress, but it should not subscribe to run events or know about observability to learn that a run finished. Waiting for a result without polling is wanted, through something the caller can hook into, and it is not part of C11. It belongs to A8 (inline runs and waiting), which reuses this response shape. The events route stays an internal and workbench concern.
+- **Settled: the sink writes steps before the run row.** The observability sink writes the run row, with its status, before it upserts the run's steps, and there is no transaction. The events arrive in order and its in-memory state is right, but a read between the writes can see a `completed` run with steps stale or missing, which `resolveFlowOutputs` would report as `not-produced`. C11 reorders the flush so steps are written first and the run row last, so a terminal status is never stored ahead of its steps. This is a stopgap for the write order only; the sink's larger rework stays in `docs/todo.md`. Any waiting design in A8 reads the same projection and relies on this.
+- **Settled: an output whose content cannot be read fails the whole request.** A recorded hash whose bytes the store cannot return is broken storage, not flow behavior, so it is not reported per output. The manifest takes content type and size from the artifact's SQL metadata. If that row is missing, the route falls back to the store, whose load returns the content type and bytes, and the size comes from the bytes. Only the store being unable to produce the artifact fails the request.
+
+### What actually landed
+
+Matches the discussion. The one addition found while building is that the sink's reorder needed a guard, because steps hold a foreign key to the run row.
+
+- **The route.** `GET /api/runs/:runId/outputs` returns `{ ok: true, outputs }`, or `{ ok: false, error }` for an invalid run id or any refusal. `RunService.getRunOutputs` refuses a run that is `requested` or `started`, loads the flow definition, runs `resolveFlowOutputs` over the run's steps, and describes each produced hash. The types are `RunOutputEntry`, `RunOutputs` and `GetRunOutputsRes`, and the method is on `RunServicePort`.
+- **Content type, size and inlining.** One batched lookup fetches the artifact rows for every produced hash. A row with a content type and a size is enough to skip the store entirely for a binary or oversized output, so those bytes are never loaded. Json, text and markdown at or under 1 MB are loaded and inlined as `payload`. When a row is missing, or lacks either field, the artifact is loaded once from the store: the content type comes from the store, the size from the bytes or string length, and the size is left out for JSON, because the parsed value cannot give the stored byte length. The 1 MB decision then uses the JSON's serialized length. A load failure fails the whole request.
+- **Sink write order.** For a `completed` or `failed` run the sink now upserts every step and then writes the run row with the terminal status. Steps have a foreign key to the run row, so if the sink has not written the row yet, it first writes it as `started`. `RunService` normally creates the row before any event, but the sink does not rely on that. Non-terminal flushes are unchanged. The write is still not one transaction, and that stays in `docs/todo.md`.
+- **Tests.** A small file each for the route, the service (twelve cases, including that binary and oversized outputs are never loaded) and the sink's write order, which fails against the previous order.
+- **Deliberately not done.** Reading bytes (C12), waiting or notifying a caller (A8), an atomic projection write, asserted output types, and an explicit skipped state in the engine.

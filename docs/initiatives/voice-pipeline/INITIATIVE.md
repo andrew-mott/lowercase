@@ -49,7 +49,8 @@ Settled in discussion before any Change was written, so each Change can build on
 | C7     | Engine planning and dispatch for http                         | merged (#399) | [5]   |          |
 | C8     | Accept binary uploads                                         | merged (#400) | [6]   |          |
 | C9     | Wildcard param types                                          | merged (#401) | [6]   |          |
-| C10    | Flow outputs                                                  | scoping       | [7]   |          |
+| C10    | Flow outputs                                                  | merged (#402) | [7]   |          |
+| C11    | Run outputs route                                             | in review     | [7]   |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md

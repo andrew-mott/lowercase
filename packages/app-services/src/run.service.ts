@@ -10,15 +10,21 @@ import type {
 import {
   analyzeFlow,
   analyzeRefs,
+  inferFormatFromContentType,
   isArtifactCompatible,
+  resolveFlowOutputs,
 } from "@lcase/flow-analysis";
 import { createRunId, runFlow } from "@lcase/run-flow";
 import type {
+  ArtifactIndex,
   FlowAnalysis,
   FlowDefinition,
+  JsonValue,
   Result,
   RunDetail,
   RunListItem,
+  RunOutputEntry,
+  RunOutputs,
   RunParamManifest,
   StepDefinition,
 } from "@lcase/types";
@@ -28,6 +34,11 @@ import { FlowSchema } from "@lcase/specs";
 // (docs/todo.md).
 const STEP_TYPES_WITHOUT_EXECUTOR: ReadonlySet<StepDefinition["type"]> =
   new Set(["mcp"]);
+
+// The largest json or text output a run's outputs response carries inline.
+// Anything bigger, and every binary output, is fetched by its hash instead, so
+// the response stays a predictable size.
+const MAX_INLINE_OUTPUT_BYTES = 1024 * 1024;
 
 type RunServiceDeps = {
   artifactRepository: ArtifactRepositoryPort;
@@ -117,6 +128,108 @@ export class RunService implements RunServicePort {
         params.map((param) => [param.name, param.artifactHash]),
       ),
     };
+  }
+
+  async getRunOutputs(runId: string): Promise<Result<RunOutputs, string>> {
+    const detail = await this.runQuery.getRunDetail(runId);
+    if (!detail.ok) return { ok: false, error: detail.error };
+
+    const { run, steps } = detail.value;
+    if (run.status === "requested" || run.status === "started") {
+      return {
+        ok: false,
+        error: `Run has not finished (status: ${run.status})`,
+      };
+    }
+
+    let flow: FlowDefinition;
+    try {
+      flow = await this.#getFlowDefinition(run.flowDefHash);
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    const results = resolveFlowOutputs(flow, steps);
+    const hashes = [
+      ...new Set(
+        Object.values(results).flatMap((result) =>
+          result.ok ? [result.value.hash] : [],
+        ),
+      ),
+    ];
+    const metadata = new Map(
+      (hashes.length > 0
+        ? await this.artifactRepository.getArtifacts(hashes)
+        : []
+      ).map((artifact) => [artifact.hash, artifact]),
+    );
+
+    const outputs: RunOutputs = {};
+    for (const [name, result] of Object.entries(results)) {
+      if (!result.ok) {
+        outputs[name] = { ok: false, error: result.error.reason };
+        continue;
+      }
+      const hash = result.value.hash;
+      const entry = await this.#describeOutput(hash, metadata.get(hash));
+      if (!entry.ok) return entry;
+      outputs[name] = entry.value;
+    }
+    return { ok: true, value: outputs };
+  }
+
+  /**
+   * Content type and size come from the artifact's SQL row when it has them,
+   * and from the store otherwise: the store knows every artifact's content
+   * type even if its metadata row is missing. A binary or oversized output
+   * with a complete row is never loaded, so the bytes stay out of memory.
+   */
+  async #describeOutput(
+    hash: string,
+    metadata?: ArtifactIndex,
+  ): Promise<Result<RunOutputEntry, string>> {
+    const knownType = metadata?.contentType;
+    const knownSize = metadata?.size;
+    const describe = (
+      contentType: string,
+      size: number | undefined,
+      payload?: JsonValue,
+    ): RunOutputEntry => ({
+      ok: true,
+      hash,
+      contentType,
+      ...(size !== undefined ? { size } : {}),
+      ...(payload !== undefined ? { payload } : {}),
+    });
+
+    if (
+      knownType !== undefined &&
+      knownSize !== undefined &&
+      !canInline(knownType, knownSize)
+    ) {
+      return { ok: true, value: describe(knownType, knownSize) };
+    }
+
+    const loaded = await this.artifacts.load(hash);
+    if (!loaded.ok) {
+      return {
+        ok: false,
+        error: `Unable to load output artifact ${hash}: ${loaded.error.message}`,
+      };
+    }
+
+    const contentType = knownType ?? loaded.contentType;
+    const size = knownSize ?? storedSize(loaded.value);
+    if (
+      loaded.value instanceof Uint8Array ||
+      !canInline(contentType, size ?? jsonSize(loaded.value))
+    ) {
+      return { ok: true, value: describe(contentType, size) };
+    }
+    return { ok: true, value: describe(contentType, size, loaded.value) };
   }
 
   async #validateRunRequest(request: RunRequest): Promise<void> {
@@ -217,3 +330,18 @@ export class RunService implements RunServicePort {
   //   return { ok: true, value: runParams };
   // }
 }
+
+const canInline = (contentType: string, size: number): boolean =>
+  inferFormatFromContentType(contentType) !== "bytes" &&
+  size <= MAX_INLINE_OUTPUT_BYTES;
+
+// A loaded value's byte length, where it is recoverable. Parsed JSON is not:
+// whitespace in the stored bytes is gone.
+const storedSize = (value: JsonValue | Uint8Array): number | undefined => {
+  if (value instanceof Uint8Array) return value.byteLength;
+  if (typeof value === "string") return new TextEncoder().encode(value).length;
+  return undefined;
+};
+
+const jsonSize = (value: JsonValue): number =>
+  new TextEncoder().encode(JSON.stringify(value)).length;

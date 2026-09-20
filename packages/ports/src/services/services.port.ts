@@ -17,6 +17,7 @@ import type {
   Result,
   RunDetail,
   RunListItem,
+  RunOutputs,
   RunParamManifest,
   SimDefinition,
   SimListItem,
@@ -103,6 +104,7 @@ export interface RunServicePort {
   listRunsByFlowVersionId(flowVersionId: string): Promise<RunListItem[]>;
   getRunDetail(runId: string): Promise<Result<RunDetail, string>>;
   getRunParams(runId: string): Promise<Result<RunParamManifest, string>>;
+  getRunOutputs(runId: string): Promise<Result<RunOutputs, string>>;
   // getRunParamsIndex(runId: string): Promise<Result<RunParams, string>>;
 }
 
