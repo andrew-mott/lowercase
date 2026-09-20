@@ -6,6 +6,7 @@ import type {
   Ref,
 } from "@lcase/types";
 import { classifyContentType } from "./artifact-compat.js";
+import { validateFlowOutputs } from "./analyze-outputs.js";
 import { parseStepRefs } from "./parse-references.js";
 import { stepExports } from "./step-exports.js";
 
@@ -36,6 +37,8 @@ export function analyzeRefs(fd: FlowDefinition, fa: FlowAnalysis) {
       validateBinaryRefPosition(ref, fd);
     if (problem) fa.problems.push(problem);
   }
+
+  fa.problems.push(...validateFlowOutputs(fd));
   return fa;
 }
 

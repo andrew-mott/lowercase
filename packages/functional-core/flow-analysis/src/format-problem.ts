@@ -1,4 +1,4 @@
-import type { FlowProblem } from "@lcase/types";
+import type { FlowProblem, InvalidFlowOutputTargetProblem } from "@lcase/types";
 
 export function formatProblem(problem: FlowProblem): string {
   switch (problem.type) {
@@ -22,7 +22,23 @@ export function formatProblem(problem: FlowProblem): string {
       return `Step "${problem.stepId}" has an invalid reference scope in "${problem.refString}".`;
     case "InvalidBinaryRefPosition":
       return `Step "${problem.ref.stepId}" references binary param "${problem.paramName}" somewhere other than an http step's body.artifact or a multipart file's artifact field.`;
+    case "InvalidFlowOutputPayload":
+      return `Flow output "${problem.outputName}" has payload "${problem.payloadDefinition}", which isn't a single reference to a step's output or export.`;
+    case "InvalidFlowOutputTarget":
+      return formatOutputTarget(problem);
     case "CycleDetected":
       return "This flow has a cycle somewhere among its steps.";
+  }
+}
+
+function formatOutputTarget(problem: InvalidFlowOutputTargetProblem): string {
+  const output = `Flow output "${problem.outputName}"`;
+  switch (problem.reason) {
+    case "unknown-step":
+      return `${output} references step "${problem.targetStepId}", which doesn't exist.`;
+    case "undeclared-export":
+      return `${output} references an export that step "${problem.targetStepId}" doesn't declare.`;
+    case "no-output":
+      return `${output} references the output of step "${problem.targetStepId}", which doesn't produce one.`;
   }
 }

@@ -6,6 +6,16 @@ export type FlowParamDefinition = {
   optional?: true;
 };
 
+/**
+ * One named result of a flow. `payload` is a reference to a step's whole
+ * output or one of its exports, e.g. `{{steps.tts.output}}`. It is an object,
+ * not a bare string, so a later output can be a JSON structure with
+ * references inside it.
+ */
+export type FlowOutputDefinition = {
+  payload: string;
+};
+
 export type FlowKind = "business" | "eval";
 
 export type FlowDefinition = {
@@ -15,7 +25,7 @@ export type FlowDefinition = {
   kind?: FlowKind;
   params?: Record<string, FlowParamDefinition>;
   inputs?: Record<string, unknown>;
-  outputs?: Record<string, unknown>;
+  outputs?: Record<string, FlowOutputDefinition>;
   start: string;
   steps: Record<string, StepDefinition>;
 };
