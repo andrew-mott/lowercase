@@ -1,4 +1,5 @@
 import type { ContentType, TextSafeContentType } from "../flow/content-type.js";
+import type { Result } from "../result.type.js";
 
 type StepId = string;
 
@@ -83,6 +84,20 @@ export type InvalidBinaryRefPositionProblem = {
   ref: Ref;
   paramName: string;
 };
+// an output's payload isn't a single whole-value reference to a step's
+// `output` or `exports.<name>`
+export type InvalidFlowOutputPayloadProblem = {
+  type: "InvalidFlowOutputPayload";
+  outputName: string;
+  // the payload exactly as the flow definition wrote it
+  payloadDefinition: string;
+};
+export type InvalidFlowOutputTargetProblem = {
+  type: "InvalidFlowOutputTarget";
+  outputName: string;
+  targetStepId: StepId;
+  reason: "unknown-step" | "undeclared-export" | "no-output";
+};
 export type UnreachableRefProblem = {
   type: "UnreachableRef";
   ref: Ref;
@@ -106,7 +121,9 @@ export type FlowProblem =
   | UnreachableRefProblem
   | CycleDetectedProblem
   | InvalidRefScopeProblem
-  | InvalidBinaryRefPositionProblem;
+  | InvalidBinaryRefPositionProblem
+  | InvalidFlowOutputPayloadProblem
+  | InvalidFlowOutputTargetProblem;
 
 export type ProblemType = FlowProblem["type"];
 
@@ -133,3 +150,8 @@ export type ExportRef = {
   type: TextSafeContentType;
   schema?: Record<string, unknown>;
 };
+
+/*-- what a flow output resolved to for one run --*/
+export type FlowOutputSuccess = { hash: string };
+export type FlowOutputError = { reason: "not-produced" | "step-failed" };
+export type FlowOutputResult = Result<FlowOutputSuccess, FlowOutputError>;

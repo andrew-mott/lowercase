@@ -48,7 +48,8 @@ Settled in discussion before any Change was written, so each Change can build on
 | C6     | Output storage stores a response as what it says it is        | merged (#398) | [4]   |          |
 | C7     | Engine planning and dispatch for http                         | merged (#399) | [5]   |          |
 | C8     | Accept binary uploads                                         | merged (#400) | [6]   |          |
-| C9     | Wildcard param types                                          | in review     | [6]   |          |
+| C9     | Wildcard param types                                          | merged (#401) | [6]   |          |
+| C10    | Flow outputs                                                  | scoping       | [7]   |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
@@ -56,6 +57,7 @@ Settled in discussion before any Change was written, so each Change can build on
 [4]: ./arcs/worker-http-executor.md
 [5]: ./arcs/engine-http-dispatch.md
 [6]: ./arcs/binary-uploads.md
+[7]: ./arcs/results-out.md
 
 ## Planned arcs
 
@@ -74,7 +76,7 @@ Estimates, not commitments. The Change numbers are a guess at the map ahead and 
 4. **The flows (A9).** The first Change reaches the finish line.
    - C15: the transcription flow and the client script.
    - C16: `{{steps.X.output}}`, with the worker's dynamic content-type check.
-   - C17: the text-to-speech round trip. The later target flows follow.
+   - C17: the text-to-speech round trip. The later target flows follow. Unverified: whether the local speech server (Speaches) serves an OpenAI-style text-to-speech route. It began as a transcription-only server and may have added synthesis since, so check its API before designing the step.
 
 ## Not yet scoped
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   EvalContextSource,
   ExportDeclaration,
+  FlowOutputDefinition,
   FlowParamDefinition,
   StepHttpJson,
   StepMcp,
@@ -160,6 +161,12 @@ export const FlowParamDefinitionSchema = z
   })
   .strict() satisfies z.ZodType<FlowParamDefinition>;
 
+export const FlowOutputSchema = z
+  .object({
+    payload: z.string(),
+  })
+  .strict() satisfies z.ZodType<FlowOutputDefinition>;
+
 export const FlowSchema = z
   .object({
     name: z.string().min(1),
@@ -167,7 +174,7 @@ export const FlowSchema = z
     description: z.string().optional(),
     kind: z.enum(["business", "eval"]).optional(),
     params: z.record(z.string(), FlowParamDefinitionSchema).optional(),
-    outputs: z.record(z.string(), z.unknown()).optional(),
+    outputs: z.record(z.string(), FlowOutputSchema).optional(),
     start: z.string().min(1),
     steps: z.record(z.string(), StepSchema),
   })

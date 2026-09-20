@@ -1,6 +1,6 @@
 # Voice Pipeline — Arc A6: Binary uploads (Changes C8–C9)
 
-**Previous:** [The engine dispatches http](./engine-http-dispatch.md) (Change C7)
+**Previous:** [The engine dispatches http](./engine-http-dispatch.md) (Change C7) · **Next:** [Results out](./results-out.md) (Changes C10–C12)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc lets a client put binary content, audio first, into the system through the API, and lets a flow accept a family of audio types rather than one exact type. An `http` step can already send an uploaded artifact and the engine can already dispatch it, so this is the last thing between a real audio file and a run.
 
@@ -29,7 +29,7 @@ Matches the plan, with one finding along the way (the relabelling bullet above).
 - **Smoke check.** With no local edits, the embedded host stored an uploaded wav as a `bytes` artifact under `audio/wav`.
 - **Deliberately not done.** No route logic changed. Content types are not matched beyond exact equality yet, the limit is not configurable, and uploads are not streamed. `ArtifactPutInput`'s `format` discriminant and the content-type relabelling are both recorded in `docs/todo.md`.
 
-## Change C9 - Wildcard param types - in review
+## Change C9 - Wildcard param types - merged (#401)
 
 ### Discussion
 

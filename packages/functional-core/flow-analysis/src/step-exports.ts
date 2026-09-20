@@ -10,3 +10,11 @@ export function stepExports(
   if (step.type === "httpjson" || step.type === "http") return step.exports;
   return undefined;
 }
+
+/**
+ * Whether a step stores a whole output that other things can reference as
+ * `steps.<id>.output`. Control-flow steps never do.
+ */
+export function stepHasOutput(step: StepDefinition): boolean {
+  return step.type === "httpjson" || step.type === "http";
+}

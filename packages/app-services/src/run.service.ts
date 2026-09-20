@@ -202,7 +202,9 @@ export class RunService implements RunServicePort {
       (problem) =>
         problem.type === "InvalidExportRef" ||
         problem.type === "InvalidExportRefPath" ||
-        problem.type === "InvalidBinaryRefPosition",
+        problem.type === "InvalidBinaryRefPosition" ||
+        problem.type === "InvalidFlowOutputPayload" ||
+        problem.type === "InvalidFlowOutputTarget",
     );
     if (problems.length > 0) {
       throw new Error(`Invalid step reference(s): ${JSON.stringify(problems)}`);
