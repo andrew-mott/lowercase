@@ -16,6 +16,7 @@ import type {
   JobCompletedEvent,
   JobFailedEvent,
   JobHttpJsonSubmittedData,
+  JobHttpSubmittedData,
   JobMcpSubmittedData,
   JobScope,
   RunCompletedData,
@@ -216,6 +217,13 @@ export type PublishJobHttpJsonSubmittedFx = {
   traceId: string;
 };
 
+export type PublishJobHttpSubmittedFx = {
+  type: "PublishJobHttpSubmitted";
+  scope: JobScope & Omit<CloudScope, "source">;
+  data: JobHttpSubmittedData;
+  traceId: string;
+};
+
 export type EmitJobMcpSubmittedFx = {
   type: "EmitJobMcpSubmitted";
   scope: Omit<JobScope, "jobid"> & Omit<CloudScope, "source">;
@@ -261,6 +269,7 @@ export type DispatchInternalFx = {
 export type EngineEffect =
   | EmitRunStartedFx
   | PublishJobHttpJsonSubmittedFx
+  | PublishJobHttpSubmittedFx
   | EmitJobMcpSubmittedFx
   | EmitRunDeniedFx
   | EmitRunCompletedFx
@@ -321,6 +330,8 @@ export type EffectHandlerDeps = {
   enqueue: (message: EngineMessage) => void;
   processAll: () => void;
   artifacts: ArtifactReaderPort;
-  jobCommands: MessagePublisher<"job.httpjson.submitted">;
+  jobCommands: MessagePublisher<
+    "job.httpjson.submitted" | "job.http.submitted"
+  >;
   source: string;
 };

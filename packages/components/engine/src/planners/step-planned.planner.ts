@@ -6,6 +6,7 @@ import type {
   EngineState,
   Planner,
   PublishJobHttpJsonSubmittedFx,
+  PublishJobHttpSubmittedFx,
 } from "../engine.types.js";
 import type { StepPlannedMsg } from "../types/message.types.js";
 import { makeStepRefs } from "../references/value-refs.js";
@@ -122,6 +123,40 @@ export const stepPlannedPlanner: Planner<StepPlannedMsg> = (
       type: "PublishJobHttpJsonSubmitted",
       scope: jobScope,
       data: jobData,
+      traceId: newRun.traceId,
+    };
+    effects.push(publishJob);
+  } else if (stepType === "http" && step.type === "http") {
+    const jobRefs = makeStepRefs(
+      stepId,
+      newRun.flowAnalysis.refs,
+      newRun.steps,
+      newRun.params,
+      flow.definition.params,
+      flow.definition.steps,
+    );
+    const exportRefs = newRun.flowAnalysis.exportRefsByStep?.[stepId] ?? {};
+
+    const jobId = "job-" + randomUUID();
+    const publishJob: PublishJobHttpSubmittedFx = {
+      type: "PublishJobHttpSubmitted",
+      scope: {
+        flowid: newRun.flowId,
+        flowversionid: newRun.flowVersionId,
+        runid: runId,
+        stepid: stepId,
+        jobid: jobId,
+        capid: "http" as const,
+        toolid: "http",
+      },
+      data: {
+        url: step.url,
+        ...(step.body ? { body: step.body } : {}),
+        ...(step.headers ? { headers: step.headers } : {}),
+        ...(step.method ? { method: step.method } : {}),
+        refs: jobRefs,
+        ...(Object.keys(exportRefs).length > 0 ? { exportRefs } : {}),
+      },
       traceId: newRun.traceId,
     };
     effects.push(publishJob);

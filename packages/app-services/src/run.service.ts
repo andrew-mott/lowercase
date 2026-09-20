@@ -24,10 +24,10 @@ import type {
 } from "@lcase/types";
 import { FlowSchema } from "@lcase/specs";
 
-// `http` is not dispatched by the engine yet, and `mcp` lost its worker executor
-// when packages/tools was deleted (docs/todo.md).
+// `mcp` lost its worker executor when packages/tools was deleted
+// (docs/todo.md).
 const STEP_TYPES_WITHOUT_EXECUTOR: ReadonlySet<StepDefinition["type"]> =
-  new Set(["http", "mcp"]);
+  new Set(["mcp"]);
 
 type RunServiceDeps = {
   artifactRepository: ArtifactRepositoryPort;

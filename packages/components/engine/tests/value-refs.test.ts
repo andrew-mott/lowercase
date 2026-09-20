@@ -48,6 +48,48 @@ describe("value refs", () => {
     ]);
   });
 
+  it("carries an http step's declared export type onto a downstream ref", () => {
+    const ref: Ref = {
+      valuePath: ["steps", "stt", "exports", "transcript"],
+      scope: "steps",
+      stepId: "reply",
+      bindPath: ["body"],
+      string: "steps.stt.exports.transcript",
+      interpolated: false,
+      hash: null,
+    };
+    const steps = {
+      stt: {
+        status: "completed",
+        attempt: 1,
+        output: null,
+        outputHash: "output-hash",
+        exportHashes: { transcript: "transcript-hash" },
+        resolved: {},
+      },
+    } satisfies RunContext["steps"];
+    const stepDefinitions: FlowDefinition["steps"] = {
+      stt: {
+        type: "http",
+        url: "url",
+        exports: {
+          transcript: { ref: "{{output.text}}", type: "text/plain" },
+        },
+      },
+    };
+
+    expect(
+      makeStepRefs("reply", [ref], steps, {}, undefined, stepDefinitions),
+    ).toEqual([
+      {
+        ...ref,
+        valuePath: [],
+        hash: "transcript-hash",
+        exportType: "text/plain",
+      },
+    ]);
+  });
+
   it("keeps direct step output refs relative to the primary artifact", () => {
     const ref: Ref = {
       valuePath: ["steps", "foo", "body", "answer"],
