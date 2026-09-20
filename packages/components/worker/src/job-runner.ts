@@ -2,8 +2,8 @@ import { resolveJsonPath } from "@lcase/json-ref-binder";
 import type { ArtifactReadWritePort } from "@lcase/ports";
 import type { Ref } from "@lcase/types";
 import {
-  storeExecutionOutputs,
-  tryStoreOutput,
+  storeCompletedOutputs,
+  tryStoreFailureOutput,
 } from "./execution-output-storage.js";
 import type { StoredExecutionOutputs } from "./job-result.factories.js";
 import type {
@@ -117,14 +117,19 @@ export class JobRunner {
       // primary, more important protocol error.
       const output =
         protocolResult.payload !== undefined
-          ? await tryStoreOutput(this.#deps.artifacts, protocolResult.payload)
+          ? await tryStoreFailureOutput(
+              this.#deps.artifacts,
+              protocolResult.payload,
+              protocolResult.contentType,
+            )
           : undefined;
       return { kind: "failed", error: protocolResult.error, output };
     }
 
-    const stored = await storeExecutionOutputs(
+    const stored = await storeCompletedOutputs(
       this.#deps.artifacts,
       protocolResult.payload,
+      protocolResult.contentType,
       work.exportRefs,
     );
     if (!stored.ok) {

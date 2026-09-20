@@ -36,12 +36,13 @@ export type ResolvedHttpJsonRequest = {
 
 // Deliberately narrower than a raw fetch Response -- `ok`/`redirected`/
 // `statusText`/final `url`/every header are not durable workflow output.
-// `contentType` is captured for a future caller to decide what to do with
-// (see docs/initiatives/voice-pipeline/arcs/worker-http-executor.md, Change
-// C6) -- `body` itself is still parsed as JSON-or-text only, unchanged.
+// `body` mirrors AutoLoadResult's decoded-value convention (JsonValue | string
+// | Uint8Array, `string` technically redundant with JsonValue but kept for
+// the same clarity): a JSON response decodes to JsonValue, text/* to a
+// string, anything else to raw bytes, always paired with `contentType`.
 export type HttpJsonResponse = {
   status: number;
-  body: JsonValue;
+  body: JsonValue | string | Uint8Array;
   contentType?: string;
 };
 

@@ -44,8 +44,8 @@ Settled in discussion before any Change was written, so each Change can build on
 | C2     | Widen content types past JSON/text/markdown                   | merged (#394) | [2]   |          |
 | C3     | The http job's command and terminal Messages                  | merged (#395) | [3]   |          |
 | C4     | A shared executor for http and httpjson                       | merged (#396) | [4]   |          |
-| C5     | Worker and JobRunner wiring for two submissions, one executor | in progress   | [4]   |          |
-| C6     | Output storage stores a response as what it says it is        | not started   | [4]   |          |
+| C5     | Worker and JobRunner wiring for two submissions, one executor | merged (#397) | [4]   |          |
+| C6     | Output storage stores a response as what it says it is        | in progress   | [4]   |          |
 | C7     | Engine planning and dispatch for http                         | not started   |       |          |
 
 [1]: ./arcs/http-step.md

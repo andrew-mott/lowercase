@@ -1,3 +1,4 @@
+import { classifyContentType } from "@lcase/flow-analysis";
 import type { JsonValue } from "@lcase/types";
 import type { JobExecutionError } from "../../job.contracts.js";
 import type {
@@ -94,13 +95,32 @@ function toFetchBody(
   }
 }
 
-async function readResponseBody(response: Response): Promise<JsonValue> {
-  const contentType = response.headers.get("content-type");
+// A raw header commonly carries parameters (`application/json;
+// charset=utf-8`) that classifyContentType's exact/prefix matching was never
+// meant to see -- it's designed for a flow's own clean, author-declared type
+// strings. Stripped here once, so classification and the stored contentType
+// agree on the same clean value.
+function baseContentType(header: string | null): string | undefined {
+  return header?.split(";")[0]?.trim() || undefined;
+}
+
+async function readResponseBody(
+  response: Response,
+  contentType: string | undefined,
+): Promise<JsonValue | string | Uint8Array> {
   if (response.status === 204 || response.status === 205) {
     return null;
   }
-  if (contentType && contentType.includes("application/json")) {
+  // A missing header falls back to "text", matching the old code's behavior
+  // of always falling through to response.text() for anything not recognized
+  // as JSON, header present or not.
+  const kind =
+    contentType === undefined ? "text" : classifyContentType(contentType);
+  if (kind === "json") {
     return (await response.json()) as JsonValue;
+  }
+  if (kind === "binary") {
+    return new Uint8Array(await response.arrayBuffer());
   }
   const text = await response.text();
   return text.length > 0 ? text : null;
@@ -137,10 +157,11 @@ async function invoke(
   // failure on a non-2xx response never masks the real HTTP status (a
   // confirmed bug in the old tool, which parsed first).
   const isSuccess = response.status >= 200 && response.status <= 299;
+  const contentType = baseContentType(response.headers.get("content-type"));
 
-  let body: JsonValue;
+  let body: JsonValue | string | Uint8Array;
   try {
-    body = await readResponseBody(response);
+    body = await readResponseBody(response, contentType);
   } catch (err) {
     if (!isSuccess) {
       return {
@@ -165,7 +186,7 @@ async function invoke(
   const httpJsonResponse: HttpJsonResponse = {
     status: response.status,
     body,
-    contentType: response.headers.get("content-type") ?? undefined,
+    contentType,
   };
   if (!isSuccess) {
     return {

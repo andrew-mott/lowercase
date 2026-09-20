@@ -6,17 +6,17 @@ import type { ResolvedHttpJsonRequest } from "./http-json/http-json.types.js";
 export type ResolvedProtocolRequest = ResolvedHttpJsonRequest;
 
 export type ProtocolResult =
-  // `contentType` is the response's real Content-Type header, captured for a
-  // future caller (see worker-http-executor.md, Change C6) -- `payload` is
-  // still always JSON-or-text, unchanged.
-  | { ok: true; payload: JsonValue; contentType?: string }
+  // `payload` mirrors AutoLoadResult's decoded-value convention -- JSON
+  // decodes to JsonValue, text/* to a string, anything else to raw bytes,
+  // always paired with the response's real Content-Type on `contentType`.
+  | { ok: true; payload: JsonValue | string | Uint8Array; contentType?: string }
   // `payload` here is a parseable failure response body -- carried so it can
   // become the failed JobResult's optional `output` (debugging data via an
   // artifact reference, never a raw response in the lifecycle event).
   | {
       ok: false;
       error: JobExecutionError;
-      payload?: JsonValue;
+      payload?: JsonValue | string | Uint8Array;
       contentType?: string;
     };
 

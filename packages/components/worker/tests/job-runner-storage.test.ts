@@ -121,6 +121,61 @@ describe("JobRunner output storage", () => {
     });
   });
 
+  it("stores a successful protocol result under its own real content type, not application/json", async () => {
+    const { runner, store } = makeJobRunner({
+      protocolResult: () => ({
+        ok: true,
+        payload: "plain text result",
+        contentType: "text/plain",
+      }),
+    });
+
+    const outcome = await runner.run(makeWork(), makeContext());
+    if (outcome.kind !== "completed") {
+      throw new Error(`expected completed, got ${outcome.kind}`);
+    }
+
+    expect(store.get(outcome.outputs.output.hash)).toEqual({
+      contentType: "text/plain",
+      content: "plain text result",
+    });
+  });
+
+  it("stores a genuinely binary protocol result and fails any declared export against it", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const { runner, store } = makeJobRunner({
+      protocolResult: () => ({
+        ok: true,
+        payload: bytes,
+        contentType: "audio/wav",
+      }),
+    });
+    const work = makeWork({
+      exportRefs: {
+        summary: {
+          exportName: "summary",
+          valuePath: ["output", "message"],
+          scope: "output",
+          string: "steps.x.exports.summary",
+          type: "text/plain",
+        },
+      },
+    });
+
+    const outcome = await runner.run(work, makeContext());
+
+    expect(outcome).toMatchObject({
+      kind: "failed",
+      error: { code: "EXPORT_RESOLUTION_FAILED", retryable: false },
+    });
+    const output = (outcome as { output?: { hash: string } }).output;
+    expect(output).toBeDefined();
+    expect(store.get(output!.hash)).toEqual({
+      contentType: "audio/wav",
+      content: bytes,
+    });
+  });
+
   it("a schema-invalid export fails the job while retaining the already-stored primary output", async () => {
     const { runner } = makeJobRunner({
       protocolResult: () => ({ ok: true, payload: { message: "hello" } }),
