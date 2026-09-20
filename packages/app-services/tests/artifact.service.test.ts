@@ -7,6 +7,16 @@ import type {
 } from "@lcase/ports";
 import type { ArtifactIndex, FlowDefinition } from "@lcase/types";
 
+const audioFlow = {
+  name: "Transcribe",
+  version: "v1",
+  params: { audio: { type: "audio/wav" } },
+  start: "transcribe",
+  steps: {
+    transcribe: { type: "httpjson", url: "https://example.com" },
+  },
+} satisfies FlowDefinition;
+
 function makeArtifactService(options?: {
   flow?: FlowDefinition;
   artifact?: ArtifactIndex;
@@ -79,16 +89,34 @@ function makeArtifactService(options?: {
 }
 
 describe("ArtifactService.createArtifact", () => {
-  it("temporarily rejects format: bytes, without writing anything", async () => {
+  it("saves a bytes artifact as its raw bytes under its declared content type", async () => {
     const { service, artifacts } = makeArtifactService();
+    const bytes = new Uint8Array([1, 2, 3]);
 
     const result = await service.createArtifact({
       format: "bytes",
-      value: new Uint8Array([1, 2, 3]),
+      value: bytes,
+      index: { filename: "input.wav", contentType: "audio/wav" },
     });
 
-    expect(result.ok).toBe(false);
-    expect(artifacts.save).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    expect(artifacts.save).toHaveBeenCalledWith(bytes, "audio/wav", {
+      curated: true,
+      filename: "input.wav",
+    });
+  });
+
+  it("stores a bytes artifact with no declared type as application/octet-stream", async () => {
+    const { service, artifacts } = makeArtifactService();
+    const bytes = new Uint8Array([1, 2, 3]);
+
+    await service.createArtifact({ format: "bytes", value: bytes });
+
+    expect(artifacts.save).toHaveBeenCalledWith(
+      bytes,
+      "application/octet-stream",
+      { curated: true },
+    );
   });
 
   it("forces curated: true even with no metadata at all", async () => {
@@ -155,6 +183,42 @@ describe("ArtifactService.createArtifact", () => {
     const result = await service.createArtifact(
       { format: "json", value: { hello: "world" } }, // incompatible with "text/plain"
       { flowVersionId: "version-1", paramCurations: ["weatherApiKey"] },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(artifacts.save).not.toHaveBeenCalled();
+  });
+
+  it("accepts a bytes artifact for a param declared with its content type", async () => {
+    const { service, artifacts } = makeArtifactService({
+      flow: audioFlow,
+    });
+
+    const result = await service.createArtifact(
+      {
+        format: "bytes",
+        value: new Uint8Array([1, 2, 3]),
+        index: { contentType: "audio/wav" },
+      },
+      { flowVersionId: "version-1", paramCurations: ["audio"] },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(artifacts.save).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a bytes artifact whose content type differs from the param's, without writing anything", async () => {
+    const { service, artifacts } = makeArtifactService({
+      flow: audioFlow,
+    });
+
+    const result = await service.createArtifact(
+      {
+        format: "bytes",
+        value: new Uint8Array([1, 2, 3]),
+        index: { contentType: "audio/webm" },
+      },
+      { flowVersionId: "version-1", paramCurations: ["audio"] },
     );
 
     expect(result.ok).toBe(false);

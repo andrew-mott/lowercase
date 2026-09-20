@@ -59,16 +59,6 @@ export class ArtifactService implements ArtifactServicePort {
     metadata?: ArtifactUpdateMetadata,
   ): Promise<Result<ArtifactIndex, string>> {
     if (input.value === undefined) return { ok: false, error: "undefined" };
-    // temporary -- binary artifacts have no content viewer and can never
-    // satisfy any param's compatible type (isArtifactCompatible has no
-    // "bytes" case), so creation rejects them for now rather than
-    // producing an artifact the rest of the system can't do anything
-    // useful with yet. Revisit once binary is actually supported end to
-    // end (see docs/todo.md).
-    if (input.format === "bytes") {
-      return { ok: false, error: "Binary artifacts are not supported yet" };
-    }
-
     const contentType =
       input.index?.contentType ?? defaultContentTypeForFormat(input.format);
 
@@ -123,11 +113,13 @@ export class ArtifactService implements ArtifactServicePort {
             "application/json",
             writeMetadata,
           )
-        : await this.artifacts.save(
-            input.value,
-            contentType as `text/${string}`,
-            writeMetadata,
-          );
+        : input.format === "bytes"
+          ? await this.artifacts.save(input.value, contentType, writeMetadata)
+          : await this.artifacts.save(
+              input.value,
+              contentType as `text/${string}`,
+              writeMetadata,
+            );
 
     if (result.status === "failed" || result.status === "content-only") {
       return { ok: false, error: result.error.message };

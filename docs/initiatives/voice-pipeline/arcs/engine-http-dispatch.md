@@ -1,12 +1,12 @@
 # Voice Pipeline — Arc A5: The engine dispatches http (Change C7)
 
-**Previous:** [The worker's http executor](./worker-http-executor.md) (Changes C4–C6)
+**Previous:** [The worker's http executor](./worker-http-executor.md) (Changes C4–C6) · **Next:** [Binary uploads](./binary-uploads.md) (Change C8)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc makes the engine plan and dispatch an `http` step, the last piece needed for a run containing one to execute end to end. The worker side is complete after A4: it receives `job.http.submitted`, executes it, and publishes the terminal. Nothing on the engine side sends that Message yet.
 
 **Not in this arc:** retiring `httpjson`, or unifying its step type or events with `http`'s. Referencing a whole step output (`{{steps.X.output}}`), flow outputs, the artifact read path, and result retrieval for callers — all still under the Initiative's "Not yet scoped."
 
-## Change C7 - Engine planning and dispatch for http - in progress
+## Change C7 - Engine planning and dispatch for http - merged (#399)
 
 ### Discussion
 
