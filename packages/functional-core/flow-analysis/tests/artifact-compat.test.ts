@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyContentType,
   isArtifactCompatible,
+  isContentTypePattern,
 } from "../src/artifact-compat.js";
 
 describe("isArtifactCompatible()", () => {
@@ -22,6 +23,38 @@ describe("isArtifactCompatible()", () => {
 
   it("returns false when contentType is undefined", () => {
     expect(isArtifactCompatible(undefined, "application/json")).toBe(false);
+  });
+});
+
+describe("isArtifactCompatible() with a wildcard type", () => {
+  it("matches any subtype of the declared type", () => {
+    expect(isArtifactCompatible("audio/wav", "audio/*")).toBe(true);
+    expect(isArtifactCompatible("audio/webm", "audio/*")).toBe(true);
+    expect(isArtifactCompatible("audio/mp4", "audio/*")).toBe(true);
+  });
+
+  it("does not match another type, or a type that only shares the prefix text", () => {
+    expect(isArtifactCompatible("video/mp4", "audio/*")).toBe(false);
+    expect(isArtifactCompatible("audiobook/x", "audio/*")).toBe(false);
+    expect(isArtifactCompatible("audio", "audio/*")).toBe(false);
+  });
+
+  it("returns false when contentType is undefined", () => {
+    expect(isArtifactCompatible(undefined, "audio/*")).toBe(false);
+  });
+});
+
+describe("isContentTypePattern()", () => {
+  it("is true only for a type followed by /*", () => {
+    expect(isContentTypePattern("audio/*")).toBe(true);
+    expect(isContentTypePattern("text/*")).toBe(true);
+  });
+
+  it("is false for concrete types and unsupported wildcard forms", () => {
+    expect(isContentTypePattern("audio/wav")).toBe(false);
+    expect(isContentTypePattern("application/json")).toBe(false);
+    expect(isContentTypePattern("*/*")).toBe(false);
+    expect(isContentTypePattern("/*")).toBe(false);
   });
 });
 

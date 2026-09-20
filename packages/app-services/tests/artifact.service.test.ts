@@ -17,6 +17,11 @@ const audioFlow = {
   },
 } satisfies FlowDefinition;
 
+const anyAudioFlow = {
+  ...audioFlow,
+  params: { audio: { type: "audio/*" } },
+} satisfies FlowDefinition;
+
 function makeArtifactService(options?: {
   flow?: FlowDefinition;
   artifact?: ArtifactIndex;
@@ -218,6 +223,42 @@ describe("ArtifactService.createArtifact", () => {
         value: new Uint8Array([1, 2, 3]),
         index: { contentType: "audio/webm" },
       },
+      { flowVersionId: "version-1", paramCurations: ["audio"] },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(artifacts.save).not.toHaveBeenCalled();
+  });
+
+  it("accepts any audio type for a param declared as audio/*", async () => {
+    const { service, artifacts } = makeArtifactService({
+      flow: anyAudioFlow,
+    });
+
+    const result = await service.createArtifact(
+      {
+        format: "bytes",
+        value: new Uint8Array([1, 2, 3]),
+        index: { contentType: "audio/webm" },
+      },
+      { flowVersionId: "version-1", paramCurations: ["audio"] },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(artifacts.save).toHaveBeenCalledWith(
+      new Uint8Array([1, 2, 3]),
+      "audio/webm",
+      expect.anything(),
+    );
+  });
+
+  it("rejects a type outside an audio/* param, without writing anything", async () => {
+    const { service, artifacts } = makeArtifactService({
+      flow: anyAudioFlow,
+    });
+
+    const result = await service.createArtifact(
+      { format: "text", value: "hello", index: { contentType: "text/plain" } },
       { flowVersionId: "version-1", paramCurations: ["audio"] },
     );
 

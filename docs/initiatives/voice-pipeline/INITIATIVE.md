@@ -47,7 +47,8 @@ Settled in discussion before any Change was written, so each Change can build on
 | C5     | Worker and JobRunner wiring for two submissions, one executor | merged (#397) | [4]   |          |
 | C6     | Output storage stores a response as what it says it is        | merged (#398) | [4]   |          |
 | C7     | Engine planning and dispatch for http                         | merged (#399) | [5]   |          |
-| C8     | Accept binary uploads                                         | in progress   | [6]   |          |
+| C8     | Accept binary uploads                                         | merged (#400) | [6]   |          |
+| C9     | Wildcard param types                                          | in review     | [6]   |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
@@ -62,7 +63,7 @@ Estimates, not commitments. The Change numbers are a guess at the map ahead and 
 
 1. **Binary in (A6).** Small, and first because every later piece puts audio into the system through the API.
    - C8: lift the upload guard, including the `bytes` branch the save call needs.
-   - C9: how a param's declared type matches an artifact's content type. An upload's type is already the part's declared `Content-Type`, and compatibility is exact equality. The multipart parser already drops parameters, so a browser's `audio/webm;codecs=opus` arrives as `audio/webm`, but a client still has to send exactly the type a param declares. The likely shape is wildcard matching such as `audio/*` in a param's declared type. An array of types is the alternative if wildcards prove too loose. The upload size limit (currently about 1 GB, buffered in memory) is lowered in C8.
+   - C9: how a param's declared type matches an artifact's content type. An upload's type is already the part's declared `Content-Type`, and compatibility is exact equality. The multipart parser already drops parameters, so a browser's `audio/webm;codecs=opus` arrives as `audio/webm`, but a client still has to send exactly the type a param declares. Settled: wildcard matching such as `audio/*` in a param's declared type, with the worker resolving the artifact's concrete type at load time. An array of types waits until a flow needs it.
 2. **Results out (A7).** What makes a run's result reachable at all.
    - C10: flow outputs, declared in the definition and validated.
    - C11: a route returning a finished run's outputs (start, then fetch), with the generic failure shape.
