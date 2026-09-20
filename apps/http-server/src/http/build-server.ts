@@ -21,6 +21,11 @@ export type HttpSystem = {
   tap: ObservabilityTapPort;
 };
 
+// Cap on one uploaded file, applied to every multipart route. A route buffers
+// the whole file in memory, so this is a memory limit; streaming uploads would
+// be its own piece of work, not a bigger number here.
+export const maxUploadBytes = 100 * 1024 * 1024;
+
 export async function buildServer({
   services,
   tap,
@@ -36,7 +41,7 @@ export async function buildServer({
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   });
 
-  await app.register(multipart, { limits: { fileSize: 1000 * 1024 * 1024 } });
+  await app.register(multipart, { limits: { fileSize: maxUploadBytes } });
 
   await app.register(routes);
   await app.register(eventsRoute);

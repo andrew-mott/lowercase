@@ -46,19 +46,39 @@ Settled in discussion before any Change was written, so each Change can build on
 | C4     | A shared executor for http and httpjson                       | merged (#396) | [4]   |          |
 | C5     | Worker and JobRunner wiring for two submissions, one executor | merged (#397) | [4]   |          |
 | C6     | Output storage stores a response as what it says it is        | merged (#398) | [4]   |          |
-| C7     | Engine planning and dispatch for http                         | in progress   | [5]   |          |
+| C7     | Engine planning and dispatch for http                         | merged (#399) | [5]   |          |
+| C8     | Accept binary uploads                                         | in progress   | [6]   |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
 [3]: ./arcs/http-job.md
 [4]: ./arcs/worker-http-executor.md
 [5]: ./arcs/engine-http-dispatch.md
+[6]: ./arcs/binary-uploads.md
+
+## Planned arcs
+
+Estimates, not commitments. The Change numbers are a guess at the map ahead and will move as discussion splits or merges them. A Change gets a row in the index above only once it is scoped, and each arc's file is created when we reach it and holds that arc's discussion. The order follows what each arc needs from the one before.
+
+1. **Binary in (A6).** Small, and first because every later piece puts audio into the system through the API.
+   - C8: lift the upload guard, including the `bytes` branch the save call needs.
+   - C9: how a param's declared type matches an artifact's content type. An upload's type is already the part's declared `Content-Type`, and compatibility is exact equality. The multipart parser already drops parameters, so a browser's `audio/webm;codecs=opus` arrives as `audio/webm`, but a client still has to send exactly the type a param declares. The likely shape is wildcard matching such as `audio/*` in a param's declared type. An array of types is the alternative if wildcards prove too loose. The upload size limit (currently about 1 GB, buffered in memory) is lowered in C8.
+2. **Results out (A7).** What makes a run's result reachable at all.
+   - C10: flow outputs, declared in the definition and validated.
+   - C11: a route returning a finished run's outputs (start, then fetch), with the generic failure shape.
+   - C12: the raw-bytes read path, streaming through the API, with the S3 redirect as a later addition.
+3. **Inline runs (A8).** After results out, because the endpoint that takes data and the way a caller gets results back are one conversation (start and wait).
+   - C13: the run request that carries its inputs inline, turns each into an artifact, and waits for the result, so one request and one response cover the whole run.
+   - C14: naming a flow by name and version rather than three identifiers, if the discussion keeps it separate from C13.
+4. **The flows (A9).** The first Change reaches the finish line.
+   - C15: the transcription flow and the client script.
+   - C16: `{{steps.X.output}}`, with the worker's dynamic content-type check.
+   - C17: the text-to-speech round trip. The later target flows follow.
 
 ## Not yet scoped
 
-Roughly in dependency order:
+Detail behind the arcs above, roughly in dependency order:
 
-- **Uploading binary artifacts.** `ArtifactService.createArtifact` rejects any `bytes` upload with "Binary artifacts are not supported yet". Its comment says binary artifacts could never satisfy a param, which stopped being true when C2 made compatibility a plain content-type match. Found by running a trial transcription flow by hand against a local Speaches server: with the guard temporarily lifted (and the save call dispatching `bytes` to the raw-bytes overload of `save`), an `http` step transcribed an uploaded `.wav` end to end. So the guard is the only thing in the way, but it also narrows a type the save call relies on, so lifting it is a small real change, not a deletion.
 - **Starting a run with its inputs inline.** Today a client uploads each input as an artifact, then starts the run with the hashes as params. An application capturing audio should instead be able to send the audio and the flow it wants in one request, with the run path turning each part into an artifact and binding it to a param. One shape: a multipart request whose part names are param names. The open questions are how the flow is named (see the identifiers point under "Getting a result back to the caller"), how a non-file part is typed against its declared param, and where the artifact-creating step sits, since `RunService` deliberately depends only on ports and would need the artifact service or writer injected.
 - **Referencing a whole step output.** Refs reach only `steps.X.exports.Y` today. A binary response has nothing to select with a JSON path, so `{{steps.X.output}}` is needed. In an `artifact` position it passes the hash through. Interpolated into a string, as when a transcript feeds an LLM prompt, it makes sense only for a text output.
 
@@ -76,9 +96,15 @@ Roughly in dependency order:
   2. _Start and wait._ The same request held open until the run finishes, returning its outputs, with a timeout that falls back to the run ID.
   3. _Start and stream._ One request whose response is an SSE stream: the run's step and run events as progress, then its outputs as the final event. The events and the SSE machinery already exist. A browser's `EventSource` only issues GET, so a client reads this POST response with `fetch`.
 
-  The first is needed regardless. The second is the third without progress, so it may never be worth having separately. Leaning: build the first, and add the third if the client script shows that waiting hurts. This is progress about a run, not the streaming of audio between steps that stays outside this Initiative.
+  The first is needed regardless, as the fallback when a held request times out. The second is the third without progress. Leaning: build the first, then the second together with inline runs, because a capture client (an application, or something as small as a hotkey-triggered shortcut) wants one request carrying the audio and the flow and one response carrying the result. Add the third if the client script shows that waiting hurts. A held request has a limit, and a run that outlasts it answers with the run ID so the caller falls back to the first shape. A text output comes back inline in the response, and a binary output as a reference to the read route, since it cannot sit inside JSON. Whether a flow with a single output can answer with the raw body is open. This is progress about a run, not the streaming of audio between steps that stays outside this Initiative.
 
   Separately: whether a flow can be started by name and version rather than three identifiers.
+
+- How result bytes reach the caller. Leaning: the read route streams them through the API, because the filesystem store has nothing to sign a URL with and the embedded deployment must work too. On the S3 store the same route can answer with a redirect to a short-lived URL instead, so clients never see which backend they are on. Two things to check before relying on that: the client has to be able to reach the S3 endpoint (MinIO on a compose-internal network may not be reachable), and URL lifetime belongs to the deferred security pass.
+
+- How a binary output shows in the workbench, which today gets only its byte length.
+
+- What a caller sees for a run that failed. Leaning: the route returning a run's outputs has one generic shape for every flow: the run's status, its outputs when it succeeded, and on failure the failed step's id and error message. A flow does not declare its own failure results. Most failures (a server error, a timeout, an unresolved ref) belong to the run rather than to what the flow's author intended, and a declared failure result would imply routing to it, which is closer to error branches than to output declarations. Declaring one later is an additive field beside `outputs`. Open within that: how much of the failure to expose by default. The detailed event history already holds the full account for a developer, so the default may be no more than a status and a short message, with the step id as the one field to decide on.
 
 - How a flow declares exports on an `http` step whose response type is unknown until it runs. The flow validator could refuse them, or they could fail at runtime on a non-JSON response.
 
