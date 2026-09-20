@@ -305,4 +305,62 @@ describe("createHttpJsonExecutor", () => {
       contentType: "text/plain",
     });
   });
+
+  it("reads a genuinely binary response as raw bytes, not a decoded string", async () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0x00, 0x01, 0x02]);
+    const { fetch } = createFakeFetch(
+      () =>
+        new Response(bytes, {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        }),
+    );
+    const executor = createHttpJsonExecutor({ fetch });
+
+    const result = await executor.execute(req());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.payload).toBeInstanceOf(Uint8Array);
+    expect(result.payload).toEqual(bytes);
+    expect(result.contentType).toBe("image/jpeg");
+  });
+
+  it("strips Content-Type parameters before classifying, so a charset-suffixed JSON response still parses as JSON", async () => {
+    const { fetch } = createFakeFetch(
+      () =>
+        new Response(JSON.stringify({ hello: "world" }), {
+          status: 200,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+    );
+    const executor = createHttpJsonExecutor({ fetch });
+
+    const result = await executor.execute(req());
+
+    expect(result).toEqual({
+      ok: true,
+      payload: { hello: "world" },
+      contentType: "application/json",
+    });
+  });
+
+  it("treats a response with no Content-Type header as text, matching the prior default", async () => {
+    // A Uint8Array body, unlike a plain string, gets no Content-Type header
+    // auto-set by Response -- what's needed here to genuinely exercise a
+    // missing header rather than one Response filled in on our behalf.
+    const { fetch } = createFakeFetch(
+      () =>
+        new Response(new TextEncoder().encode("plain body"), { status: 200 }),
+    );
+    const executor = createHttpJsonExecutor({ fetch });
+
+    const result = await executor.execute(req());
+
+    expect(result).toEqual({
+      ok: true,
+      payload: "plain body",
+      contentType: undefined,
+    });
+  });
 });

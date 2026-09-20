@@ -1,3 +1,4 @@
+import { classifyContentType } from "@lcase/flow-analysis";
 import { resolveJsonPath } from "@lcase/json-ref-binder";
 import type { ArtifactWriterPort, SaveArtifactResult } from "@lcase/ports";
 import type { ExportRef, JsonValue } from "@lcase/types";
@@ -30,20 +31,67 @@ type ExportErrorCode = Extract<
   | "EXPORT_STORE_FAILED"
 >;
 
-export async function tryStoreOutput(
+// Saves a response payload under its own real content type instead of always
+// tagging it application/json. A defined contentType is trusted directly
+// (readResponseBody only ever produces a payload whose JS shape matches
+// classifyContentType(contentType) -- json via response.json(), text/* via
+// response.text(), anything else via response.arrayBuffer() -- so the casts
+// below encode that pairing, not a runtime check). An undefined contentType
+// falls back to classifying the payload's own JS shape, which is also what
+// keeps a bare JSON object with no known contentType tagged application/json,
+// matching the old unconditional behavior for that case.
+function saveResponsePayload(
   writer: ArtifactWriterPort,
-  payload: JsonValue,
+  payload: JsonValue | string | Uint8Array,
+  contentType: string | undefined,
+): Promise<SaveArtifactResult> {
+  if (contentType === undefined) {
+    if (payload instanceof Uint8Array) {
+      return writer.save(payload, "application/octet-stream");
+    }
+    if (typeof payload === "string") {
+      return writer.save(payload, "text/plain");
+    }
+    return writer.save(payload, "application/json");
+  }
+
+  switch (classifyContentType(contentType)) {
+    case "json":
+      return writer.save(payload as JsonValue, "application/json");
+    case "text":
+      return writer.save(payload as string, contentType as `text/${string}`);
+    case "binary":
+      return writer.save(payload as Uint8Array, contentType);
+  }
+}
+
+// The failed-job path: best-effort save of a failure response's body, purely
+// for debugging (a parseable error detail blob becomes the failed
+// JobResult's optional `output`). Storage failing here must not surface as a
+// new error -- the job is already failing for the real reason, the protocol
+// error -- so this swallows it and returns undefined rather than a
+// StoreExecutionOutputsOutcome. No export handling either: exports only ever
+// apply to a step that actually completed.
+export async function tryStoreFailureOutput(
+  writer: ArtifactWriterPort,
+  payload: JsonValue | string | Uint8Array,
+  contentType: string | undefined,
 ): Promise<ArtifactRef | undefined> {
-  const result = await writer.save(payload, "application/json");
+  const result = await saveResponsePayload(writer, payload, contentType);
   return result.status === "saved" ? { hash: result.hash } : undefined;
 }
 
-export async function storeExecutionOutputs(
+// The completed-job path: the protocol call succeeded, so this is the job's
+// real output. Storage failing here is a real failure (OUTPUT_STORE_FAILED),
+// and declared exports are resolved and stored against it, since only a
+// completed step's output is ever something a flow can export from.
+export async function storeCompletedOutputs(
   writer: ArtifactWriterPort,
-  payload: JsonValue,
+  payload: JsonValue | string | Uint8Array,
+  contentType: string | undefined,
   declarations?: Record<string, ExportRef>,
 ): Promise<StoreExecutionOutputsOutcome> {
-  const outputResult = await writer.save(payload, "application/json");
+  const outputResult = await saveResponsePayload(writer, payload, contentType);
   if (outputResult.status !== "saved") {
     return {
       ok: false,
@@ -56,11 +104,16 @@ export async function storeExecutionOutputs(
   }
 
   const output: ArtifactRef = { hash: outputResult.hash };
-  const storedExports = await storeDeclaredExports(
-    writer,
-    payload,
-    declarations,
-  );
+  // Exports select from JSON only -- a genuinely binary payload isn't a
+  // JsonValue at all, so there's nothing for resolveJsonPath to walk. A
+  // string payload still narrows into JsonValue fine and needs no special
+  // case: storeDeclaredExport already fails a declared export gracefully
+  // against a non-object root, the same way it does today for a bad
+  // valuePath.
+  const storedExports =
+    payload instanceof Uint8Array
+      ? await storeDeclaredExportsAgainstBinary(declarations, contentType)
+      : await storeDeclaredExports(writer, payload, declarations);
   if (!storedExports.ok) {
     return { ok: false, error: storedExports.error, output };
   }
@@ -72,6 +125,17 @@ export async function storeExecutionOutputs(
       ...(storedExports.exports ? { exports: storedExports.exports } : {}),
     },
   };
+}
+
+function storeDeclaredExportsAgainstBinary(
+  declarations: Record<string, ExportRef> | undefined,
+  contentType: string | undefined,
+): StoreExportsOutcome {
+  if (Object.keys(declarations ?? {}).length === 0) return { ok: true };
+  return exportFailure(
+    "EXPORT_RESOLUTION_FAILED",
+    `Cannot resolve declared exports from a binary response (content type "${contentType ?? "unknown"}")`,
+  );
 }
 
 async function storeDeclaredExports(
