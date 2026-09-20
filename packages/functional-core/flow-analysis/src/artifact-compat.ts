@@ -4,15 +4,29 @@ import type {
   TextSafeContentType,
 } from "@lcase/types";
 
-// Pure contentType equality -- no format-based fallback. Callers that only
+// A declared type ending in `/*` (`audio/*`) stands for a family of content
+// types rather than one. Only that whole-subtype form is a pattern; anything
+// fancier (`audio/x-*`, `*/*`) is deliberately not supported until a flow
+// needs it.
+export function isContentTypePattern(type: ContentType): boolean {
+  return type.length > 2 && type.endsWith("/*") && !type.startsWith("*");
+}
+
+// Content-type matching only -- no format-based fallback. Callers that only
 // have a categorical format (upload MIME sniffing, an authored artifact's
 // declared format) resolve a concrete contentType up front via
 // defaultContentTypeForFormat() instead of relying on this function to
-// infer one.
+// infer one. A declared pattern matches any subtype of its type; anything
+// else is exact equality.
 export function isArtifactCompatible(
   contentType: string | undefined,
   type: ContentType,
 ): boolean {
+  if (contentType === undefined) return false;
+  if (isContentTypePattern(type)) {
+    // keep the slash in the prefix so `audio/*` can't match `audiobook/x`
+    return contentType.startsWith(type.slice(0, -1));
+  }
   return contentType === type;
 }
 

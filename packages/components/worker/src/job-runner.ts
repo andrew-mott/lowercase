@@ -1,3 +1,7 @@
+import {
+  isArtifactCompatible,
+  isContentTypePattern,
+} from "@lcase/flow-analysis";
 import { resolveJsonPath } from "@lcase/json-ref-binder";
 import type { ArtifactReadWritePort } from "@lcase/ports";
 import type { Ref } from "@lcase/types";
@@ -52,8 +56,11 @@ type ProtocolRunOutcome =
   | { kind: "cancelled" }
   | { kind: "timeout" };
 
+// `refs` is the job's refs with any param declared as a type pattern
+// (`audio/*`) narrowed to the artifact's actual content type, which is what
+// the request materializers read when they need a concrete type.
 type ResolveRefsOutcome =
-  | { ok: true; resolved: Record<string, unknown> }
+  | { ok: true; resolved: Record<string, unknown>; refs: Ref[] }
   | { ok: false; error: JobExecutionError };
 
 type PrepareProtocolRunOutcome =
@@ -150,12 +157,12 @@ export class JobRunner {
       work.protocol.kind === "httpjson"
         ? materializeHttpJsonRequest(
             work.protocol,
-            work.refs,
+            refsOutcome.refs,
             refsOutcome.resolved,
           )
         : materializeHttpRequest(
             work.protocol,
-            work.refs,
+            refsOutcome.refs,
             refsOutcome.resolved,
           );
     if (!materialized.ok) {
@@ -237,10 +244,14 @@ export class JobRunner {
 
   async #resolveRefs(refs: Ref[]): Promise<ResolveRefsOutcome> {
     const resolved: Record<string, unknown> = {};
+    const concreteRefs: Ref[] = [];
     for (const ref of refs) {
-      if (ref.hash === null) continue;
-      const value = await this.#resolveOneRef(ref);
-      if (value === undefined) {
+      if (ref.hash === null) {
+        concreteRefs.push(ref);
+        continue;
+      }
+      const one = await this.#resolveOneRef(ref);
+      if (one === undefined) {
         return {
           ok: false,
           error: {
@@ -250,12 +261,22 @@ export class JobRunner {
           },
         };
       }
-      resolved[ref.string] = value;
+      resolved[ref.string] = one.value;
+      concreteRefs.push(
+        one.contentType === undefined
+          ? ref
+          : { ...ref, paramType: one.contentType },
+      );
     }
-    return { ok: true, resolved };
+    return { ok: true, resolved, refs: concreteRefs };
   }
 
-  async #resolveOneRef(ref: Ref): Promise<unknown> {
+  // `contentType` is set only when the ref's declared type was a pattern, and
+  // then holds the artifact's actual stored type; an exact declaration needs
+  // no narrowing.
+  async #resolveOneRef(
+    ref: Ref,
+  ): Promise<{ value: unknown; contentType?: string } | undefined> {
     if (ref.hash === null) return undefined;
     const { artifacts } = this.#deps;
 
@@ -265,13 +286,25 @@ export class JobRunner {
       (ref.scope === "params" ? ref.paramType : ref.exportType) ??
       "application/json";
 
+    // The engine only knows the declaration, not what the run's artifact
+    // is, so a pattern is settled here by loading without an expected type
+    // and checking what came back.
+    if (ref.scope === "params" && isContentTypePattern(contentType)) {
+      const result = await artifacts.load(ref.hash);
+      if (!result.ok) return undefined;
+      if (!isArtifactCompatible(result.contentType, contentType)) {
+        return undefined;
+      }
+      return { value: result.value, contentType: result.contentType };
+    }
+
     if (contentType === "application/json") {
       const result = await artifacts.load(ref.hash, "application/json");
       if (!result.ok) return undefined;
-      return resolveJsonPath(ref.valuePath, result.value);
+      return { value: resolveJsonPath(ref.valuePath, result.value) };
     }
 
     const result = await artifacts.load(ref.hash, contentType);
-    return result.ok ? result.value : undefined;
+    return result.ok ? { value: result.value } : undefined;
   }
 }

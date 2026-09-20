@@ -1,12 +1,12 @@
-# Voice Pipeline — Arc A6: Binary uploads (Change C8)
+# Voice Pipeline — Arc A6: Binary uploads (Changes C8–C9)
 
 **Previous:** [The engine dispatches http](./engine-http-dispatch.md) (Change C7)
 
-Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc lets a client put binary content, audio first, into the system through the API. An `http` step can already send an uploaded artifact and the engine can already dispatch it, so this is the last thing between a real audio file and a run.
+Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc lets a client put binary content, audio first, into the system through the API, and lets a flow accept a family of audio types rather than one exact type. An `http` step can already send an uploaded artifact and the engine can already dispatch it, so this is the last thing between a real audio file and a run.
 
-**Not in this arc:** how a param's declared type matches an artifact's content type beyond exact equality (wildcards such as `audio/*`), inline-input runs, and streaming uploads. See the Initiative's planned arcs.
+**Not in this arc:** inline-input runs and streaming uploads. See the Initiative's planned arcs.
 
-## Change C8 - Accept binary uploads - in progress
+## Change C8 - Accept binary uploads - merged (#400)
 
 ### Discussion
 
@@ -28,3 +28,27 @@ Matches the plan, with one finding along the way (the relabelling bullet above).
 - **Tests.** The service test that expected a `bytes` rejection now covers a `bytes` artifact saving under its declared type, the octet-stream default, and a param curation accepted or refused by content type. A new route-level test builds the real server with stubbed services and shows a file exactly at the limit accepted and one byte over answered with a 413 before any artifact is created.
 - **Smoke check.** With no local edits, the embedded host stored an uploaded wav as a `bytes` artifact under `audio/wav`.
 - **Deliberately not done.** No route logic changed. Content types are not matched beyond exact equality yet, the limit is not configurable, and uploads are not streamed. `ArtifactPutInput`'s `format` discriminant and the content-type relabelling are both recorded in `docs/todo.md`.
+
+## Change C9 - Wildcard param types - in review
+
+### Discussion
+
+Traced every place that reads a param's declared type.
+
+- **Compatibility is one function, called from several places.** `isArtifactCompatible` is plain equality. `RunService` calls it at run start, `ArtifactService` when creating an artifact and when editing its metadata, and the workbench directly in about five places. Making that one function understand a wildcard covers all of them.
+- **C2's binary check already copes.** `validateBinaryRefPosition` only asks whether the declared type is neither JSON nor `text/`, which `audio/*` is not.
+- **The real problem is the worker, not the matching.** The engine copies the declared type onto each job ref as `paramType`. `JobRunner.#resolveOneRef` loads the artifact under it, and `materialize-http-request.ts` sends it as the multipart part's `Content-Type`. Under a wildcard the declared type is a pattern, so loading under `audio/*` and sending a part labelled `audio/*` would both be wrong. The worker needs the artifact's actual type.
+- **The engine cannot supply it cheaply.** A run's params are name-to-hash pairs on `run.requested`, copied into run context, and the engine never sees a type. Carrying a concrete type per param would change the event data, the reducer, the run repository and likely fork and replay.
+- **Settled: the worker resolves it.** `ArtifactReaderPort.load(hash)` with no expected type already returns the stored content type with the decoded value. For a param declared with a wildcard, the worker loads that way, checks the stored type against the pattern (a mismatch is the same `TYPE_MISMATCH` as today), and writes the concrete type back onto the resolved ref so the multipart part is labelled `audio/webm`, not `audio/*`. Exact declarations keep the current typed load and are unchanged.
+- **Settled: wildcard only.** `audio/*` covers webm, m4a and wav. An array of types would change the schema and every reader that treats `type` as a string, so it waits until a flow needs it. `FlowParamDefinitionSchema` already accepts any non-empty string, so no schema change is needed for the wildcard.
+- **Frontend was open, and checked at build time.** See below.
+
+### What actually landed
+
+Matches the discussion, with no deviations.
+
+- **The matcher.** `isContentTypePattern` in flow-analysis is true only for a type followed by `/*`. `isArtifactCompatible` treats a pattern as a prefix match that keeps the slash, so `audio/*` accepts `audio/webm` but not `audiobook/x` or a bare `audio`, and anything else is still exact equality. Forms such as `*/*` and `audio/x-*` are deliberately not patterns. Nothing else in flow-analysis changed: the schema already accepted any non-empty string as a param type, and C2's binary-position check already classifies `audio/*` as binary.
+- **The worker.** For a param declared with a pattern, `JobRunner` loads the artifact without an expected type, refuses it with `INPUT_RESOLUTION_FAILED` if the load fails or the stored type is outside the pattern, and hands the request materializers a copy of the refs with `paramType` narrowed to the stored type. The multipart part is therefore labelled `audio/webm`, not `audio/*`. Exact declarations keep their typed loads.
+- **Tests.** Matcher cases in flow-analysis; a new worker test file covering a pattern param stored under another subtype, a type outside the pattern, a missing artifact, and an exact declaration still requiring an exact match; app-services cases for curation against a pattern param and for a run param (a new small file, since the artifact service test file was already long).
+- **Frontend.** Nothing changed. Every compatibility check in the workbench goes through the shared function, so a pattern param lists matching artifacts, and the places that print the declared type show `audio/*` as it is. The text-only guards (`isTextSafeContentType`) are false for a pattern and simply skip their presets. Separately, and not part of this Change, the create-artifact dialog only accepts JSON, text and Markdown files, so audio cannot be uploaded from the workbench; it goes through the API.
+- **Deliberately not done.** Arrays of types, partial wildcards, and the engine's `resolve-branch-value` effect, which still loads a param under its declared type; a pattern-typed binary param cannot sensibly drive a branch.
