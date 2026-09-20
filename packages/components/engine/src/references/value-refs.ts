@@ -121,6 +121,9 @@ function getExportType(
     return undefined;
   }
   const sourceStep = stepDefinitions[sourceStepId];
-  if (!sourceStep || sourceStep.type !== "httpjson") return undefined;
+  if (!sourceStep) return undefined;
+  if (sourceStep.type !== "httpjson" && sourceStep.type !== "http") {
+    return undefined;
+  }
   return sourceStep.exports?.[exportName]?.type;
 }

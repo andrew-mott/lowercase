@@ -19,7 +19,9 @@ export function buildEngine(
   jobParser: JobParserPort,
   runQuery: RunQueryPort,
   artifacts: ArtifactReaderPort,
-  jobCommands: MessagePublisher<"job.httpjson.submitted">,
+  jobCommands: MessagePublisher<
+    "job.httpjson.submitted" | "job.http.submitted"
+  >,
 ): Engine {
   return new Engine({
     bus,

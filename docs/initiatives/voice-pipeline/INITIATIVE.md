@@ -45,18 +45,21 @@ Settled in discussion before any Change was written, so each Change can build on
 | C3     | The http job's command and terminal Messages                  | merged (#395) | [3]   |          |
 | C4     | A shared executor for http and httpjson                       | merged (#396) | [4]   |          |
 | C5     | Worker and JobRunner wiring for two submissions, one executor | merged (#397) | [4]   |          |
-| C6     | Output storage stores a response as what it says it is        | in progress   | [4]   |          |
-| C7     | Engine planning and dispatch for http                         | not started   |       |          |
+| C6     | Output storage stores a response as what it says it is        | merged (#398) | [4]   |          |
+| C7     | Engine planning and dispatch for http                         | in progress   | [5]   |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
 [3]: ./arcs/http-job.md
 [4]: ./arcs/worker-http-executor.md
+[5]: ./arcs/engine-http-dispatch.md
 
 ## Not yet scoped
 
 Roughly in dependency order:
 
+- **Uploading binary artifacts.** `ArtifactService.createArtifact` rejects any `bytes` upload with "Binary artifacts are not supported yet". Its comment says binary artifacts could never satisfy a param, which stopped being true when C2 made compatibility a plain content-type match. Found by running a trial transcription flow by hand against a local Speaches server: with the guard temporarily lifted (and the save call dispatching `bytes` to the raw-bytes overload of `save`), an `http` step transcribed an uploaded `.wav` end to end. So the guard is the only thing in the way, but it also narrows a type the save call relies on, so lifting it is a small real change, not a deletion.
+- **Starting a run with its inputs inline.** Today a client uploads each input as an artifact, then starts the run with the hashes as params. An application capturing audio should instead be able to send the audio and the flow it wants in one request, with the run path turning each part into an artifact and binding it to a param. One shape: a multipart request whose part names are param names. The open questions are how the flow is named (see the identifiers point under "Getting a result back to the caller"), how a non-file part is typed against its declared param, and where the artifact-creating step sits, since `RunService` deliberately depends only on ports and would need the artifact service or writer injected.
 - **Referencing a whole step output.** Refs reach only `steps.X.exports.Y` today. A binary response has nothing to select with a JSON path, so `{{steps.X.output}}` is needed. In an `artifact` position it passes the hash through. Interpolated into a string, as when a transcript feeds an LLM prompt, it makes sense only for a text output.
 
   Unlike a param, a step's output has no declared type anywhere in the flow definition — what it actually is isn't known until the step runs. So this can't be checked statically the way C2's `validateBinaryRefPosition` checks a param's declared type; the check has to be dynamic, against the real thing. The worker is the natural place for it: `ArtifactReaderPort.load(hash)`'s untyped overload already returns `{ contentType, value }` together, so resolving a `steps.X.output` ref already hands back the real content type right where it's about to be used. The worker asking itself "is this the right content type for what I'm about to do with it" at that point is the same rule `validateBinaryRefPosition` enforces for params, just checked dynamically instead of statically — not necessarily the same function, the mechanism is still open. Whether the engine also gets a pre-dispatch check, to fail before a job is even sent rather than only once the worker looks, is a separate, undecided enhancement on top.
@@ -68,8 +71,6 @@ Roughly in dependency order:
 
 **Open decisions:**
 
-- The command's name. An imperative type such as `job.http.execute`, against the past-tense `job.httpjson.submitted`.
-- Generic terminals, or `job.http.completed`/`failed`. Generic terminals avoid the multiplication, but a type name alone no longer says what kind of job finished. Check whether the observability projection or the workbench branches on the terminal's type string before choosing.
 - How a caller gets a run's result, which is also what the API promises to callers outside the workbench. Three shapes, each built on the one before:
   1. _Start, then fetch._ `POST /runs` returns the run ID as today, and the client waits (polling, or `/events`) and then reads a finished run's outputs route.
   2. _Start and wait._ The same request held open until the run finishes, returning its outputs, with a timeout that falls back to the run ID.

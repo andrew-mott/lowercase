@@ -1,6 +1,6 @@
 # Voice Pipeline — Arc A4: The worker's http executor (Changes C4–C6)
 
-**Previous:** [The http job](./http-job.md) (Changes C3)
+**Previous:** [The http job](./http-job.md) (Changes C3) · **Next:** [The engine dispatches http](./engine-http-dispatch.md) (Changes C7)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc builds the worker's execution logic for `http` — by widening `httpjson`'s existing executor rather than building a second one beside it. That unification is scoped to exactly one layer: the flow step types (`httpjson`, `http`) and the event families (`job.httpjson.*`, `job.http.*`) both stay separate, exactly as Change C3 decided. Only the worker's request-building/response-handling implementation is shared.
 
@@ -53,7 +53,7 @@ Matches the discussion, with a few deltas found while building or during full ve
 - Two stray doc comments left over from this session's Change renumbering (in `http-json.types.ts` and `protocol-executor.types.ts`, both said "Change C7" for what is now C6) were fixed in passing.
 - Worker package test count grew from 100 to 120 (new `materialize-http-request.test.ts` and `http-submitted-message.test.ts`, plus added cases in `worker.test.ts`/`job-runner.test.ts`/`terminal-message.test.ts` covering dispatch and terminal selection across both submission shapes). `pnpm format && lint && typecheck && -r test` all pass clean across the full repo.
 
-## Change C6 - Output storage stores a response as what it says it is - in progress
+## Change C6 - Output storage stores a response as what it says it is - merged (#398)
 
 ### Discussion
 

@@ -30,36 +30,45 @@ function request() {
 }
 
 describe("RunService refuses steps nothing executes", () => {
-  it("refuses an http step before creating a run", async () => {
+  it("accepts an http step, which the engine now dispatches", async () => {
     const { service, runRepository } = makeRunService({
-      flow: flowWith({ a: httpStep }),
+      flow: {
+        ...flowWith({ a: httpStep }),
+        params: { audio: { type: "audio/wav" } },
+      },
+      artifact: { contentType: "audio/wav", format: "bytes" },
     });
 
-    await expect(service.requestRun(request())).rejects.toThrow(
-      "Flow has steps that cannot run yet: a (http)",
-    );
-    expect(runRepository.createRun).not.toHaveBeenCalled();
+    await service.requestRun({
+      ...request(),
+      params: { audio: "audio-hash" },
+    });
+
+    expect(runRepository.createRun).toHaveBeenCalled();
   });
 
-  it("refuses an mcp step", async () => {
-    const { service } = makeRunService({ flow: flowWith({ a: mcpStep }) });
+  it("refuses an mcp step before creating a run", async () => {
+    const { service, runRepository } = makeRunService({
+      flow: flowWith({ a: mcpStep }),
+    });
 
     await expect(service.requestRun(request())).rejects.toThrow(
       "Flow has steps that cannot run yet: a (mcp)",
     );
+    expect(runRepository.createRun).not.toHaveBeenCalled();
   });
 
   it("names every refused step", async () => {
     const { service } = makeRunService({
       flow: flowWith({
         a: { type: "httpjson", url: "http://x", on: { success: "b" } },
-        b: httpStep,
-        c: mcpStep,
+        b: mcpStep,
+        c: { ...mcpStep, feature: { primitive: "tool", name: "other" } },
       }),
     });
 
     await expect(service.requestRun(request())).rejects.toThrow(
-      "Flow has steps that cannot run yet: b (http), c (mcp)",
+      "Flow has steps that cannot run yet: b (mcp), c (mcp)",
     );
   });
 });
