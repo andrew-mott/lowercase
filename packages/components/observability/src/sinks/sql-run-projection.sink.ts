@@ -1,6 +1,7 @@
 import type {
   EventSink,
   RunRepositoryPort,
+  RunSettledPublisherPort,
   RunStepProjectionRepositoryPort,
 } from "@lcase/ports";
 import type { AnyEvent, RunIndex, RunStatus } from "@lcase/types";
@@ -39,6 +40,7 @@ export class SqlRunProjectionSink implements EventSink {
   constructor(
     private readonly runs: RunRepositoryPort,
     private readonly steps: RunStepProjectionRepositoryPort,
+    private readonly runSettled?: RunSettledPublisherPort,
   ) {}
 
   async start(): Promise<void> {
@@ -102,6 +104,10 @@ export class SqlRunProjectionSink implements EventSink {
     } else if (event.type === "run.completed") {
       state.status = "completed";
     } else if (event.type === "run.failed") {
+      state.status = "failed";
+    } else if (event.type === "run.denied") {
+      // The engine refused the run and nothing else will follow it, so this is
+      // as final as a failure. Left alone, the run would stay requested forever.
       state.status = "failed";
     }
 
@@ -184,7 +190,10 @@ export class SqlRunProjectionSink implements EventSink {
       if (!stepResult.ok) throw new Error(stepResult.error);
     }
 
-    if (terminal) await this.#writeRun(runId, state, flowDefHash, status);
+    if (terminal) {
+      await this.#writeRun(runId, state, flowDefHash, status);
+      this.runSettled?.settled(runId);
+    }
   }
 
   async #writeRun(

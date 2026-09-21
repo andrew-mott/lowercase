@@ -24,6 +24,10 @@
       "types": "./dist/run-step-projection-repository/index.d.ts",
       "import": "./dist/run-step-projection-repository/index.js"
     },
+    "./run-settled": {
+      "types": "./dist/run-settled/index.d.ts",
+      "import": "./dist/run-settled/index.js"
+    },
     "./run-query": {
       "types": "./dist/run-query/index.d.ts",
       "import": "./dist/run-query/index.js"

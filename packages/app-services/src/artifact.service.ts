@@ -111,31 +111,55 @@ export class ArtifactService implements ArtifactServicePort {
       curated: true,
     };
 
-    const result =
-      input.format === "json"
-        ? await this.artifacts.save(
-            input.value,
-            "application/json",
-            writeMetadata,
-          )
-        : input.format === "bytes"
-          ? await this.artifacts.save(input.value, contentType, writeMetadata)
-          : await this.artifacts.save(
-              input.value,
-              contentType as `text/${string}`,
-              writeMetadata,
-            );
+    const result = await this.#save(input, contentType, writeMetadata);
 
     if (result.status === "failed" || result.status === "content-only") {
       return { ok: false, error: result.error.message };
     }
 
-    const index = await this.artifactRepository.getArtifact(result.hash);
+    return this.#indexAfterSave(result.hash);
+  }
+
+  /**
+   * Stores content a caller sent along with a run, which is data for that one
+   * run and not something a person curated, so it is never marked curated.
+   */
+  async storeInputArtifact(
+    input: ArtifactPutInput,
+  ): Promise<Result<ArtifactIndex, string>> {
+    const contentType =
+      input.index?.contentType ?? defaultContentTypeForFormat(input.format);
+
+    const result = await this.#save(input, contentType, {
+      filename: input.index?.filename,
+    });
+    if (result.status === "failed" || result.status === "content-only") {
+      return { ok: false, error: result.error.message };
+    }
+
+    return this.#indexAfterSave(result.hash);
+  }
+
+  #save(
+    input: ArtifactPutInput,
+    contentType: string,
+    metadata: ArtifactMetadataInput,
+  ) {
+    return input.format === "json"
+      ? this.artifacts.save(input.value, "application/json", metadata)
+      : input.format === "bytes"
+        ? this.artifacts.save(input.value, contentType, metadata)
+        : this.artifacts.save(
+            input.value,
+            contentType as `text/${string}`,
+            metadata,
+          );
+  }
+
+  async #indexAfterSave(hash: string): Promise<Result<ArtifactIndex, string>> {
+    const index = await this.artifactRepository.getArtifact(hash);
     if (!index) {
-      return {
-        ok: false,
-        error: `Artifact not found after save: ${result.hash}`,
-      };
+      return { ok: false, error: `Artifact not found after save: ${hash}` };
     }
     return { ok: true, value: index };
   }

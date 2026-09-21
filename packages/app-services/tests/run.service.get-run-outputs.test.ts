@@ -95,6 +95,7 @@ function makeService(options: {
     ef: makeEmitterFactory(),
     runRepository: {} as never,
     runQuery,
+    runSettled: {} as never,
   });
   return { service, artifacts };
 }

@@ -51,7 +51,8 @@ Settled in discussion before any Change was written, so each Change can build on
 | C9     | Wildcard param types                                          | merged (#401) | [6]   |          |
 | C10    | Flow outputs                                                  | merged (#402) | [7]   |          |
 | C11    | Run outputs route                                             | merged (#403) | [7]   |          |
-| C12    | Artifact content route                                        | in review     | [7]   |          |
+| C12    | Artifact content route                                        | merged (#404) | [7]   |          |
+| C13    | Inline run request that holds for the result                  | in review     | [8]   |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
@@ -60,6 +61,7 @@ Settled in discussion before any Change was written, so each Change can build on
 [5]: ./arcs/engine-http-dispatch.md
 [6]: ./arcs/binary-uploads.md
 [7]: ./arcs/results-out.md
+[8]: ./arcs/inline-runs.md
 
 ## Planned arcs
 

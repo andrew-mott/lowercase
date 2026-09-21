@@ -126,7 +126,7 @@ export const postArtifactRoute = async (app: FastifyInstance) => {
 // unlike the multipart branch below there's no octet-stream-as-json
 // fallback and no `bytes` fallback -- raw bytes have no sensible JSON-body
 // `value` representation, so an unmapped contentType here is a real 400
-function detectAuthoredFormat(
+export function detectAuthoredFormat(
   contentType: string,
 ): "json" | "text" | "markdown" | undefined {
   if (contentType === "application/json" || contentType === "text/json") {

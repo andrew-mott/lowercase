@@ -87,6 +87,7 @@ export function makeRunService(options?: {
       ef: makeEmitterFactory(),
       runRepository,
       runQuery,
+      runSettled: {} as never,
     }),
     artifacts,
     artifactRepository,

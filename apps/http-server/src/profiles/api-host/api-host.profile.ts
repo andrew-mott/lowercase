@@ -8,6 +8,7 @@ import { PrismaRunQuery } from "@lcase/adapters/run-query";
 import { PrismaRunRepository } from "@lcase/adapters/run-repository";
 import { PrismaRunStepProjectionRepository } from "@lcase/adapters/run-step-projection-repository";
 import { PrismaSimRepository } from "@lcase/adapters/sim-repository";
+import { InMemoryRunSettledNotifier } from "@lcase/adapters/run-settled";
 import {
   ArtifactService,
   EvalService,
@@ -108,6 +109,7 @@ export function createApiHost(config: ApiHostConfig): ApiHost {
     jobCommands,
   );
 
+  const runSettled = new InMemoryRunSettledNotifier();
   const { tap, sinks } = buildObservability(
     config.observability,
     bus,
@@ -118,6 +120,7 @@ export function createApiHost(config: ApiHostConfig): ApiHost {
       steps: runStepProjectionRepository,
       evalResults: evalResultRepository,
     },
+    runSettled,
   );
 
   bindSubscriptions(router, engine, tap);
@@ -172,6 +175,7 @@ export function createApiHost(config: ApiHostConfig): ApiHost {
     ef,
     runRepository,
     runQuery,
+    runSettled,
   });
   const artifact = new ArtifactService(
     artifacts,
