@@ -32,7 +32,7 @@ Matches the discussion, with one addition found while building: `RunService` ref
 - **Tests.** A new small file each for the schema, payload parsing, output validation, problem formatting, result computation, and the `RunService` refusal.
 - **Deliberately not done.** The route that returns results (C11), reading bytes (C12), asserted output types, composite payloads, payloads in `params` or `input` scope, and an explicit skipped-step state in the engine.
 
-## Change C11 - Run outputs route
+## Change C11 - Run outputs route - merged (#403)
 
 ### Discussion
 
@@ -59,3 +59,28 @@ Matches the discussion. The one addition found while building is that the sink's
 - **Sink write order.** For a `completed` or `failed` run the sink now upserts every step and then writes the run row with the terminal status. Steps have a foreign key to the run row, so if the sink has not written the row yet, it first writes it as `started`. `RunService` normally creates the row before any event, but the sink does not rely on that. Non-terminal flushes are unchanged. The write is still not one transaction, and that stays in `docs/todo.md`.
 - **Tests.** A small file each for the route, the service (twelve cases, including that binary and oversized outputs are never loaded) and the sink's write order, which fails against the previous order.
 - **Deliberately not done.** Reading bytes (C12), waiting or notifying a caller (A8), an atomic projection write, asserted output types, and an explicit skipped state in the engine.
+
+## Change C12 - Artifact content route
+
+### Discussion
+
+Looked at the existing artifact route and the reader and store ports.
+
+- **Settled: a new route, `GET /api/artifacts/:hash/content`, returns the stored bytes with the stored `Content-Type`, for any artifact.** It is keyed by hash, since the outputs route already hands the caller the hash. The existing `GET /api/artifacts/:hash` stays as it is: it returns a JSON envelope, and for binary only a `byteLength`.
+- **Settled: errors are real HTTP statuses with a JSON `{ ok: false, error }` body.** Success has no envelope because the body is the content, so a client can only tell success from failure by status. 400 for a malformed hash, 404 for `NOT_FOUND`, 500 for `STORE_ERROR`. The JSON body says what went wrong, which a bare status does not. This differs from the other routes, which return 200 with `ok: false`; the difference follows from the body being raw.
+- **Settled: buffered, not streamed.** Every port loads whole values today, and uploads are already buffered up to the same limit. Streaming should be built across the whole system in one go, not in one route, so this Change stays consistent with the rest and streaming is left for that later work, with the S3 redirect.
+- **Settled: caching headers.** A hash names immutable content, so the response carries `Cache-Control: public, max-age=31536000, immutable`, an `ETag` derived from the hash, and `Content-Length`.
+- **Found: the reader cannot return byte-exact json or text.** `ArtifactReader.load` parses `application/json` and decodes `text/*`, so a caller gets a value, not the stored bytes, and re-serializing would not reproduce them (the bytes would no longer match the hash). The raw read exists only on the store port (`getBytes`), and services hold the reader, not the store.
+- **Settled: an option on `load`, not a new method.** `load(hash, { raw: true })` returns `{ ok: true, contentType, value: Uint8Array }` with no decoding, alongside the existing forms. The parse-for-you behaviour is a convenience for callers that want a value, and this lets a caller opt out of it on the same method. The one real implementer is `ArtifactReader`; the others are test fakes. The route needs one store read and no SQL lookup, since the store already carries the content type.
+- **Settled: no filename.** The route does not consult SQL at all, so it sends no `Content-Disposition`. Uploads have a filename in metadata and worker-produced outputs do not, and the outputs manifest does not carry it either. It can be added later if a caller needs it.
+
+### What actually landed
+
+Matches the discussion. The one addition found while building is that a second test fake, in the worker's tests, also needed the new `load` overload.
+
+- **The route.** `GET /api/artifacts/:hash/content` returns the stored bytes as a `Buffer` with the stored `Content-Type`, `Cache-Control: public, max-age=31536000, immutable`, an `ETag` of the quoted hash, and the `Content-Length` Fastify sets. A malformed hash is 400 and never reaches the store, `NOT_FOUND` is 404, and any other store error is 500, each with a JSON `{ ok: false, error }` body. The existing `GET /api/artifacts/:hash` is unchanged.
+- **The reader option.** `ArtifactReaderPort.load(hash, { raw: true })` returns `RawLoadResult`, `{ ok: true, contentType, value: Uint8Array }` or the usual `{ ok: false, error }`. `ArtifactReader` returns what `store.getBytes` gave it before any decoding, so json and text come back as the exact stored bytes. A test stores json with irregular whitespace to show it is not parsed and re-serialized. The auto and typed forms are unchanged.
+- **Service.** `ArtifactServicePort.getArtifactContent(hash)` is a one-line delegation to that raw load, so the service adds no logic and consults no SQL.
+- **Fakes.** Two typed test fakes needed the overload: the profile's job graph helper, and the worker's fake reader, which keeps decoded values and so answers a raw read with a `STORE_ERROR`, since the worker never reads raw.
+- **Tests.** A new small file each for the reader option (four), the service (two) and the route (six: byte-exact binary, byte-exact json, the cache and ETag headers, 400, 404, 500).
+- **Deliberately not done.** Streaming and the S3 redirect, a filename or `Content-Disposition`, range requests and conditional (`If-None-Match`) responses, and the outputs manifest carrying a content URL.

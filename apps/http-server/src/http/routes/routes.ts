@@ -13,6 +13,7 @@ import { getRunDetailRoute } from "./runs/get-run-detail.js";
 import { getRunParamsRoute } from "./runs/get-run-params.js";
 import { getRunOutputsRoute } from "./runs/get-run-outputs.js";
 import { getArtifactRoute } from "./artifacts/get-artifact.js";
+import { getArtifactContentRoute } from "./artifacts/get-artifact-content.js";
 import { postArtifactRoute } from "./artifacts/post-artifact.js";
 import { listArtifactsRoute } from "./artifacts/list-artifacts.js";
 import { patchArtifactRoute } from "./artifacts/patch-artifact.js";
@@ -58,6 +59,7 @@ export const routes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // api/artifacts
   await app.register(listArtifactsRoute, { prefix: "/api/artifacts" });
   await app.register(getArtifactRoute, { prefix: "/api/artifacts" });
+  await app.register(getArtifactContentRoute, { prefix: "/api/artifacts" });
   await app.register(postArtifactRoute, { prefix: "/api/artifacts" });
   await app.register(patchArtifactRoute, { prefix: "/api/artifacts" });
 };
