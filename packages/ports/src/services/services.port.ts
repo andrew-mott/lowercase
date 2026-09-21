@@ -100,6 +100,13 @@ export type RunRequest = {
   targetExportName?: string;
   params?: Record<string, string>;
 };
+// How a wait for a run ended. `failed` covers a run that failed and a finished
+// run whose outputs could not be read; a caller sees the same thing either way.
+export type RunWaitResult =
+  | { status: "completed"; outputs: RunOutputs }
+  | { status: "failed"; error: string }
+  | { status: "timeout" };
+
 export interface RunServicePort {
   requestRun(request: RunRequest): Promise<void>;
   makeRunId(): string;
@@ -108,6 +115,12 @@ export interface RunServicePort {
   getRunDetail(runId: string): Promise<Result<RunDetail, string>>;
   getRunParams(runId: string): Promise<Result<RunParamManifest, string>>;
   getRunOutputs(runId: string): Promise<Result<RunOutputs, string>>;
+  // Holds until the run's terminal status is in the projection, so its
+  // outputs are readable, or until the timeout. The run must already exist.
+  waitForRun(
+    runId: string,
+    options: { timeoutMs: number },
+  ): Promise<RunWaitResult>;
   // getRunParamsIndex(runId: string): Promise<Result<RunParams, string>>;
 }
 
@@ -148,6 +161,10 @@ export interface ArtifactServicePort {
   createArtifact(
     input: ArtifactPutInput,
     metadata?: ArtifactUpdateMetadata,
+  ): Promise<Result<ArtifactIndex, string>>;
+  // For content a caller sends along with a run: stored, never curated.
+  storeInputArtifact(
+    input: ArtifactPutInput,
   ): Promise<Result<ArtifactIndex, string>>;
   updateArtifactMetadata(
     hash: string,

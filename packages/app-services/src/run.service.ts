@@ -6,6 +6,8 @@ import type {
   RunRepositoryPort,
   RunQueryPort,
   RunServicePort,
+  RunSettledWaiterPort,
+  RunWaitResult,
 } from "@lcase/ports";
 import {
   analyzeFlow,
@@ -40,12 +42,16 @@ const STEP_TYPES_WITHOUT_EXECUTOR: ReadonlySet<StepDefinition["type"]> =
 // the response stays a predictable size.
 const MAX_INLINE_OUTPUT_BYTES = 1024 * 1024;
 
+const isTerminal = (status: string) =>
+  status === "completed" || status === "failed";
+
 type RunServiceDeps = {
   artifactRepository: ArtifactRepositoryPort;
   artifacts: ArtifactReaderPort;
   ef: EmitterFactoryPort;
   runRepository: RunRepositoryPort;
   runQuery: RunQueryPort;
+  runSettled: RunSettledWaiterPort;
   // runParamsStore: RunParamsIndexStorePort;
 };
 
@@ -55,6 +61,7 @@ export class RunService implements RunServicePort {
   private readonly ef: EmitterFactoryPort;
   private readonly runRepository: RunRepositoryPort;
   private readonly runQuery: RunQueryPort;
+  private readonly runSettled: RunSettledWaiterPort;
   // private readonly runParamsStore: RunParamsIndexStorePort;
 
   constructor(deps: RunServiceDeps) {
@@ -63,6 +70,7 @@ export class RunService implements RunServicePort {
     this.ef = deps.ef;
     this.runRepository = deps.runRepository;
     this.runQuery = deps.runQuery;
+    this.runSettled = deps.runSettled;
     // this.runParamsStore = deps.runParamsStore;
   }
 
@@ -128,6 +136,44 @@ export class RunService implements RunServicePort {
         params.map((param) => [param.name, param.artifactHash]),
       ),
     };
+  }
+
+  async waitForRun(
+    runId: string,
+    options: { timeoutMs: number },
+  ): Promise<RunWaitResult> {
+    // Register before reading the status: a run that settles between the two
+    // would otherwise be missed, because a settle is never remembered.
+    const wait = this.runSettled.whenSettled(runId);
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      let detail = await this.runQuery.getRunDetail(runId);
+      if (!detail.ok) return { status: "failed", error: detail.error };
+
+      if (!isTerminal(detail.value.run.status)) {
+        const timedOut = new Promise<"timeout">((resolve) => {
+          timer = setTimeout(() => resolve("timeout"), options.timeoutMs);
+        });
+        const outcome = await Promise.race([
+          wait.promise.then(() => "settled" as const),
+          timedOut,
+        ]);
+        if (outcome === "timeout") return { status: "timeout" };
+
+        detail = await this.runQuery.getRunDetail(runId);
+        if (!detail.ok) return { status: "failed", error: detail.error };
+      }
+
+      if (detail.value.run.status === "failed") {
+        return { status: "failed", error: "Run failed" };
+      }
+      const outputs = await this.getRunOutputs(runId);
+      if (!outputs.ok) return { status: "failed", error: outputs.error };
+      return { status: "completed", outputs: outputs.value };
+    } finally {
+      clearTimeout(timer);
+      wait.cancel();
+    }
   }
 
   async getRunOutputs(runId: string): Promise<Result<RunOutputs, string>> {

@@ -173,6 +173,7 @@ describe("RunService", () => {
       ef: makeEmitterFactory(),
       runRepository: {} as RunRepositoryPort,
       runQuery,
+      runSettled: {} as never,
     });
 
     const result = await service.listRunsByFlowVersionId("flow-version-1");
@@ -202,6 +203,7 @@ describe("RunService", () => {
       ef: makeEmitterFactory(),
       runRepository: {} as RunRepositoryPort,
       runQuery,
+      runSettled: {} as never,
     });
 
     const result = await service.getRunParams("run-1");
@@ -227,6 +229,7 @@ describe("RunService", () => {
       ef: makeEmitterFactory(),
       runRepository: {} as RunRepositoryPort,
       runQuery,
+      runSettled: {} as never,
     });
 
     const result = await service.getRunParams("run-1");
@@ -248,6 +251,7 @@ describe("RunService", () => {
       ef: makeEmitterFactory(),
       runRepository: {} as RunRepositoryPort,
       runQuery,
+      runSettled: {} as never,
     });
 
     const result = await service.getRunParams("run-missing");

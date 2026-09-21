@@ -1,4 +1,5 @@
 import { InMemoryEventBus } from "@lcase/adapters/event-bus";
+import { InMemoryRunSettledNotifier } from "@lcase/adapters/run-settled";
 import { EmitterFactory, eventSchemaRegistry } from "@lcase/events";
 import { JobParser } from "@lcase/events/parsers";
 import { createArtifactReadWritePort } from "@lcase/artifacts";
@@ -132,6 +133,7 @@ export function createLocalSystem(config: LocalSystemConfig): LocalSystem {
     jobCommands,
   );
 
+  const runSettled = new InMemoryRunSettledNotifier();
   const { tap, sinks } = buildObservability(
     config.observability,
     bus,
@@ -142,6 +144,7 @@ export function createLocalSystem(config: LocalSystemConfig): LocalSystem {
       steps: runStepProjectionRepository,
       evalResults: evalResultRepository,
     },
+    runSettled,
   );
 
   router.bind({
@@ -236,6 +239,7 @@ export function createLocalSystem(config: LocalSystemConfig): LocalSystem {
     ef,
     runRepository,
     runQuery,
+    runSettled,
   });
   const artifact = new ArtifactService(
     artifacts,

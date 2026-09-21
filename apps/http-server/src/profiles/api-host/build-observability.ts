@@ -5,6 +5,7 @@ import type {
   EventBusPort,
   RunQueryPort,
   RunRepositoryPort,
+  RunSettledPublisherPort,
   RunStepProjectionRepositoryPort,
 } from "@lcase/ports";
 import {
@@ -53,11 +54,12 @@ export function buildObservability(
   artifacts: ArtifactReaderPort,
   runQuery: RunQueryPort,
   repositories: ObservabilityRepositories,
+  runSettled: RunSettledPublisherPort,
 ): { tap: ObservabilityTap; sinks: SinkMap } {
   const tap = new ObservabilityTap(bus);
   const sinks: SinkMap = {};
   tap.attachSink(
-    new SqlRunProjectionSink(repositories.runs, repositories.steps),
+    new SqlRunProjectionSink(repositories.runs, repositories.steps, runSettled),
   );
   tap.attachSink(
     new EvalResultProjectionSink(repositories.evalResults, artifacts, runQuery),

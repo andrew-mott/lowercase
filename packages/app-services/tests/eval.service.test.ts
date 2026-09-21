@@ -17,6 +17,7 @@ function makeRunService(): RunServicePort {
     getRunDetail: vi.fn(),
     getRunParams: vi.fn(),
     getRunOutputs: vi.fn(),
+    waitForRun: vi.fn(),
   };
 }
 

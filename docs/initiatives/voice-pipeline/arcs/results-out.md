@@ -60,7 +60,7 @@ Matches the discussion. The one addition found while building is that the sink's
 - **Tests.** A small file each for the route, the service (twelve cases, including that binary and oversized outputs are never loaded) and the sink's write order, which fails against the previous order.
 - **Deliberately not done.** Reading bytes (C12), waiting or notifying a caller (A8), an atomic projection write, asserted output types, and an explicit skipped state in the engine.
 
-## Change C12 - Artifact content route
+## Change C12 - Artifact content route - merged (#404)
 
 ### Discussion
 

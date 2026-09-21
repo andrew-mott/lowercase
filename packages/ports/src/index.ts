@@ -9,6 +9,7 @@ export * from "./controller.port.js";
 export * from "./flow/flow-repository.port.js";
 export * from "./run/run-query.port.js";
 export * from "./run/run-repository.port.js";
+export * from "./run/run-settled.port.js";
 export * from "./run/run-step-projection-repository.port.js";
 export * from "./sim/sim-repository.port.js";
 export * from "./eval/eval-result-repository.port.js";

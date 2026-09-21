@@ -1,3 +1,4 @@
+import multipart from "@fastify/multipart";
 import Fastify from "fastify";
 import type { ServicesPort } from "@lcase/ports";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +18,7 @@ describe("run request route", () => {
       },
     } as unknown as ServicesPort);
 
+    await app.register(multipart);
     await app.register(requestRunsRoute, { prefix: "/api/runs" });
 
     const response = await app.inject({
@@ -46,6 +48,7 @@ describe("run request route", () => {
       },
     } as unknown as ServicesPort);
 
+    await app.register(multipart);
     await app.register(requestRunsRoute, { prefix: "/api/runs" });
 
     const response = await app.inject({
@@ -93,6 +96,7 @@ describe("run request route", () => {
       },
     } as unknown as ServicesPort);
 
+    await app.register(multipart);
     await app.register(requestRunsRoute, { prefix: "/api/runs" });
 
     const response = await app.inject({

@@ -121,6 +121,7 @@ describe("run sql routes", () => {
         prisma,
         new PrismaArtifactRepository(prisma),
       ),
+      runSettled: {} as never,
     });
     const replayEvents: AnyEvent[] = [
       {
