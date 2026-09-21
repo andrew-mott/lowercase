@@ -12,6 +12,10 @@ export interface ArtifactReaderPort {
   // successor.
   load(hash: string): Promise<AutoLoadResult>;
 
+  // Caller wants the stored bytes exactly as written, with no parsing or
+  // decoding -- for handing an artifact on as-is rather than using its value.
+  load(hash: string, options: { raw: true }): Promise<RawLoadResult>;
+
   // Caller expects a specific type -- decodes to it, fails if the stored
   // contentType doesn't actually match what was asked for.
   load(
@@ -35,6 +39,10 @@ export interface ArtifactReaderPort {
 // to travel with a sibling field.
 export type AutoLoadResult =
   | { ok: true; contentType: string; value: JsonValue | string | Uint8Array }
+  | { ok: false; error: ArtifactLoadError };
+
+export type RawLoadResult =
+  | { ok: true; contentType: string; value: Uint8Array }
   | { ok: false; error: ArtifactLoadError };
 
 export type ArtifactLoadError = DomainError<

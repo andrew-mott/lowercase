@@ -3,6 +3,7 @@ import type {
   ArtifactLoadError,
   AutoLoadResult,
   ArtifactStorePort,
+  RawLoadResult,
 } from "@lcase/ports";
 import type { JsonValue, Result } from "@lcase/types";
 
@@ -16,6 +17,7 @@ export class ArtifactReader implements ArtifactReaderPort {
   constructor(private readonly store: ArtifactStorePort) {}
 
   async load(hash: string): Promise<AutoLoadResult>;
+  async load(hash: string, options: { raw: true }): Promise<RawLoadResult>;
   async load(
     hash: string,
     contentType: "application/json",
@@ -30,9 +32,11 @@ export class ArtifactReader implements ArtifactReaderPort {
   ): Promise<Result<Uint8Array, ArtifactLoadError>>;
   async load(
     hash: string,
-    contentType?: string,
+    contentTypeOrOptions?: string | { raw: true },
   ): Promise<
-    AutoLoadResult | Result<JsonValue | string | Uint8Array, ArtifactLoadError>
+    | AutoLoadResult
+    | RawLoadResult
+    | Result<JsonValue | string | Uint8Array, ArtifactLoadError>
   > {
     const stored = await this.store.getBytes(hash);
     if (!stored.ok) {
@@ -40,6 +44,11 @@ export class ArtifactReader implements ArtifactReaderPort {
     }
 
     const { bytes, contentType: storedContentType } = stored.value;
+
+    if (typeof contentTypeOrOptions === "object") {
+      return { ok: true, contentType: storedContentType, value: bytes };
+    }
+    const contentType = contentTypeOrOptions;
 
     if (contentType !== undefined && contentType !== storedContentType) {
       return {

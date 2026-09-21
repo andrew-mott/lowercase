@@ -5,6 +5,7 @@ import type {
   ArtifactReadWritePort,
   ArtifactServicePort,
   FlowRepositoryPort,
+  RawLoadResult,
 } from "@lcase/ports";
 import type {
   ArtifactIndex,
@@ -43,6 +44,10 @@ export class ArtifactService implements ArtifactServicePort {
       case "bytes":
         return { ok: true, format, value: result.value as Uint8Array };
     }
+  }
+
+  getArtifactContent(hash: string): Promise<RawLoadResult> {
+    return this.artifacts.load(hash, { raw: true });
   }
 
   async listArtifacts(

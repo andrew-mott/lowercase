@@ -4,6 +4,7 @@ import type {
   ArtifactMetadataInput,
   ArtifactReadWritePort,
   AutoLoadResult,
+  RawLoadResult,
   EmitterFactoryPort,
   EventBusPort,
   EventSink,
@@ -63,6 +64,7 @@ function createFakeArtifacts() {
   }
 
   function load(hash: string): Promise<AutoLoadResult>;
+  function load(hash: string, options: { raw: true }): Promise<RawLoadResult>;
   function load(
     hash: string,
     contentType: "application/json",
@@ -78,7 +80,9 @@ function createFakeArtifacts() {
   function load(
     hash: string,
   ): Promise<
-    AutoLoadResult | Result<JsonValue | string | Uint8Array, ArtifactLoadError>
+    | AutoLoadResult
+    | RawLoadResult
+    | Result<JsonValue | string | Uint8Array, ArtifactLoadError>
   > {
     // Never reached: the slice's job carries no refs and declares no exports.
     return Promise.resolve({

@@ -50,7 +50,8 @@ Settled in discussion before any Change was written, so each Change can build on
 | C8     | Accept binary uploads                                         | merged (#400) | [6]   |          |
 | C9     | Wildcard param types                                          | merged (#401) | [6]   |          |
 | C10    | Flow outputs                                                  | merged (#402) | [7]   |          |
-| C11    | Run outputs route                                             | in review     | [7]   |          |
+| C11    | Run outputs route                                             | merged (#403) | [7]   |          |
+| C12    | Artifact content route                                        | in review     | [7]   |          |
 
 [1]: ./arcs/http-step.md
 [2]: ./arcs/content-types.md
@@ -70,7 +71,7 @@ Estimates, not commitments. The Change numbers are a guess at the map ahead and 
 2. **Results out (A7).** What makes a run's result reachable at all.
    - C10: flow outputs, declared in the definition and validated.
    - C11: a route returning a finished run's outputs (start, then fetch), with the generic failure shape.
-   - C12: the raw-bytes read path, streaming through the API, with the S3 redirect as a later addition.
+   - C12: a route returning one artifact's stored bytes by hash, buffered; streaming and the S3 redirect are a later addition.
 3. **Inline runs (A8).** After results out, because the endpoint that takes data and the way a caller gets results back are one conversation (start and wait).
    - C13: the run request that carries its inputs inline, turns each into an artifact, and waits for the result, so one request and one response cover the whole run.
    - C14: naming a flow by name and version rather than three identifiers, if the discussion keeps it separate from C13.

@@ -23,7 +23,10 @@ import type {
   SimListItem,
   SimRecord,
 } from "@lcase/types";
-import type { ArtifactLoadError } from "../artifacts/artifact-reader.port.js";
+import type {
+  ArtifactLoadError,
+  RawLoadResult,
+} from "../artifacts/artifact-reader.port.js";
 
 // Relocated from the now-deleted artifacts.port.ts (legacy ArtifactsPort) --
 // ArtifactServicePort.getArtifact is its only remaining consumer. Error
@@ -139,6 +142,8 @@ export interface EvalServicePort {
 
 export interface ArtifactServicePort {
   getArtifact(hash: string): Promise<AutoGetResult>;
+  // The stored bytes and content type exactly as written, with no parsing.
+  getArtifactContent(hash: string): Promise<RawLoadResult>;
   listArtifacts(filter?: ArtifactListFilter): Promise<ArtifactListItem[]>;
   createArtifact(
     input: ArtifactPutInput,

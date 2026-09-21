@@ -2,6 +2,7 @@ import type {
   ArtifactReaderPort,
   ArtifactLoadError,
   AutoLoadResult,
+  RawLoadResult,
 } from "@lcase/ports";
 import type { JsonValue, Result } from "@lcase/types";
 
@@ -23,6 +24,7 @@ export function createFakeArtifactReaderPort() {
   }
 
   function load(hash: string): Promise<AutoLoadResult>;
+  function load(hash: string, options: { raw: true }): Promise<RawLoadResult>;
   function load(
     hash: string,
     contentType: "application/json",
@@ -37,10 +39,24 @@ export function createFakeArtifactReaderPort() {
   ): Promise<Result<Uint8Array, ArtifactLoadError>>;
   function load(
     hash: string,
-    contentType?: string,
+    contentTypeOrOptions?: string | { raw: true },
   ): Promise<
-    AutoLoadResult | Result<JsonValue | string | Uint8Array, ArtifactLoadError>
+    | AutoLoadResult
+    | RawLoadResult
+    | Result<JsonValue | string | Uint8Array, ArtifactLoadError>
   > {
+    // The worker never reads raw, and this fake keeps decoded values, so it
+    // has no stored bytes to hand back.
+    if (typeof contentTypeOrOptions === "object") {
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: "STORE_ERROR",
+          message: "Raw reads are not supported by this fake",
+        },
+      });
+    }
+    const contentType = contentTypeOrOptions;
     const entry = store.get(hash);
     if (!entry) {
       return Promise.resolve({
