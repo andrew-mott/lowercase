@@ -1,0 +1,92 @@
+{
+  "name": "transcribe-correct",
+  "version": "0.2.0",
+  "description": "Speech-to-text with Speaches, then an LLM pass that corrects the transcript. Returns the corrected text and the raw transcript.",
+  "start": "transcribe",
+  "params": {
+    "audio": {
+      "type": "audio/*"
+    },
+    "speachesUrl": {
+      "type": "text/plain"
+    },
+    "whisperModel": {
+      "type": "text/plain"
+    },
+    "llmUrl": {
+      "type": "text/plain"
+    },
+    "llmModel": {
+      "type": "text/plain"
+    },
+    "llmAuth": {
+      "type": "text/plain"
+    },
+    "correctPrompt": {
+      "type": "text/plain"
+    }
+  },
+  "outputs": {
+    "text": {
+      "payload": "{{steps.correct.exports.text}}"
+    },
+    "transcript": {
+      "payload": "{{steps.transcribe.exports.text}}"
+    }
+  },
+  "steps": {
+    "transcribe": {
+      "type": "http",
+      "url": "{{params.speachesUrl}}",
+      "method": "POST",
+      "body": {
+        "multipart": {
+          "file": {
+            "artifact": "{{params.audio}}",
+            "filename": "recording.webm"
+          },
+          "model": "{{params.whisperModel}}"
+        }
+      },
+      "exports": {
+        "text": {
+          "ref": "{{output.text}}",
+          "type": "text/plain"
+        }
+      },
+      "on": {
+        "success": "correct"
+      }
+    },
+    "correct": {
+      "type": "http",
+      "url": "{{params.llmUrl}}",
+      "method": "POST",
+      "headers": {
+        "Authorization": "{{params.llmAuth}}"
+      },
+      "body": {
+        "json": {
+          "model": "{{params.llmModel}}",
+          "messages": [
+            {
+              "role": "system",
+              "content": "{{params.correctPrompt}}"
+            },
+            {
+              "role": "user",
+              "content": "{{steps.transcribe.exports.text}}"
+            }
+          ],
+          "temperature": 0
+        }
+      },
+      "exports": {
+        "text": {
+          "ref": "{{output.choices[0].message.content}}",
+          "type": "text/plain"
+        }
+      }
+    }
+  }
+}
