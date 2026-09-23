@@ -16,7 +16,8 @@ files hold the actual work history.
 
 Write a complete internal reference as `I3 / A2 / C4` (hardly ever used if ever). `I#` is globally
 unique; `A#` and `C#` are scoped to their initiative, so do not cite either
-alone where the initiative is not already clear. Never reuse an assigned ID.
+alone where the initiative is not already clear. A merged Change ID is permanent
+and never reused; planned IDs follow the planning-runway rule below.
 
 The canonical layout is:
 
@@ -50,6 +51,23 @@ index, not filename numbering, maps IDs to documents.
 - An initiative's Change index carries each Change's current status, and gains
   the GitHub identifier once it merges, for example `C4 — merged (PR #381)`.
   See Change status below.
+
+## Planning runway
+
+An Initiative may intentionally carry a small, useful runway of future Changes:
+pre-numbered rows in its Change index, Arc files, and the discussions needed to
+make the next choices legible. Keep the index compact and put detailed reasoning
+in the relevant Arc/Change entry.
+
+Those future numbers are a forecast, not a commitment. Before implementation is
+committed, a planned Change may be reordered, renumbered, split, combined, or
+skipped as understanding changes. Prefer whole integer `C#` values rather than
+suffixes such as `C2a`. Once implementation has been committed, keep that
+Change's number stable; merge makes it permanent historical identity.
+
+Do not pre-enumerate work merely to fill a roadmap. Add enough planned Changes
+to make the likely next path clear, and revise the runway deliberately when the
+work changes.
 
 ## Change status
 

@@ -1,4 +1,4 @@
-# Voice Pipeline — Arc A9: The flows (Changes C14–C15)
+# Voice Pipeline — Arc A9: The flows (Change C14)
 
 **Previous:** [Inline runs](./inline-runs.md) (Change C13)
 
@@ -27,4 +27,4 @@ Four flows, each reachable by posting one multipart request and reading the resu
 
 ### Open
 
-- **C15** — a step's whole non-JSON output as another step's input isn't needed by any of these four flows: a transcript reaches the LLM step through an export, and audio that is a flow's result is returned as an output with no step reading it. Stays unscheduled; see "Referencing a whole step output" in `INITIATIVE.md`.
+- A step's whole non-JSON output as another step's input isn't needed by any of these four flows: a transcript reaches the LLM step through an export, and audio that is a flow's result is returned as an output with no step reading it. Was C15; not scheduled, so moved to "Referencing a whole step output" in `INITIATIVE.md` unnumbered rather than held as a Change.

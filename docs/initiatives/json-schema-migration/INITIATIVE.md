@@ -2,8 +2,38 @@
 
 ## Summary
 
-Move `packages/events`' hand-rolled Zod event/data schemas, and `packages/specs`' flow-definition schema, from Zod to JSON Schema (validated with `ajv`) — already flagged as an open direction in `CLAUDE.md` (events) and `docs/todo.md` (the HTTP-request-validation-strategy item, which wants this decided once rather than per-surface).
+Make JSON Schema the durable authored contract for flow definitions and, later, event and Message shapes: TypeScript types are generated and committed from those schemas, AJV validates the runtime boundary, and the same flow schema can eventually drive Monaco validation and autocomplete. Flow definitions and event/Message schemas stay in this one longer Initiative because they share the contract pipeline and migration decisions, while their work remains divided into small, coherent Changes.
 
-Two real payoffs beyond the refactor itself: language-agnostic flow-definition specs, and JSON-Schema-driven Monaco autocomplete/validation for flow authoring (deferred from Change C38, see `arcs/flow-authoring.md` in the `ui-workspace` initiative).
+## Design principles
 
-Scaffolded now, not yet scoped in detail. [`voice-pipeline`](../voice-pipeline/INITIATIVE.md) pilots the schema-first approach on the new types it introduces (JSON Schema source, generated type, AJV behind a Zod bridge), so what it learns should shape this Initiative's plan.
+- **JSON Schema is the authored source of truth.** Generated public TypeScript types are committed outputs, not a second hand-maintained contract; AJV validates the same schema at runtime.
+- **Compose schemas deliberately.** Use draft 2020-12 and stable `$id` values. Independently owned contracts compose through `$ref`; private reusable pieces stay in the owning schema's `$defs`.
+- **Make unions explicit.** Model variants with `oneOf` and a required `const` discriminator, so generated types, AJV, and editor tooling share one unambiguous branch selection rule.
+- **Keep structural and semantic validation separate.** JSON Schema establishes shape and local constraints. Flow analysis remains responsible for cross-step references, reachability, and other semantic rules.
+- **Migrate runtime boundaries incrementally.** A schema may coexist with the current Zod-facing parser while callers still need it; a Change does not rewrite the parser merely because it introduces a schema.
+- **Author once for runtime and tooling.** The flow schema must be usable by AJV now and by Monaco validation/autocomplete later, without a tooling-specific parallel contract.
+- **Keep an intentional, revisable runway.** Pre-number and discuss enough small Changes, grouped by Arc, to make the likely next path clear. Reorder, renumber, split, combine, or skip planned work when understanding changes; do not turn the index into a speculative whole-migration inventory.
+
+## Change index
+
+| Change | Description                                  | Status      | Where |
+| ------ | -------------------------------------------- | ----------- | ----- |
+| C1     | Retire stale `inputs` and `pipe` flow fields | in review   | [A1]  |
+| C2     | Flow-foundation schemas and generated types  | not started | [A1]  |
+| C3     | Structural-step schemas and generated types  | not started | [A1]  |
+
+## Next up
+
+- C1 — Retire stale `inputs` and `pipe` flow fields.
+
+## Not yet scoped
+
+- **AJV flow-parser cutover.** Replace the remaining Zod-facing flow parsing path only after the schema and generated public types are complete and its compatibility boundary is understood.
+- **Monaco integration.** Use the authored flow schema for editor diagnostics, validation, and autocomplete.
+- **Message taxonomy.** Settle the enduring Message/event vocabulary and ownership boundaries before encoding it into a shared schema composition.
+- **Event and Message schema migration.** Move the existing event/data contracts and their registry wiring to JSON Schema and AJV in coherent slices.
+- **Diagnostics.** Establish useful, consistent schema-validation errors for runtime callers and authoring tools.
+- **Legacy `httpjson` eval context.** Preserve `httpjson`'s current `evalContext` support during this flow work. Do not add it to `http`; remove it from `httpjson` only when its eval-design replacement is ready.
+- **Final cleanup.** Retire superseded Zod definitions, bridges, and hand-written types only after their JSON Schema replacements are fully adopted.
+
+[A1]: ./arcs/flow-schema.md

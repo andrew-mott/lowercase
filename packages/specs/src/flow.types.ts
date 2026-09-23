@@ -30,26 +30,9 @@ export const StepOnSchema = z
   .strict() satisfies z.ZodType<StepOnField>;
 
 export const StepArgsSchema = z.record(z.string(), z.unknown());
-export const StepPipeSchema = z
-  .object({
-    to: z
-      .object({
-        step: z.string(),
-        payload: z.string(),
-      })
-      .optional(),
-    from: z
-      .object({
-        step: z.string(),
-        buffer: z.number().optional(),
-      })
-      .optional(),
-  })
-  .optional();
 export const StepCapCommonFieldsSchema = z
   .object({
     args: StepArgsSchema.optional(),
-    pipe: StepPipeSchema,
     tool: z.string().optional(),
   })
   .strict() satisfies z.ZodType<StepCapCommonFields>;

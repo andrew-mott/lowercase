@@ -24,7 +24,6 @@ describe("parseDraftFlow", () => {
           type: "httpjson",
           url: "https://example.com",
           method: "GET",
-          pipe: {},
         },
       },
     };
@@ -43,7 +42,6 @@ describe("parseDraftFlow", () => {
           type: "httpjson",
           url: "https://example.com",
           method: "GET",
-          pipe: {},
           on: { success: "a" },
         },
       },

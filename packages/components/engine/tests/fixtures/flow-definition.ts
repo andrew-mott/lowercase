@@ -4,7 +4,6 @@ export const flowDef: FlowDefinition = {
   name: "test-flowname",
   version: "test-flowversion",
   description: "test-flowdescription",
-  inputs: {},
   outputs: {},
   start: "parallel",
   steps: {
@@ -23,7 +22,6 @@ export const flowDefWithProblems: FlowDefinition = {
   name: "test-flowname",
   version: "test-flowversion",
   description: "test-flowdescription",
-  inputs: {},
   outputs: {},
   start: "parallel",
   steps: {
