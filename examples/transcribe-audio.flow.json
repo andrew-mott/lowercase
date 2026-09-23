@@ -1,0 +1,44 @@
+{
+  "name": "transcribe-audio",
+  "version": "0.2.0",
+  "description": "Speech-to-text with Speaches. One step: the audio param goes to the transcription route named by the caller, and the text comes back as the flow's output.",
+  "start": "transcribe",
+  "params": {
+    "audio": {
+      "type": "audio/*"
+    },
+    "speachesUrl": {
+      "type": "text/plain"
+    },
+    "whisperModel": {
+      "type": "text/plain"
+    }
+  },
+  "outputs": {
+    "text": {
+      "payload": "{{steps.transcribe.exports.text}}"
+    }
+  },
+  "steps": {
+    "transcribe": {
+      "type": "http",
+      "url": "{{params.speachesUrl}}",
+      "method": "POST",
+      "body": {
+        "multipart": {
+          "file": {
+            "artifact": "{{params.audio}}",
+            "filename": "recording.webm"
+          },
+          "model": "{{params.whisperModel}}"
+        }
+      },
+      "exports": {
+        "text": {
+          "ref": "{{output.text}}",
+          "type": "text/plain"
+        }
+      }
+    }
+  }
+}

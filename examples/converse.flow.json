@@ -1,0 +1,123 @@
+{
+  "name": "converse",
+  "version": "0.2.0",
+  "description": "A spoken conversation, one turn per run. Speech to text, an LLM reply that takes a system prompt and the conversation so far as params, then a text-to-speech step speaks the reply. The caller keeps the history and sends it back each turn, and supplies the system prompt (a default is available for callers that don't need to customize it). Returns what was heard, the reply text and the reply audio.",
+  "start": "transcribe",
+  "params": {
+    "audio": {
+      "type": "audio/*"
+    },
+    "history": {
+      "type": "text/plain"
+    },
+    "voice": {
+      "type": "text/plain"
+    },
+    "system": {
+      "type": "text/plain"
+    },
+    "speachesUrl": {
+      "type": "text/plain"
+    },
+    "whisperModel": {
+      "type": "text/plain"
+    },
+    "llmUrl": {
+      "type": "text/plain"
+    },
+    "llmModel": {
+      "type": "text/plain"
+    },
+    "llmAuth": {
+      "type": "text/plain"
+    },
+    "ttsUrl": {
+      "type": "text/plain"
+    },
+    "ttsModel": {
+      "type": "text/plain"
+    }
+  },
+  "outputs": {
+    "audio": {
+      "payload": "{{steps.speak.output}}"
+    },
+    "heard": {
+      "payload": "{{steps.transcribe.exports.text}}"
+    },
+    "reply": {
+      "payload": "{{steps.reply.exports.text}}"
+    }
+  },
+  "steps": {
+    "transcribe": {
+      "type": "http",
+      "url": "{{params.speachesUrl}}",
+      "method": "POST",
+      "body": {
+        "multipart": {
+          "file": {
+            "artifact": "{{params.audio}}",
+            "filename": "recording.webm"
+          },
+          "model": "{{params.whisperModel}}"
+        }
+      },
+      "exports": {
+        "text": {
+          "ref": "{{output.text}}",
+          "type": "text/plain"
+        }
+      },
+      "on": {
+        "success": "reply"
+      }
+    },
+    "reply": {
+      "type": "http",
+      "url": "{{params.llmUrl}}",
+      "method": "POST",
+      "headers": {
+        "Authorization": "{{params.llmAuth}}"
+      },
+      "body": {
+        "json": {
+          "model": "{{params.llmModel}}",
+          "messages": [
+            {
+              "role": "system",
+              "content": "{{params.system}}\n\nYour reply will be read aloud, so answer in short, plain sentences with no lists, markdown, links or emoji, and spell out numbers and symbols. Use the conversation so far when it helps.\n\nConversation so far:\n{{params.history}}"
+            },
+            {
+              "role": "user",
+              "content": "{{steps.transcribe.exports.text}}"
+            }
+          ],
+          "temperature": 0.7
+        }
+      },
+      "exports": {
+        "text": {
+          "ref": "{{output.choices[0].message.content}}",
+          "type": "text/plain"
+        }
+      },
+      "on": {
+        "success": "speak"
+      }
+    },
+    "speak": {
+      "type": "http",
+      "url": "{{params.ttsUrl}}",
+      "method": "POST",
+      "body": {
+        "json": {
+          "model": "{{params.ttsModel}}",
+          "voice": "{{params.voice}}",
+          "response_format": "mp3",
+          "input": "{{steps.reply.exports.text}}"
+        }
+      }
+    }
+  }
+}

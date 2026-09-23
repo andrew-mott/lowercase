@@ -6,11 +6,11 @@ Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep th
 
 **Not in this arc:** progress reporting beyond a heartbeat, streaming artifact bytes, and moving result retrieval off artifacts onto a system-agnostic endpoint. That last one is wanted eventually; going through artifacts is good enough for now.
 
-## Change C13 - Inline run request that holds for the result
+## Change C13 - Inline run request that holds for the result - merged (#405)
 
 ### Discussion
 
-The caller today uploads each input as an artifact, starts the run with the hashes as params, waits on its own, then reads the outputs (C11) and bytes (C12). The callers this arc serves, a capture application or a small shortcut, want one request carrying the audio and the flow, and one response carrying the result.
+The caller today uploads each input as an artifact, starts the run with the hashes as params, waits on its own, then reads the outputs (C11) and bytes (C12). The callers this arc serves want one request carrying the audio and the flow, and one response carrying the result.
 
 - **The request is one `multipart/form-data` POST.** One JSON part named `run` describes the run (`flowId`, `flowVersionId`, `flowDefHash` for now), and every other part is an input. A part becomes an artifact bound to the param named by the part, with the part's declared `Content-Type` as the artifact's type, which is what an upload already does. The multipart plugin and its per-file size cap are already registered for every route.
 - **The response is an SSE stream, and it carries a small vocabulary of our own.** It is not the event taxonomy, which callers should never learn. The messages are:
@@ -36,7 +36,7 @@ The caller today uploads each input as an artifact, starts the run with the hash
   - **Settled: the sink reports that it finished the terminal write through a small in-process notifier**, an interface in `packages/ports` that the sink calls and the waiter registers with. A waiter registers first and then reads the run's current status, so a run that finished a moment earlier is not missed, and otherwise waits for the notification. It needs a timeout regardless: the sink retries a failing flush but nothing guarantees it ever succeeds.
   - **Considered and not chosen.** An event on the event bus, because the bus is the legacy path, and a new event would need a schema, an `EventMap` entry and more emitter boilerplate, with a sink publishing back into the tap that feeds it. A new Message family, which is the principled home and works across processes, but costs a catalog, a topic, a subscription and a publisher inside a sink, in a Change that is already large.
   - **Known to be temporary.** Observability sharing a process with the API is expected to go away, and this notifier goes with it. The interface is shaped like a Message so the later move to a Message family is mechanical. That is a decision for when the processes split, not now.
-- **Connection limits.** Settled as a documentation point, not a design one. The server sets no timeouts of its own: Fastify 5.7.2 defaults to no connection or request timeout, and its 72-second keep-alive applies only between requests. Not tested by holding a real connection open. The rest is on the client and anything in between: idle timeouts are typically 60 to 100 seconds, so the 20-second heartbeat clears them, the response headers are sent immediately (as `/events` does) so a client's headers timeout never fires, and a buffering proxy can hold back heartbeats (nginx needs `proxy_buffering off`), which belongs in deployment notes. A dropped connection is expected of a capture application, and the re-attach route is the answer to it.
+- **Connection limits.** Settled as a documentation point, not a design one. The server sets no timeouts of its own: Fastify 5.7.2 defaults to no connection or request timeout, and its 72-second keep-alive applies only between requests. Not tested by holding a real connection open. The rest is on the client and anything in between: idle timeouts are typically 60 to 100 seconds, so the 20-second heartbeat clears them, the response headers are sent immediately (as `/events` does) so a client's headers timeout never fires, and a buffering proxy can hold back heartbeats (nginx needs `proxy_buffering off`), which belongs in deployment notes. A dropped connection is expected of a caller on a phone or a flaky link, and the re-attach route is the answer to it.
 
 ### Open
 

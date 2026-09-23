@@ -52,3 +52,5 @@ lcase-db/
 *.db-journal
 *.db-wal
 *.db-shm
+# scratch voice web client, not part of the repo yet
+voice-client/

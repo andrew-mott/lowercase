@@ -1,0 +1,88 @@
+{
+  "name": "speak",
+  "version": "0.2.0",
+  "description": "Text to speech. An LLM rewrites the text so it reads well aloud, then a text-to-speech step speaks it with the model and voice named by the caller. Returns the audio and the text that was spoken.",
+  "start": "format",
+  "params": {
+    "text": {
+      "type": "text/plain"
+    },
+    "voice": {
+      "type": "text/plain"
+    },
+    "llmUrl": {
+      "type": "text/plain"
+    },
+    "llmModel": {
+      "type": "text/plain"
+    },
+    "llmAuth": {
+      "type": "text/plain"
+    },
+    "formatPrompt": {
+      "type": "text/plain"
+    },
+    "ttsUrl": {
+      "type": "text/plain"
+    },
+    "ttsModel": {
+      "type": "text/plain"
+    }
+  },
+  "outputs": {
+    "audio": {
+      "payload": "{{steps.speak.output}}"
+    },
+    "spoken": {
+      "payload": "{{steps.format.exports.text}}"
+    }
+  },
+  "steps": {
+    "format": {
+      "type": "http",
+      "url": "{{params.llmUrl}}",
+      "method": "POST",
+      "headers": {
+        "Authorization": "{{params.llmAuth}}"
+      },
+      "body": {
+        "json": {
+          "model": "{{params.llmModel}}",
+          "messages": [
+            {
+              "role": "system",
+              "content": "{{params.formatPrompt}}"
+            },
+            {
+              "role": "user",
+              "content": "{{params.text}}"
+            }
+          ],
+          "temperature": 0
+        }
+      },
+      "exports": {
+        "text": {
+          "ref": "{{output.choices[0].message.content}}",
+          "type": "text/plain"
+        }
+      },
+      "on": {
+        "success": "speak"
+      }
+    },
+    "speak": {
+      "type": "http",
+      "url": "{{params.ttsUrl}}",
+      "method": "POST",
+      "body": {
+        "json": {
+          "model": "{{params.ttsModel}}",
+          "voice": "{{params.voice}}",
+          "response_format": "mp3",
+          "input": "{{steps.format.exports.text}}"
+        }
+      }
+    }
+  }
+}
