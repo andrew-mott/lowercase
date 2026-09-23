@@ -4,7 +4,7 @@
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc lets a caller get a flow's result back: the flow says what its result is, a route returns a finished run's outputs, and binary results can be read as raw bytes.
 
-**Not in this arc:** starting a run from inline data and waiting for it (A8), and using a whole step output as another step's input (C16).
+**Not in this arc:** starting a run from inline data and waiting for it (A8), and using a whole step output as another step's input (see "Referencing a whole step output" in `INITIATIVE.md`).
 
 ## Change C10 - Flow outputs - merged (#402)
 
@@ -14,7 +14,7 @@ Looked at the flow definition, ref analysis and the run projection to see what a
 
 - **`outputs` is an untyped stub.** `FlowDefinition.outputs` is `Record<string, unknown>` in both the type and the schema. Nothing reads it and no example or doc flow uses it, so it can be defined without migrating anything.
 - **The hashes a result needs are already recorded.** A run's step projection stores each step's `outputHash` and `exportHashes`. A flow's result can be worked out when it is read, from the flow definition plus those hashes, so the engine, the events and the worker do not change. The route that does the lookup is C11.
-- **Both ref forms already parse.** `steps.X.output` and `steps.X.exports.NAME` go through the existing ref parser and binder. Using a whole output as a _step's_ input is C16 because it needs the worker to check a content type it cannot know statically. Declaring one as a flow output involves no worker, and the stored artifact already carries its content type, so C10 supports both forms.
+- **Both ref forms already parse.** `steps.X.output` and `steps.X.exports.NAME` go through the existing ref parser and binder. Using a whole output as a _step's_ input needs the worker to check a content type it cannot know statically, so it stays a separate, unscheduled item (see "Referencing a whole step output" in `INITIATIVE.md`). Declaring one as a flow output involves no worker, and the stored artifact already carries its content type, so C10 supports both forms.
 - **Settled: an output is an object holding a `payload`.** `{ "payload": "{{steps.tts.output}}" }`. The field is `payload`, not `ref`, so that a later output can be a JSON structure with references inside it, built from several step results. Params and exports are objects already, and it leaves room for a `description` or an asserted type.
 - **Settled: C10 accepts only a whole-value reference as the payload.** The schema leaves `payload` open, and analysis reports a problem for anything other than a single `{{...}}` that is the entire value. Composition is deferred, but the shape does not have to change for it. A binary result can only ever be the whole-value form anyway, since bytes cannot be embedded in JSON.
 - **Settled: no declared type.** The result's content type is read from the stored artifact when it is fetched, which is what makes an audio result work without the flow saying so. An asserted type (`audio/*`, reusing the wildcard matcher) is planned for later, not part of C10; the object shape already leaves room for it.

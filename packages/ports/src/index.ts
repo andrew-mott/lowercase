@@ -1,6 +1,4 @@
 export * from "./engine.port.js";
-export * from "./stream.port.js";
-export * from "./stream-registry.port.js";
 
 export * from "./observability/observability-sink.port.js";
 export * from "./observability/observability-tap.port.js";

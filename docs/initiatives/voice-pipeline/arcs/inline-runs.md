@@ -1,4 +1,4 @@
-# Voice Pipeline — Arc A8: Inline runs (Changes C13–C14)
+# Voice Pipeline — Arc A8: Inline runs (Change C13)
 
 **Previous:** [Results out](./results-out.md) (Changes C10–C12)
 
@@ -40,7 +40,7 @@ The caller today uploads each input as an artifact, starts the run with the hash
 
 ### Open
 
-- **How the flow is named.** Three identifiers today (`flowId`, `flowVersionId`, `flowDefHash`). Naming by name and version is C14; C13 takes the existing three inside the `run` part.
+- **How the flow is named.** Three identifiers today (`flowId`, `flowVersionId`, `flowDefHash`). C13 takes the existing three inside the `run` part; naming by name and version instead was considered as a Change here (was C14) but not scheduled — the real blocker turned out to be flow versioning, not the naming route. See "Naming a flow by name and version" in `INITIATIVE.md`.
 
 ### What actually landed
 

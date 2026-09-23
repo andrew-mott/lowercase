@@ -63,6 +63,18 @@ describe("parseFlow with an http step", () => {
     expect(JSON.parse(invalid.error)[0].path).toEqual(["steps", "stt", "url"]);
   });
 
+  it("rejects retired inputs and pipe fields", () => {
+    expect(
+      parseFlow({
+        ...flowWith({ type: "httpjson", url: "http://x" }),
+        inputs: {},
+      }).ok,
+    ).toBe(false);
+    expect(
+      parseFlow(flowWith({ type: "httpjson", url: "http://x", pipe: {} })).ok,
+    ).toBe(false);
+  });
+
   it("rejects an unknown step type as before", () => {
     const result = parseFlow(flowWith({ type: "nope", url: "http://x" }));
     expect(result.ok).toBe(false);

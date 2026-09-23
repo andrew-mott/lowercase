@@ -24,7 +24,6 @@ export type FlowDefinition = {
   description?: string;
   kind?: FlowKind;
   params?: Record<string, FlowParamDefinition>;
-  inputs?: Record<string, unknown>;
   outputs?: Record<string, FlowOutputDefinition>;
   start: string;
   steps: Record<string, StepDefinition>;
