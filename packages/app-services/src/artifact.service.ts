@@ -42,7 +42,12 @@ export class ArtifactService implements ArtifactServicePort {
       case "markdown":
         return { ok: true, format, value: result.value as string };
       case "bytes":
-        return { ok: true, format, value: result.value as Uint8Array };
+        return {
+          ok: true,
+          format,
+          value: result.value as Uint8Array,
+          contentType: result.contentType,
+        };
     }
   }
 

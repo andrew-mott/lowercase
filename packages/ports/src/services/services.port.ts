@@ -37,7 +37,7 @@ import type {
 export type AutoGetResult =
   | { ok: true; format: "json"; value: JsonValue }
   | { ok: true; format: "text" | "markdown"; value: string }
-  | { ok: true; format: "bytes"; value: Uint8Array }
+  | { ok: true; format: "bytes"; value: Uint8Array; contentType: string }
   | { ok: false; error: ArtifactLoadError };
 
 export interface ServicesPort {

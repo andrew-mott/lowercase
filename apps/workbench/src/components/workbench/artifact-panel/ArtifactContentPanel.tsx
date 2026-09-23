@@ -3,6 +3,7 @@ import { useGetArtifactQuery } from "@/redux/api/artifacts-api";
 import { CodeEditor } from "@/components/workbench/shared/CodeEditor";
 import { artifactFormatToLanguage } from "@/components/workbench/shared/ref-resolution";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
+import { SERVER_URL } from "@/lib/server-url";
 
 export function ArtifactContentPanel({ hash }: { hash: string | null }) {
   const artifact = useGetArtifactQuery(hash ? { hash } : skipToken);
@@ -24,6 +25,17 @@ export function ArtifactContentPanel({ hash }: { hash: string | null }) {
   }
 
   if (artifact.data.format === "bytes") {
+    if (artifact.data.contentType.startsWith("audio/")) {
+      return (
+        <div className="p-4">
+          <audio
+            controls
+            src={`${SERVER_URL}/api/artifacts/${hash}/content`}
+            className="w-full"
+          />
+        </div>
+      );
+    }
     return (
       <div className="p-4">
         <p className="font-semibold">Binary artifact</p>
