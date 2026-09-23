@@ -6,7 +6,7 @@ Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep th
 
 **Not in this arc:** naming a flow by name and version (moved to "Not yet scoped" in `INITIATIVE.md` — the real blocker turned out to be flow versioning, not the naming route), and the workbench rendering binary artifacts (its own later arc, A10).
 
-## Change C14 - The transcription, speech, and conversation flows - in progress
+## Change C14 - The transcription, speech, and conversation flows - merged (#406)
 
 ### Discussion
 

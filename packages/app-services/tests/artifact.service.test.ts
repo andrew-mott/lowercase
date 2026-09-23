@@ -311,6 +311,32 @@ describe("ArtifactService.createArtifact", () => {
   });
 });
 
+describe("ArtifactService.getArtifact", () => {
+  it("includes the artifact's content type alongside its bytes", async () => {
+    const artifacts = {
+      load: vi.fn().mockResolvedValue({
+        ok: true,
+        value: new Uint8Array([1, 2, 3]),
+        contentType: "audio/wav",
+      }),
+    } as unknown as ArtifactReadWritePort;
+    const service = new ArtifactService(
+      artifacts,
+      {} as ArtifactRepositoryPort,
+      {} as FlowRepositoryPort,
+    );
+
+    const result = await service.getArtifact("some-hash");
+
+    expect(result).toEqual({
+      ok: true,
+      format: "bytes",
+      value: new Uint8Array([1, 2, 3]),
+      contentType: "audio/wav",
+    });
+  });
+});
+
 describe("ArtifactService.updateArtifactMetadata", () => {
   it("skips flow-version validation entirely when paramCurations is absent", async () => {
     const { service, flowRepository, artifactRepository } =

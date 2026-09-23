@@ -16,5 +16,6 @@ export type GetArtifactRes =
       ok: true;
       format: "bytes";
       byteLength: number;
+      contentType: string;
     }
   | { ok: false; error: string };

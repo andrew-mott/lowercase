@@ -22,6 +22,7 @@ export const getArtifactRoute = async (app: FastifyInstance) => {
             ok: true,
             format: "bytes",
             byteLength: artifact.value.byteLength,
+            contentType: artifact.contentType,
           };
       }
 
