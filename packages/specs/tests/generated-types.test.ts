@@ -1,6 +1,9 @@
 import { expectTypeOf, it } from "vitest";
 import type {
   ExportDeclaration,
+  FlowKind,
+  FlowOutputDefinition,
+  FlowParamDefinition,
   HttpExportDeclaration,
   HttpStepOn,
   StepOnField,
@@ -12,4 +15,13 @@ import type {
 it("generated http step shapes fit the shared step types", () => {
   expectTypeOf<HttpStepOn>().toExtend<NonNullable<StepOnField["on"]>>();
   expectTypeOf<HttpExportDeclaration>().toExtend<ExportDeclaration>();
+});
+
+it("generated flow foundations preserve their public shapes", () => {
+  expectTypeOf<FlowKind>().toEqualTypeOf<"business" | "eval">();
+  expectTypeOf<FlowParamDefinition["type"]>().toEqualTypeOf<string>();
+  expectTypeOf<FlowParamDefinition["optional"]>().toEqualTypeOf<
+    true | undefined
+  >();
+  expectTypeOf<FlowOutputDefinition["payload"]>().toEqualTypeOf<string>();
 });

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "flow-output-definition.schema.json",
+  "title": "FlowOutputDefinition",
+  "type": "object",
+  "properties": {
+    "payload": { "type": "string" }
+  },
+  "required": ["payload"],
+  "additionalProperties": false
+}
