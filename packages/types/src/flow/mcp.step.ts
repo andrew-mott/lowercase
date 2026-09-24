@@ -1,4 +1,4 @@
-import type { StepCapCommonFields, StepOnField } from "./common-fields.js";
+import type { StepCapCommonFields, StepOnField } from "../generated/index.js";
 
 export type StepMcp = StepCapCommonFields &
   StepOnField & {
