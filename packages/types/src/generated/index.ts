@@ -5,3 +5,5 @@ export * from "./flow-output-definition.gen.js";
 export * from "./flow-param-definition.gen.js";
 export * from "./join.step.gen.js";
 export * from "./parallel.step.gen.js";
+export * from "./step-cap-common-fields.gen.js";
+export * from "./step-on-field.gen.js";

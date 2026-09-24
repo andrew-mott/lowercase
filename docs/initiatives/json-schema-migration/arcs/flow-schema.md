@@ -73,7 +73,7 @@ generated type property because the type-test helper does not compare optional
 object properties precisely; the direct schema test covers the complete strict
 object contract.
 
-## Change C3 - Structural-step schemas and generated types - in review
+## Change C3 - Structural-step schemas and generated types - merged (PR #410)
 
 Move the bounded, non-capability step variants into the schema pipeline before the capability-specific contracts.
 
@@ -92,7 +92,7 @@ Move the bounded, non-capability step variants into the schema pipeline before t
 
 No material scope divergence. Each structural step has a standalone strict schema and committed generated type, while the existing Zod schemas continue to validate the parser boundary. The generated barrel now supplies the public structural-step names; the duplicate private modules are deleted, and the join schema uses the normal package-root import.
 
-## Change C4 - Shared capability-field schemas and generated types - not started
+## Change C4 - Shared capability-field schemas and generated types - in progress
 
 Establish the reusable, schema-owned fields that capability steps share, without changing which steps the runtime accepts.
 
@@ -103,6 +103,8 @@ Establish the reusable, schema-owned fields that capability steps share, without
 - Author independently owned schemas and generated public types for the current capability common fields: `args` and `tool`, plus the `on` success/failure routing field.
 - Keep generated output in `packages/types/src/generated/` with the existing `.gen.ts` naming and barrel. Replace duplicate hand-written declarations while retaining their useful public names and package-root imports.
 - Design the schemas for real cross-schema composition by later capability roots. The composed step remains responsible for rejecting unknown fields; do not force a private `$defs` structure onto fields that `httpjson` and `mcp` both own.
+- Keep the reusable field schemas open to sibling properties so later step roots can compose them with `allOf`. In draft 2020-12, the final composed root uses `unevaluatedProperties: false` to close the complete shape after its referenced fields have been evaluated; `additionalProperties: false` inside a reusable component would reject its siblings instead.
+- Give the two schema roots stable filename `$id` values and the existing public type names, `StepCapCommonFields` and `StepOnField`. Their generated types replace only those declarations in `common-fields.ts`; the still-hand-written eval and export types remain there for C5.
 - Verify the schemas directly with AJV and their generated public shapes. Leave the Zod parser, all accepted step types, and runtime job dispatch unchanged.
 - Do not move `http`'s existing private definitions into these shared contracts merely for uniformity. Its vertical slice remains valid; alignment can be considered only where it makes a later composed flow schema clearer.
 

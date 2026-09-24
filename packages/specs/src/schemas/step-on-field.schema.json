@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "step-on-field.schema.json",
+  "title": "StepOnField",
+  "type": "object",
+  "properties": {
+    "on": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "string" },
+        "failure": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

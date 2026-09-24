@@ -7,6 +7,7 @@ import type {
   HttpExportDeclaration,
   HttpStepOn,
   StepBranch,
+  StepCapCommonFields,
   StepJoin,
   StepOnField,
   StepParallel,
@@ -39,4 +40,16 @@ it("generated structural steps preserve their public shapes", () => {
   expectTypeOf<StepJoin["next"]>().toEqualTypeOf<string>();
   expectTypeOf<StepParallel["type"]>().toEqualTypeOf<"parallel">();
   expectTypeOf<StepParallel["steps"]>().toEqualTypeOf<string[]>();
+});
+
+it("generated shared capability fields preserve their public shapes", () => {
+  expectTypeOf<StepCapCommonFields["args"]>().toEqualTypeOf<
+    Record<string, unknown> | undefined
+  >();
+  expectTypeOf<StepCapCommonFields["tool"]>().toEqualTypeOf<
+    string | undefined
+  >();
+  expectTypeOf<StepOnField["on"]>().toEqualTypeOf<
+    { success?: string; failure?: string } | undefined
+  >();
 });

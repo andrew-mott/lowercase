@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "step-cap-common-fields.schema.json",
+  "title": "StepCapCommonFields",
+  "type": "object",
+  "properties": {
+    "args": {
+      "type": "object",
+      "additionalProperties": {}
+    },
+    "tool": { "type": "string" }
+  }
+}
