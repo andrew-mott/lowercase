@@ -1,5 +1,5 @@
+import type { StepJoin } from "@lcase/types";
 import { z } from "zod";
-import type { StepJoin } from "../../types/dist/flow/join.step.js";
 
 export const StepJoinSchema = z
   .object({

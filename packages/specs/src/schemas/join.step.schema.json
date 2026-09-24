@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "join.step.schema.json",
+  "title": "StepJoin",
+  "type": "object",
+  "properties": {
+    "type": { "const": "join" },
+    "steps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "next": { "type": "string" }
+  },
+  "required": ["type", "steps", "next"],
+  "additionalProperties": false
+}

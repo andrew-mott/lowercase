@@ -6,7 +6,10 @@ import type {
   FlowParamDefinition,
   HttpExportDeclaration,
   HttpStepOn,
+  StepBranch,
+  StepJoin,
   StepOnField,
+  StepParallel,
 } from "@lcase/types";
 
 // The http step's schema restates shapes that other steps define in Zod. These
@@ -24,4 +27,16 @@ it("generated flow foundations preserve their public shapes", () => {
     true | undefined
   >();
   expectTypeOf<FlowOutputDefinition["payload"]>().toEqualTypeOf<string>();
+});
+
+it("generated structural steps preserve their public shapes", () => {
+  expectTypeOf<StepBranch["type"]>().toEqualTypeOf<"branch">();
+  expectTypeOf<StepBranch["value"]>().toEqualTypeOf<string>();
+  expectTypeOf<StepBranch["cases"]>().toEqualTypeOf<Record<string, string>>();
+  expectTypeOf<StepBranch["default"]>().toEqualTypeOf<string>();
+  expectTypeOf<StepJoin["type"]>().toEqualTypeOf<"join">();
+  expectTypeOf<StepJoin["steps"]>().toEqualTypeOf<string[]>();
+  expectTypeOf<StepJoin["next"]>().toEqualTypeOf<string>();
+  expectTypeOf<StepParallel["type"]>().toEqualTypeOf<"parallel">();
+  expectTypeOf<StepParallel["steps"]>().toEqualTypeOf<string[]>();
 });

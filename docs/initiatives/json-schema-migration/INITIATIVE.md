@@ -16,15 +16,17 @@ Make JSON Schema the durable authored contract for flow definitions and, later, 
 
 ## Change index
 
-| Change | Description                                  | Status           | Where |
-| ------ | -------------------------------------------- | ---------------- | ----- |
-| C1     | Retire stale `inputs` and `pipe` flow fields | merged (PR #408) | [A1]  |
-| C2     | Flow-foundation schemas and generated types  | in review        | [A1]  |
-| C3     | Structural-step schemas and generated types  | not started      | [A1]  |
+| Change | Description                                         | Status           | Where |
+| ------ | --------------------------------------------------- | ---------------- | ----- |
+| C1     | Retire stale `inputs` and `pipe` flow fields        | merged (PR #408) | [A1]  |
+| C2     | Flow-foundation schemas and generated types         | merged (PR #409) | [A1]  |
+| C3     | Structural-step schemas and generated types         | in review        | [A1]  |
+| C4     | Shared capability-field schemas and generated types | not started      | [A1]  |
+| C5     | HTTP JSON step schema and generated types           | not started      | [A1]  |
 
 ## Next up
 
-- C2 — Flow-foundation schemas and generated types.
+- C3 — Structural-step schemas and generated types.
 
 ## Not yet scoped
 
