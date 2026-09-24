@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "branch.step.schema.json",
+  "title": "StepBranch",
+  "type": "object",
+  "properties": {
+    "type": { "const": "branch" },
+    "value": { "type": "string" },
+    "cases": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "default": { "type": "string" }
+  },
+  "required": ["type", "value", "cases", "default"],
+  "additionalProperties": false
+}

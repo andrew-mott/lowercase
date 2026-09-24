@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "parallel.step.schema.json",
+  "title": "StepParallel",
+  "type": "object",
+  "properties": {
+    "type": { "const": "parallel" },
+    "steps": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["type", "steps"],
+  "additionalProperties": false
+}
