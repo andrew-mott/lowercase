@@ -1,7 +1,10 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { JSONSchema } from "json-schema-to-typescript";
-import { generateTypes, toTypeAliases } from "../scripts/type-generation.ts";
+import {
+  generateTypes,
+  toTypeAliases,
+} from "../scripts/schema-type-compiler.ts";
 
 const generate = (schema: JSONSchema) =>
   generateTypes(schema, {

@@ -1,7 +1,7 @@
 // Generates TypeScript types from the JSON Schema files in src/schemas.
 //
-//   node scripts/generate-types.ts          writes the generated files
-//   node scripts/generate-types.ts --check  fails if any is missing or stale
+//   node scripts/write-generated-types.ts          writes the generated files
+//   node scripts/write-generated-types.ts --check  fails if any is missing or stale
 //
 // Each <name>.schema.json becomes <name>.gen.ts in packages/types/src/generated.
 // The generated files are committed, so the types package needs no codegen
@@ -10,7 +10,7 @@
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateTypes } from "./type-generation.ts";
+import { generateTypes } from "./schema-type-compiler.ts";
 
 const specsRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

@@ -11,8 +11,8 @@
   },
   "scripts": {
     "build": "node ../../scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
-    "gen": "node scripts/generate-types.ts",
-    "gen:check": "node scripts/generate-types.ts --check",
+    "gen": "node scripts/write-generated-types.ts",
+    "gen:check": "node scripts/write-generated-types.ts --check",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "lint": "eslint .",
