@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http-json.step.schema.json",
+  "title": "StepHttpJson",
+  "description": "A legacy capability step that makes one HTTP request and can declare eval context for its exports.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "step-cap-common-fields.schema.json" },
+    { "$ref": "step-on-field.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "httpjson" },
+        "url": { "type": "string" },
+        "method": {
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "body": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "boolean" },
+            { "type": "number" },
+            { "type": "string" },
+            { "type": "array", "items": {} },
+            { "type": "object", "additionalProperties": {} }
+          ]
+        },
+        "exports": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/HttpJsonExportDeclaration"
+          }
+        }
+      },
+      "required": ["type", "url"]
+    }
+  ],
+  "unevaluatedProperties": false,
+  "$defs": {
+    "HttpJsonEvalContextSource": {
+      "title": "HttpJsonEvalContextSource",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "source": { "const": "param" },
+            "name": { "type": "string" }
+          },
+          "required": ["source", "name"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "source": { "const": "export" },
+            "stepId": { "type": "string" },
+            "name": { "type": "string" }
+          },
+          "required": ["source", "stepId", "name"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "source": { "const": "output" },
+            "stepId": { "type": "string" }
+          },
+          "required": ["source", "stepId"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "HttpJsonExportDeclaration": {
+      "title": "HttpJsonExportDeclaration",
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string" },
+        "type": {
+          "enum": ["application/json", "text/plain", "text/markdown"]
+        },
+        "schema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "evalContext": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/HttpJsonEvalContextSource"
+          }
+        }
+      },
+      "required": ["ref", "type"],
+      "additionalProperties": false
+    }
+  }
+}

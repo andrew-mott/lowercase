@@ -1,4 +1,4 @@
-# JSON Schema Migration — Arc A1: Flow schema (Changes C1–C5)
+# JSON Schema Migration — Arc A1: Flow schema (Changes C1–C7)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change index. This Arc establishes the flow contract in reviewable layers rather than attempting every flow shape in one Change. These Changes keep the current runtime parsing architecture in place; C1 only removes obsolete accepted fields.
 
@@ -92,7 +92,7 @@ Move the bounded, non-capability step variants into the schema pipeline before t
 
 No material scope divergence. Each structural step has a standalone strict schema and committed generated type, while the existing Zod schemas continue to validate the parser boundary. The generated barrel now supplies the public structural-step names; the duplicate private modules are deleted, and the join schema uses the normal package-root import.
 
-## Change C4 - Shared capability-field schemas and generated types - in progress
+## Change C4 - Shared capability-field schemas and generated types - merged (PR #411)
 
 Establish the reusable, schema-owned fields that capability steps share, without changing which steps the runtime accepts.
 
@@ -108,7 +108,7 @@ Establish the reusable, schema-owned fields that capability steps share, without
 - Verify the schemas directly with AJV and their generated public shapes. Leave the Zod parser, all accepted step types, and runtime job dispatch unchanged.
 - Do not move `http`'s existing private definitions into these shared contracts merely for uniformity. Its vertical slice remains valid; alignment can be considered only where it makes a later composed flow schema clearer.
 
-## Change C5 - HTTP JSON step schema and generated types - not started
+## Change C5 - HTTP JSON step schema and generated types - in review
 
 Describe the full current `httpjson` flow contract in JSON Schema so it can participate in an eventual complete flow schema and AJV parser cutover, even while it remains a legacy capability.
 
@@ -117,8 +117,46 @@ Describe the full current `httpjson` flow contract in JSON Schema so it can part
 **Intended boundary:**
 
 - Author the `httpjson` step schema and generate its public TypeScript types, composing the reusable C4 capability fields through `$ref`.
+- Compose those fields with `allOf` and close the final step shape with draft-2020-12 `unevaluatedProperties: false`; the C4 schemas remain open to their step-specific siblings.
 - Preserve the current accepted shape exactly: URL, method, headers, shallow JSON body, exports, and the legacy export `evalContext` structures. The schema migration is a fidelity change, not an eval redesign.
 - Keep `evalContext` owned by `httpjson`; do not add it to `http`. Its future replacement or removal belongs with the separate eval rework.
-- Keep `httpjson`-specific reusable pieces, including export and eval-context variants, private to this schema through `$defs` unless implementation identifies a genuine second owner. C5 may add the small supporting schemas or generated types genuinely required to make that contract complete; it is not limited artificially to one schema file.
-- Replace duplicate hand-written `httpjson` type declarations with the generated public types where that preserves existing names and package-root imports. Do not remove `httpjson` from the flow union, parser, worker/job protocol, or documentation in this Change.
-- Verify structural behavior directly with AJV and generated type compatibility. Leave the Zod runtime parsing path in place until the complete composed flow schema is ready for its own cutover Change.
+- Keep `httpjson`-specific reusable pieces, including export and eval-context variants, private to this schema through `$defs` unless implementation identifies a genuine second owner. Generate them under HTTP-JSON-specific names, then retain the useful existing `EvalContextSource` and `ExportDeclaration` package-root names as aliases. Delete the unconsumed `StepExportsField` helper rather than invent a schema solely to preserve it.
+- Keep each generated schema file self-contained, including the generator's duplicate intermediate declarations for externally referenced schemas. The generated barrel explicitly exposes only HTTP JSON's intended public types, so those implementation details do not collide at the package root. Apply the same selective-barrel pattern to C7's composed flow output.
+- Replace the duplicate hand-written `httpjson` step module with the generated `StepHttpJson` type, preserving its package-root import. Do not remove `httpjson` from the flow union, parser, worker/job protocol, or documentation in this Change.
+- Verify the composed shape directly with AJV using the C4 schemas registered by `$id`, and verify generated type compatibility. Leave the Zod runtime parsing path in place until the complete composed flow schema is ready for its own cutover Change.
+
+### What actually landed
+
+No material contract or runtime-scope divergence. The implementation settled the generated-output boundary during the Change: instead of adding custom `$ref`-to-TypeScript-import generation, each schema's generated file remains self-contained and the generated barrel explicitly exposes only HTTP JSON's intended public types. That simpler decision is reflected in the Discussion. The existing Zod flow parser and legacy `httpjson` eval behavior are unchanged.
+
+## Change C6 - MCP step schema and generated types - not started
+
+Move the remaining capability-specific step into the schema pipeline so every
+currently accepted step variant has an authored contract before flow-root
+composition.
+
+### Discussion
+
+**Intended boundary:**
+
+- Author `mcp.step.schema.json` with a stable filename `$id` and `StepMcp` title. Compose C4's `args`, `tool`, and `on` fields through `$ref`/`allOf`, then close the complete step with `unevaluatedProperties: false`.
+- Preserve the current required `type`, `url`, `transport`, and `feature` fields, including their exact discriminator and enum values. The outer step is strict today. The nested Zod `feature` object currently accepts and strips unknown fields; keep its schema structurally open for compatibility, and treat that normalization difference as an AJV parser-cutover decision rather than silently tightening it here.
+- Generate `StepMcp` in the existing generated directory and remove its duplicate hand-written step module. Update the flow unions and capability map while preserving package-root imports and leaving the Zod parser as the runtime boundary.
+- Align the existing `http` schema with C4's `StepOnField` at the same time, replacing only its private routing-field definition. Do not compose C4's `args` and `tool`: `http` currently rejects them, so accepting them would expand its contract.
+- Verify the schema directly with AJV and the generated public type. Do not redesign MCP transport, feature ownership, job dispatch, or capability behavior.
+
+## Change C7 - Composed flow schema and generated root types - not started
+
+Compose the schema-owned flow pieces into the complete authored flow contract
+and replace the remaining hand-written flow/step union types, without cutting
+the runtime parser over yet.
+
+### Discussion
+
+**Intended boundary:**
+
+- Author the draft-2020-12 `flow-definition.schema.json` with a stable filename `$id` and `FlowDefinition` title. Reference C2's foundation schemas and use a private `$defs` `oneOf` step union for `httpjson`, `mcp`, `http`, `branch`, `join`, and `parallel`; every variant carries its required `const` discriminator.
+- Generate the public `FlowDefinition` and `StepDefinition` types from that composed contract. Replace the remaining hand-written root and union declarations, preserving the useful package-root names and imports.
+- Keep root structural ownership faithful to today's `FlowSchema`: required name, version, start, and steps; optional description, kind, params, and outputs; no unknown root fields. The root schema owns its final closure, while composed capability steps retain their own `unevaluatedProperties` closure.
+- Exercise real schema composition in direct AJV tests by registering every referenced schema by `$id`. Cover one valid flow for each step variant plus root and step rejection cases, and verify the generated public types.
+- Leave `FlowSchema` and `StepSchema` on the current Zod/AJV dispatch path. Replacing that parser boundary, aligning its diagnostics, and resolving any normalization differences are a later Change.

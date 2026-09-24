@@ -1,16 +1,20 @@
 import { expectTypeOf, it } from "vitest";
 import type {
+  EvalContextSource,
   ExportDeclaration,
   FlowKind,
   FlowOutputDefinition,
   FlowParamDefinition,
   HttpExportDeclaration,
+  HttpJsonEvalContextSource,
+  HttpJsonExportDeclaration,
   HttpStepOn,
   StepBranch,
   StepCapCommonFields,
   StepJoin,
   StepOnField,
   StepParallel,
+  StepHttpJson,
 } from "@lcase/types";
 
 // The http step's schema restates shapes that other steps define in Zod. These
@@ -51,5 +55,15 @@ it("generated shared capability fields preserve their public shapes", () => {
   >();
   expectTypeOf<StepOnField["on"]>().toEqualTypeOf<
     { success?: string; failure?: string } | undefined
+  >();
+});
+
+it("generated httpjson shapes preserve the legacy public names", () => {
+  expectTypeOf<HttpJsonEvalContextSource>().toEqualTypeOf<EvalContextSource>();
+  expectTypeOf<HttpJsonExportDeclaration>().toEqualTypeOf<ExportDeclaration>();
+  expectTypeOf<StepHttpJson["type"]>().toEqualTypeOf<"httpjson">();
+  expectTypeOf<StepHttpJson["url"]>().toEqualTypeOf<string>();
+  expectTypeOf<StepHttpJson["exports"]>().toEqualTypeOf<
+    Record<string, ExportDeclaration> | undefined
   >();
 });

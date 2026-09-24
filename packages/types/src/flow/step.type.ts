@@ -1,8 +1,8 @@
-import type { StepHttpJson } from "./http-json.step.js";
 import type { StepMcp } from "./mcp.step.js";
 import type {
   StepBranch,
   StepHttp,
+  StepHttpJson,
   StepJoin,
   StepParallel,
 } from "../generated/index.js";
