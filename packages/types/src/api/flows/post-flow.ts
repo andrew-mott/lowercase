@@ -1,4 +1,4 @@
-import type { FlowDefinition } from "../../flow/flow-definition.js";
+import type { FlowDefinition } from "../../generated/flow-definition.gen.js";
 import type { CreateFlowRecordResult } from "../../db-sql/flow-record.js";
 import type { Result } from "../../result.type.js";
 

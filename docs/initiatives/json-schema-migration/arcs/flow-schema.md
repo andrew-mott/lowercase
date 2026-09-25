@@ -129,7 +129,7 @@ Describe the full current `httpjson` flow contract in JSON Schema so it can part
 
 No material contract or runtime-scope divergence. The implementation settled the generated-output boundary during the Change: instead of adding custom `$ref`-to-TypeScript-import generation, each schema's generated file remains self-contained and the generated barrel explicitly exposes only HTTP JSON's intended public types. That simpler decision is reflected in the Discussion. The existing Zod flow parser and legacy `httpjson` eval behavior are unchanged.
 
-## Change C6 - MCP step schema and generated types - in review
+## Change C6 - MCP step schema and generated types - merged (PR #413)
 
 Move the remaining capability-specific step into the schema pipeline so every
 currently accepted step variant has an authored contract before flow-root
@@ -156,7 +156,7 @@ treats both equivalently so the existing parser diagnostic remains stable.
 `HttpStepOn` had no production consumers and is retired in favor of
 `StepOnField`; the other useful HTTP public type names remain exposed.
 
-## Change C7 - Composed flow schema and generated root types - not started
+## Change C7 - Composed flow schema and generated root types - in review
 
 Compose the schema-owned flow pieces into the complete authored flow contract
 and replace the remaining hand-written flow/step union types, without cutting
@@ -168,6 +168,20 @@ the runtime parser over yet.
 
 - Author the draft-2020-12 `flow-definition.schema.json` with a stable filename `$id` and `FlowDefinition` title. Reference C2's foundation schemas and use a private `$defs` `oneOf` step union for `httpjson`, `mcp`, `http`, `branch`, `join`, and `parallel`; every variant carries its required `const` discriminator.
 - Generate the public `FlowDefinition` and `StepDefinition` types from that composed contract. Replace the remaining hand-written root and union declarations, preserving the useful package-root names and imports.
+- Make the generated `flow-definition.gen.ts` the sole committed TypeScript output for the flow schema graph. It is self-contained because the generator resolves `$ref`; selectively expose the existing useful foundation, step, and HTTP helper names from that one file. Retire the duplicate leaf `.gen.ts` files and preserve package-root imports; the hand-written root and union modules can be deleted because the package only supports package-root type imports, not deep implementation paths.
 - Keep root structural ownership faithful to today's `FlowSchema`: required name, version, start, and steps; optional description, kind, params, and outputs; no unknown root fields. The root schema owns its final closure, while composed capability steps retain their own `unevaluatedProperties` closure.
 - Exercise real schema composition in direct AJV tests by registering every referenced schema by `$id`. Cover one valid flow for each step variant plus root and step rejection cases, and verify the generated public types.
 - Leave `FlowSchema` and `StepSchema` on the current Zod/AJV dispatch path. Replacing that parser boundary, aligning its diagnostics, and resolving any normalization differences are a later Change.
+
+### What actually landed
+
+No material contract or parser-boundary divergence. The generated-output
+boundary was deliberately simplified before review: rather than retain one
+generated file per schema, the composed flow root is now the sole committed
+flow type output, while the small authored schemas and their direct AJV tests
+remain. Its explicit barrel exports preserve the existing public flow names.
+The generated root types also caused TypeScript declaration inference for the
+still-exported Zod schemas to name a generated implementation path; explicit
+`z.ZodType` annotations retain their intended public types without changing
+runtime parsing. Internal type imports now reference the committed generated
+root directly; package-root imports remain unchanged.

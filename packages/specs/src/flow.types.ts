@@ -113,7 +113,7 @@ const ZodStepSchema = z.discriminatedUnion("type", [
  * to the union because a Zod discriminated union only accepts Zod objects: it
  * reads each member's `type` literal from its shape.
  */
-export const StepSchema = z
+export const StepSchema: z.ZodType<StepDefinition> = z
   .custom<StepDefinition>()
   .transform((value: unknown, ctx): StepDefinition => {
     if (isObject(value) && value.type === "http") {
@@ -150,7 +150,7 @@ export const FlowOutputSchema = z
   })
   .strict() satisfies z.ZodType<FlowOutputDefinition>;
 
-export const FlowSchema = z
+export const FlowSchema: z.ZodType<FlowDefinition> = z
   .object({
     name: z.string().min(1),
     version: z.string(),
@@ -161,4 +161,4 @@ export const FlowSchema = z
     start: z.string().min(1),
     steps: z.record(z.string(), StepSchema),
   })
-  .strict() satisfies z.ZodType<FlowDefinition>;
+  .strict();

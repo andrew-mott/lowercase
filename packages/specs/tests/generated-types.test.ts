@@ -2,6 +2,7 @@ import { expectTypeOf, it } from "vitest";
 import type {
   EvalContextSource,
   ExportDeclaration,
+  FlowDefinition,
   FlowKind,
   FlowOutputDefinition,
   FlowParamDefinition,
@@ -10,6 +11,7 @@ import type {
   HttpJsonExportDeclaration,
   StepBranch,
   StepCapCommonFields,
+  StepDefinition,
   StepHttp,
   StepJoin,
   StepMcp,
@@ -35,6 +37,26 @@ it("generated flow foundations preserve their public shapes", () => {
     true | undefined
   >();
   expectTypeOf<FlowOutputDefinition["payload"]>().toEqualTypeOf<string>();
+});
+
+it("generated flow roots preserve their public shapes", () => {
+  expectTypeOf<FlowDefinition["name"]>().toEqualTypeOf<string>();
+  expectTypeOf<FlowDefinition["start"]>().toEqualTypeOf<string>();
+  expectTypeOf<FlowDefinition["params"]>().toEqualTypeOf<
+    Record<string, FlowParamDefinition> | undefined
+  >();
+  expectTypeOf<FlowDefinition["outputs"]>().toEqualTypeOf<
+    Record<string, FlowOutputDefinition> | undefined
+  >();
+  expectTypeOf<
+    Extract<StepDefinition, { type: "http" }>
+  >().toEqualTypeOf<StepHttp>();
+  expectTypeOf<
+    Extract<StepDefinition, { type: "mcp" }>
+  >().toEqualTypeOf<StepMcp>();
+  expectTypeOf<
+    Extract<StepDefinition, { type: "httpjson" }>
+  >().toEqualTypeOf<StepHttpJson>();
 });
 
 it("generated structural steps preserve their public shapes", () => {

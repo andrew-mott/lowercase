@@ -1,4 +1,4 @@
-import type { StepHttpJson } from "../../../generated/http-json.step.gen.js";
+import type { StepHttpJson } from "../../../generated/flow-definition.gen.js";
 import type { ExportRef } from "../../../flow-analysis/types.js";
 import type { JobSubmittedData } from "../data.js";
 
