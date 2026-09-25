@@ -1,5 +1,5 @@
 import type { FlowAnalysis } from "../../flow-analysis/types.js";
-import type { FlowDefinition } from "../../flow/flow-definition.js";
+import type { FlowDefinition } from "../../generated/flow-definition.gen.js";
 
 export type FlowDescriptor = {
   flow: {

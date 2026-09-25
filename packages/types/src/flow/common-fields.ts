@@ -1,7 +1,7 @@
 import type {
   HttpJsonEvalContextSource,
   HttpJsonExportDeclaration,
-} from "../generated/http-json.step.gen.js";
+} from "../generated/flow-definition.gen.js";
 
 export type EvalContextSource = HttpJsonEvalContextSource;
 

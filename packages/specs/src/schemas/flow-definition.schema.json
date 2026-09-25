@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "flow-definition.schema.json",
+  "title": "FlowDefinition",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "kind": { "$ref": "flow-kind.schema.json" },
+    "params": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "flow-param-definition.schema.json"
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "flow-output-definition.schema.json"
+      }
+    },
+    "start": { "type": "string", "minLength": 1 },
+    "steps": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/StepDefinition" }
+    }
+  },
+  "required": ["name", "version", "start", "steps"],
+  "additionalProperties": false,
+  "$defs": {
+    "StepDefinition": {
+      "title": "StepDefinition",
+      "oneOf": [
+        { "$ref": "branch.step.schema.json" },
+        { "$ref": "join.step.schema.json" },
+        { "$ref": "parallel.step.schema.json" },
+        { "$ref": "http-json.step.schema.json" },
+        { "$ref": "mcp.step.schema.json" },
+        { "$ref": "http.step.schema.json" }
+      ]
+    }
+  }
+}
