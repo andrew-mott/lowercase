@@ -108,7 +108,7 @@ Establish the reusable, schema-owned fields that capability steps share, without
 - Verify the schemas directly with AJV and their generated public shapes. Leave the Zod parser, all accepted step types, and runtime job dispatch unchanged.
 - Do not move `http`'s existing private definitions into these shared contracts merely for uniformity. Its vertical slice remains valid; alignment can be considered only where it makes a later composed flow schema clearer.
 
-## Change C5 - HTTP JSON step schema and generated types - in review
+## Change C5 - HTTP JSON step schema and generated types - merged (PR #412)
 
 Describe the full current `httpjson` flow contract in JSON Schema so it can participate in an eventual complete flow schema and AJV parser cutover, even while it remains a legacy capability.
 
@@ -129,7 +129,7 @@ Describe the full current `httpjson` flow contract in JSON Schema so it can part
 
 No material contract or runtime-scope divergence. The implementation settled the generated-output boundary during the Change: instead of adding custom `$ref`-to-TypeScript-import generation, each schema's generated file remains self-contained and the generated barrel explicitly exposes only HTTP JSON's intended public types. That simpler decision is reflected in the Discussion. The existing Zod flow parser and legacy `httpjson` eval behavior are unchanged.
 
-## Change C6 - MCP step schema and generated types - not started
+## Change C6 - MCP step schema and generated types - in review
 
 Move the remaining capability-specific step into the schema pipeline so every
 currently accepted step variant has an authored contract before flow-root
@@ -141,9 +141,20 @@ composition.
 
 - Author `mcp.step.schema.json` with a stable filename `$id` and `StepMcp` title. Compose C4's `args`, `tool`, and `on` fields through `$ref`/`allOf`, then close the complete step with `unevaluatedProperties: false`.
 - Preserve the current required `type`, `url`, `transport`, and `feature` fields, including their exact discriminator and enum values. The outer step is strict today. The nested Zod `feature` object currently accepts and strips unknown fields; keep its schema structurally open for compatibility, and treat that normalization difference as an AJV parser-cutover decision rather than silently tightening it here.
-- Generate `StepMcp` in the existing generated directory and remove its duplicate hand-written step module. Update the flow unions and capability map while preserving package-root imports and leaving the Zod parser as the runtime boundary.
-- Align the existing `http` schema with C4's `StepOnField` at the same time, replacing only its private routing-field definition. Do not compose C4's `args` and `tool`: `http` currently rejects them, so accepting them would expand its contract.
-- Verify the schema directly with AJV and the generated public type. Do not redesign MCP transport, feature ownership, job dispatch, or capability behavior.
+- Generate a self-contained `mcp.step.gen.ts`, then selectively expose only `StepMcp` from the generated barrel. This follows C5's generated-output boundary: the generator's duplicated declarations for shared referenced fields remain implementation details rather than package-root collisions. Remove the duplicate hand-written MCP step module and update the flow unions, capability map, and MCP job data to use the generated type while preserving the package-root `StepMcp` import. The Zod parser remains the runtime boundary.
+- Align the existing `http` schema with C4's `StepOnField` at the same time, replacing only its private routing-field definition. Its root switches from `additionalProperties: false` to `unevaluatedProperties: false` so the referenced field and HTTP-owned fields are closed together. Do not compose C4's `args` and `tool`: `http` currently rejects them, so accepting them would expand its contract.
+- Regenerate HTTP's self-contained output as part of that alignment. Switch its generated-barrel entry from `export *` to an explicit list of its intended public types; `HttpStepOn` has no production consumers and is superseded by `StepOnField`, while the useful HTTP step, body, multipart, and export names remain package-root exports.
+- Register C4's `step-on-field` schema on the existing AJV instance before compiling `http`. This is required for its new `$ref`, but does not change which runtime parser validates MCP or alter HTTP's validation contract.
+- Verify the MCP schema directly with AJV, including strict outer fields and permissive nested `feature` input, and verify the generated public type and HTTP compatibility. Do not redesign MCP transport, feature ownership, job dispatch, or capability behavior.
+
+### What actually landed
+
+No material contract or runtime-boundary divergence. Reusing C4's `on` schema
+means AJV now reports an unknown HTTP root field through
+`unevaluatedProperties` rather than `additionalProperties`; `schemaIssues`
+treats both equivalently so the existing parser diagnostic remains stable.
+`HttpStepOn` had no production consumers and is retired in favor of
+`StepOnField`; the other useful HTTP public type names remain exposed.
 
 ## Change C7 - Composed flow schema and generated root types - not started
 

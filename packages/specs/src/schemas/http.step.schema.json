@@ -4,6 +4,7 @@
   "title": "StepHttp",
   "description": "A capability step that makes one HTTP request. Its body is JSON, a stored artifact's bytes, or a multipart form, and its response is stored under the response's own content type.",
   "type": "object",
+  "allOf": [{ "$ref": "step-on-field.schema.json" }],
   "properties": {
     "type": { "const": "http" },
     "url": { "type": "string" },
@@ -24,11 +25,10 @@
     "exports": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/HttpExportDeclaration" }
-    },
-    "on": { "$ref": "#/$defs/HttpStepOn" }
+    }
   },
   "required": ["type", "url"],
-  "additionalProperties": false,
+  "unevaluatedProperties": false,
   "$defs": {
     "HttpBodyJson": {
       "title": "HttpBodyJson",
@@ -89,15 +89,6 @@
         "schema": { "type": "object", "additionalProperties": {} }
       },
       "required": ["ref", "type"],
-      "additionalProperties": false
-    },
-    "HttpStepOn": {
-      "title": "HttpStepOn",
-      "type": "object",
-      "properties": {
-        "success": { "type": "string" },
-        "failure": { "type": "string" }
-      },
       "additionalProperties": false
     }
   }

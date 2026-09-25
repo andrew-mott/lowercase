@@ -1,4 +1,4 @@
-import type { StepMcp } from "../../../flow/mcp.step.js";
+import type { StepMcp } from "../../../generated/mcp.step.gen.js";
 import type { JobQueuedData, JobSubmittedData } from "../data.js";
 
 export type JobMcpData = Omit<StepMcp, "type" | "on" | "tool">;

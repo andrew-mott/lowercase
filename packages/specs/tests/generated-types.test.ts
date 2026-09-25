@@ -8,10 +8,11 @@ import type {
   HttpExportDeclaration,
   HttpJsonEvalContextSource,
   HttpJsonExportDeclaration,
-  HttpStepOn,
   StepBranch,
   StepCapCommonFields,
+  StepHttp,
   StepJoin,
+  StepMcp,
   StepOnField,
   StepParallel,
   StepHttpJson,
@@ -21,7 +22,9 @@ import type {
 // fail to compile if the generated copies stop fitting the hand-written types
 // that flow analysis and the engine read.
 it("generated http step shapes fit the shared step types", () => {
-  expectTypeOf<HttpStepOn>().toExtend<NonNullable<StepOnField["on"]>>();
+  expectTypeOf<NonNullable<StepHttp["on"]>>().toExtend<
+    NonNullable<StepOnField["on"]>
+  >();
   expectTypeOf<HttpExportDeclaration>().toExtend<ExportDeclaration>();
 });
 
@@ -66,4 +69,17 @@ it("generated httpjson shapes preserve the legacy public names", () => {
   expectTypeOf<StepHttpJson["exports"]>().toEqualTypeOf<
     Record<string, ExportDeclaration> | undefined
   >();
+});
+
+it("generated MCP steps preserve their public shape", () => {
+  expectTypeOf<StepMcp["type"]>().toEqualTypeOf<"mcp">();
+  expectTypeOf<StepMcp["url"]>().toEqualTypeOf<string>();
+  expectTypeOf<StepMcp["transport"]>().toEqualTypeOf<
+    "sse" | "stdio" | "streamable-http" | "http"
+  >();
+  expectTypeOf<StepMcp["feature"]>().toEqualTypeOf<{
+    primitive:
+      "resource" | "prompt" | "tool" | "sampling" | "roots" | "elicitation";
+    name: string;
+  }>();
 });
