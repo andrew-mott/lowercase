@@ -1,9 +1,17 @@
-export * from "./http.step.gen.js";
+export type {
+  HttpBodyArtifact,
+  HttpBodyJson,
+  HttpBodyMultipart,
+  HttpExportDeclaration,
+  HttpMultipartFile,
+  StepHttp,
+} from "./http.step.gen.js";
 export type {
   HttpJsonEvalContextSource,
   HttpJsonExportDeclaration,
   StepHttpJson,
 } from "./http-json.step.gen.js";
+export type { StepMcp } from "./mcp.step.gen.js";
 export * from "./branch.step.gen.js";
 export * from "./flow-kind.gen.js";
 export * from "./flow-output-definition.gen.js";

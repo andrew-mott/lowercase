@@ -1,9 +1,9 @@
-import type { StepMcp } from "./mcp.step.js";
 import type {
   StepBranch,
   StepHttp,
   StepHttpJson,
   StepJoin,
+  StepMcp,
   StepParallel,
 } from "../generated/index.js";
 

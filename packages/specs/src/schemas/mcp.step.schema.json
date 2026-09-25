@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mcp.step.schema.json",
+  "title": "StepMcp",
+  "type": "object",
+  "allOf": [
+    { "$ref": "step-cap-common-fields.schema.json" },
+    { "$ref": "step-on-field.schema.json" }
+  ],
+  "properties": {
+    "type": { "const": "mcp" },
+    "url": { "type": "string" },
+    "transport": {
+      "enum": ["sse", "stdio", "streamable-http", "http"]
+    },
+    "feature": {
+      "type": "object",
+      "properties": {
+        "primitive": {
+          "enum": [
+            "resource",
+            "prompt",
+            "tool",
+            "sampling",
+            "roots",
+            "elicitation"
+          ]
+        },
+        "name": { "type": "string" }
+      },
+      "required": ["primitive", "name"]
+    }
+  },
+  "required": ["type", "url", "transport", "feature"],
+  "unevaluatedProperties": false
+}

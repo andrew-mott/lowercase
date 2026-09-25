@@ -4,7 +4,7 @@
 /**
  * A capability step that makes one HTTP request. Its body is JSON, a stored artifact's bytes, or a multipart form, and its response is stored under the response's own content type.
  */
-export type StepHttp = {
+export type StepHttp = StepOnField & {
   type: "http";
   url: string;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
@@ -15,7 +15,13 @@ export type StepHttp = {
   exports?: {
     [k: string]: HttpExportDeclaration;
   };
-  on?: HttpStepOn;
+};
+
+export type StepOnField = {
+  on?: {
+    success?: string;
+    failure?: string;
+  };
 };
 /**
  * A JSON body. String values are templated, as in an httpjson step's body.
@@ -53,8 +59,4 @@ export type HttpExportDeclaration = {
   schema?: {
     [k: string]: unknown;
   };
-};
-export type HttpStepOn = {
-  success?: string;
-  failure?: string;
 };

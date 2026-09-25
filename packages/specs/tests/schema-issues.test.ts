@@ -26,6 +26,23 @@ describe("schemaIssues, on the http step schema", () => {
     ]);
   });
 
+  it("uses the shared routing-field contract", () => {
+    expect(
+      validateHttpStep({
+        type: "http",
+        url: "http://x",
+        on: { success: "next", failure: "recover" },
+      }),
+    ).toBe(true);
+    expect(
+      validateHttpStep({
+        type: "http",
+        url: "http://x",
+        on: { success: "next", retry: "again" },
+      }),
+    ).toBe(false);
+  });
+
   it("collapses a body that names no kind into one issue", () => {
     expect(issuesFor({ body: { input: "x" } })).toEqual([
       {

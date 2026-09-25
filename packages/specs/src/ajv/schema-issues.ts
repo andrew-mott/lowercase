@@ -95,6 +95,8 @@ function message(error: ErrorObject): string {
   switch (error.keyword) {
     case "additionalProperties":
       return `unknown field "${error.params.additionalProperty}"`;
+    case "unevaluatedProperties":
+      return `unknown field "${error.params.unevaluatedProperty}"`;
     case "required":
       return `missing required field "${error.params.missingProperty}"`;
     case "enum":
