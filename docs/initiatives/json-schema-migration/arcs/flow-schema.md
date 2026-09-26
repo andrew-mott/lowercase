@@ -156,7 +156,7 @@ treats both equivalently so the existing parser diagnostic remains stable.
 `HttpStepOn` had no production consumers and is retired in favor of
 `StepOnField`; the other useful HTTP public type names remain exposed.
 
-## Change C7 - Composed flow schema and generated root types - in review
+## Change C7 - Composed flow schema and generated root types - merged (PR #414)
 
 Compose the schema-owned flow pieces into the complete authored flow contract
 and replace the remaining hand-written flow/step union types, without cutting

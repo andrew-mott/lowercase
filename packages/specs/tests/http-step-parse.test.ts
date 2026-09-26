@@ -53,14 +53,14 @@ describe("parseFlow with an http step", () => {
     ]);
   });
 
-  it("leaves other step types to the Zod union", () => {
+  it("validates other step types through the composed schema", () => {
     const valid = parseFlow(flowWith({ type: "httpjson", url: "http://x" }));
     expect(valid.ok).toBe(true);
 
     const invalid = parseFlow(flowWith({ type: "httpjson" }));
     expect(invalid.ok).toBe(false);
     if (invalid.ok) return;
-    expect(JSON.parse(invalid.error)[0].path).toEqual(["steps", "stt", "url"]);
+    expect(JSON.parse(invalid.error)[0].path).toEqual(["steps", "stt"]);
   });
 
   it("rejects retired inputs and pipe fields", () => {

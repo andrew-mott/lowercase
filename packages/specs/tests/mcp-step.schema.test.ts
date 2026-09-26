@@ -26,7 +26,7 @@ describe("MCP step schema", () => {
     ).toBe(true);
   });
 
-  it("keeps feature input open for the current Zod normalization boundary", () => {
+  it("rejects unknown feature fields", () => {
     expect(
       validate({
         type: "mcp",
@@ -34,7 +34,7 @@ describe("MCP step schema", () => {
         transport: "http",
         feature: { primitive: "tool", name: "search", legacy: true },
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("rejects malformed and unknown outer fields", () => {

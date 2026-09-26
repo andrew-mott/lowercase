@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ShallowJsonValueSchema } from "@lcase/specs";
+import { ShallowJsonValueSchema } from "../shallow-json-value.schema.js";
 import type {
   ExportRef,
   JobCompletedData,

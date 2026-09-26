@@ -1,26 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { schemaIssues } from "../src/ajv/schema-issues.js";
-import { validateHttpStep } from "../src/http.schema.js";
+import {
+  flowValidationIssues,
+  validateFlowDefinition,
+} from "../src/flow-validator.js";
 
 function issuesFor(step: Record<string, unknown>) {
-  const valid = validateHttpStep({ type: "http", url: "http://x", ...step });
+  const valid = validateFlowDefinition({
+    name: "test",
+    version: "1",
+    start: "step",
+    steps: { step: { type: "http", url: "http://x", ...step } },
+  });
   expect(valid).toBe(false);
-  return schemaIssues(validateHttpStep);
+  return flowValidationIssues();
 }
 
-describe("schemaIssues, on the http step schema", () => {
+describe("flow validation issues", () => {
   it("names a missing field", () => {
-    const valid = validateHttpStep({ type: "http" });
+    const valid = validateFlowDefinition({
+      name: "test",
+      version: "1",
+      start: "step",
+      steps: { step: { type: "http" } },
+    });
     expect(valid).toBe(false);
-    expect(schemaIssues(validateHttpStep)).toEqual([
-      { path: [], message: 'missing required field "url"' },
+    expect(flowValidationIssues()).toEqual([
+      { path: ["steps", "step"], message: 'missing required field "url"' },
     ]);
   });
 
   it("lists allowed values", () => {
     expect(issuesFor({ method: "FETCH" })).toEqual([
       {
-        path: ["method"],
+        path: ["steps", "step", "method"],
         message: "must be one of GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
       },
     ]);
@@ -28,17 +40,31 @@ describe("schemaIssues, on the http step schema", () => {
 
   it("uses the shared routing-field contract", () => {
     expect(
-      validateHttpStep({
-        type: "http",
-        url: "http://x",
-        on: { success: "next", failure: "recover" },
+      validateFlowDefinition({
+        name: "test",
+        version: "1",
+        start: "step",
+        steps: {
+          step: {
+            type: "http",
+            url: "http://x",
+            on: { success: "next", failure: "recover" },
+          },
+        },
       }),
     ).toBe(true);
     expect(
-      validateHttpStep({
-        type: "http",
-        url: "http://x",
-        on: { success: "next", retry: "again" },
+      validateFlowDefinition({
+        name: "test",
+        version: "1",
+        start: "step",
+        steps: {
+          step: {
+            type: "http",
+            url: "http://x",
+            on: { success: "next", retry: "again" },
+          },
+        },
       }),
     ).toBe(false);
   });
@@ -46,7 +72,7 @@ describe("schemaIssues, on the http step schema", () => {
   it("collapses a body that names no kind into one issue", () => {
     expect(issuesFor({ body: { input: "x" } })).toEqual([
       {
-        path: ["body"],
+        path: ["steps", "step", "body"],
         message: "must be one of { json }, { artifact }, { multipart }",
       },
     ]);
@@ -55,7 +81,7 @@ describe("schemaIssues, on the http step schema", () => {
   it("collapses a body that names two kinds into one issue", () => {
     expect(issuesFor({ body: { json: {}, artifact: "x" } })).toEqual([
       {
-        path: ["body"],
+        path: ["steps", "step", "body"],
         message: "must be one of { json }, { artifact }, { multipart }",
       },
     ]);
@@ -63,7 +89,10 @@ describe("schemaIssues, on the http step schema", () => {
 
   it("keeps only the named kind's problems", () => {
     expect(issuesFor({ body: { artifact: 5 } })).toEqual([
-      { path: ["body", "artifact"], message: "must be string" },
+      {
+        path: ["steps", "step", "body", "artifact"],
+        message: "must be string",
+      },
     ]);
   });
 
@@ -71,7 +100,7 @@ describe("schemaIssues, on the http step schema", () => {
     const body = { multipart: { file: { filename: "a.wav" } } };
     expect(issuesFor({ body })).toEqual([
       {
-        path: ["body", "multipart", "file"],
+        path: ["steps", "step", "body", "multipart", "file"],
         message: "must be one of a string, { artifact }",
       },
     ]);
@@ -80,7 +109,29 @@ describe("schemaIssues, on the http step schema", () => {
   it("reaches an unknown field in a file part", () => {
     const body = { multipart: { file: { artifact: "x", name: "a.wav" } } };
     expect(issuesFor({ body })).toEqual([
-      { path: ["body", "multipart", "file"], message: 'unknown field "name"' },
+      {
+        path: ["steps", "step", "body", "multipart", "file"],
+        message: 'unknown field "name"',
+      },
+    ]);
+  });
+
+  it("keeps the selected external step branch's errors", () => {
+    const valid = validateFlowDefinition({
+      name: "test",
+      version: "1",
+      start: "step",
+      steps: {
+        step: {
+          type: "mcp",
+          transport: "http",
+          feature: { primitive: "tool", name: "search" },
+        },
+      },
+    });
+    expect(valid).toBe(false);
+    expect(flowValidationIssues()).toEqual([
+      { path: ["steps", "step"], message: 'missing required field "url"' },
     ]);
   });
 });

@@ -30,7 +30,7 @@ import type {
   RunParamManifest,
   StepDefinition,
 } from "@lcase/types";
-import { FlowSchema } from "@lcase/specs";
+import { parseFlow } from "@lcase/specs";
 
 // `mcp` lost its worker executor when packages/tools was deleted
 // (docs/todo.md).
@@ -316,12 +316,12 @@ export class RunService implements RunServicePort {
       );
     }
 
-    const parsed = FlowSchema.safeParse(result.value);
-    if (!parsed.success) {
+    const parsed = parseFlow(result.value);
+    if (!parsed.ok) {
       throw new Error("Invalid flow definition");
     }
 
-    return parsed.data;
+    return parsed.value;
   }
 
   /**

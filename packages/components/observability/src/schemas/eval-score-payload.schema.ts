@@ -1,6 +1,10 @@
-import { z } from "zod";
 import type { EvalScorePayload } from "@lcase/types";
+import { z } from "zod";
 
+/**
+ * Validates the current judge-flow score artifact before its projection writes
+ * the value to durable eval-result storage.
+ */
 export const EvalScorePayloadSchema = z
   .object({
     overall: z.number(),

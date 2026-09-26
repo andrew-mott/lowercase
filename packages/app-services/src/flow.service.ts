@@ -11,7 +11,7 @@ import type {
   GetFlowVersionsRes,
   Result,
 } from "@lcase/types";
-import { FlowSchema, parseFlow } from "@lcase/specs";
+import { parseFlow } from "@lcase/specs";
 import { addFlowToCas, readFlowFile } from "@lcase/run-flow";
 import { analyzeFlow } from "@lcase/flow-analysis";
 
@@ -27,31 +27,29 @@ export class FlowService implements FlowServicePort {
     if (flow === undefined) return "Invalid flow: Undefined";
     try {
       const flowObject = typeof flow === "string" ? JSON.parse(flow) : flow;
-      const result = FlowSchema.safeParse(flowObject);
-      if (!result.success) {
-        return JSON.stringify(result.error, null, 2);
-      }
+      const result = parseFlow(flowObject);
+      if (!result.ok) return result.error;
 
-      const fa = analyzeFlow(result.data);
+      const fa = analyzeFlow(result.value);
       if (fa.problems.length > 0) {
         return "Flow analysis had problems";
       }
-      return result.data;
+      return result.value;
     } catch (err) {
       return `Invalid flow: Error parsing Json: ${err}"`;
     }
   }
 
   validateFlow(flow: unknown): Result<FlowDefinition, string> {
-    const result = FlowSchema.safeParse(flow);
-    if (!result.success) return { ok: false, error: result.error.toString() };
+    const result = parseFlow(flow);
+    if (!result.ok) return result;
 
-    const fa = analyzeFlow(result.data);
+    const fa = analyzeFlow(result.value);
     if (fa.problems.length > 0) {
       return { ok: false, error: "Flow had problems" };
     }
 
-    return { ok: true, value: result.data };
+    return result;
   }
 
   async storeFlowInCas(path: string) {
