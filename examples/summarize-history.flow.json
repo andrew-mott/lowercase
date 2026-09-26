@@ -1,0 +1,66 @@
+{
+  "name": "summarize-history",
+  "version": "0.2.0",
+  "description": "Folds new conversation turns into the running summary, so a caller running a long conversation can replace what it's been sending as converse's history param before it grows past the model's context size. Takes the previous summary (empty on the first pass) and the raw turns since, and returns one new summary that replaces both — the caller doesn't need to keep the raw turns once this returns. One step: an LLM combines the two against a caller-supplied prompt.",
+  "start": "summarize",
+  "params": {
+    "previousSummary": {
+      "type": "text/plain"
+    },
+    "recentTurns": {
+      "type": "text/plain"
+    },
+    "llmUrl": {
+      "type": "text/plain"
+    },
+    "llmModel": {
+      "type": "text/plain"
+    },
+    "llmAuth": {
+      "type": "text/plain"
+    },
+    "summarizePrompt": {
+      "type": "text/plain"
+    },
+    "temperature": {
+      "type": "application/json"
+    }
+  },
+  "outputs": {
+    "summary": {
+      "payload": "{{steps.summarize.exports.text}}"
+    }
+  },
+  "steps": {
+    "summarize": {
+      "type": "http",
+      "url": "{{params.llmUrl}}",
+      "method": "POST",
+      "headers": {
+        "Authorization": "{{params.llmAuth}}"
+      },
+      "body": {
+        "json": {
+          "model": "{{params.llmModel}}",
+          "messages": [
+            {
+              "role": "system",
+              "content": "{{params.summarizePrompt}}"
+            },
+            {
+              "role": "user",
+              "content": "Previous summary:\n{{params.previousSummary}}\n\nNew turns since:\n{{params.recentTurns}}"
+            }
+          ],
+          "temperature": "{{params.temperature}}"
+        }
+      },
+      "exports": {
+        "text": {
+          "ref": "{{output.choices[0].message.content}}",
+          "type": "text/plain"
+        }
+      }
+    }
+  }
+}

@@ -16,6 +16,9 @@
     "system": {
       "type": "text/plain"
     },
+    "temperature": {
+      "type": "application/json"
+    },
     "speachesUrl": {
       "type": "text/plain"
     },
@@ -93,7 +96,7 @@
               "content": "{{steps.transcribe.exports.text}}"
             }
           ],
-          "temperature": 0.7
+          "temperature": "{{params.temperature}}"
         }
       },
       "exports": {

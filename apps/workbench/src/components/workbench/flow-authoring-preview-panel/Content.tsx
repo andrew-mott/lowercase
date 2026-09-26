@@ -67,9 +67,9 @@ export function Content() {
             {showParseError && (
               <p className="mb-2 text-xs text-destructive">
                 {isEmptySnapshot
-                  ? "Nothing valid to preview yet -- "
-                  : "Showing the last valid version -- current edits don't parse: "}
-                {parseError}
+                  ? "Nothing valid to preview yet. "
+                  : "Showing the last valid version. "}
+                Fix errors highlighted in the editor.
               </p>
             )}
             {/* Skip FlowProblemsList's own "No problems found." specifically

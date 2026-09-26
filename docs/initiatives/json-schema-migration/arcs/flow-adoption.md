@@ -1,4 +1,4 @@
-# JSON Schema Migration — Arc A2: Flow adoption (Changes C8–C10)
+# JSON Schema Migration — Arc A2: Flow adoption (Changes C8–C11)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change index. This Arc adopts
 the completed flow contract at runtime and later in authoring tools. It does
@@ -45,7 +45,7 @@ public type agree.
 - The audit found one direct CLI use of the retired Zod flow schema; it was
   included in this cutover so no alternate flow-validation path remains.
 
-## Change C9 - Flow schema registry and editor readiness - in review
+## Change C9 - Flow schema registry and editor readiness - merged (PR #416)
 
 Expose the authored flow schema graph for browser tooling, without creating a
 second flow contract or broadening the runtime validation boundary.
@@ -87,7 +87,7 @@ explicit `$id` migration before publishing schemas for third-party use.
 - The existing filename `$id`s remain unchanged while the owned HTTPS namespace
   decision is deferred; C9 does not introduce a provisional URL.
 
-## Change C10 - Monaco flow authoring - not started
+## Change C10 - Monaco flow authoring - in review
 
 Use the authored flow schema graph in the editable flow-authoring editor for
 structural validation and assistance.
@@ -97,21 +97,28 @@ structural validation and assistance.
 **Likely direction:**
 
 - Configure Monaco's global JSON-schema settings through one small workbench
-  helper, so later JSON consumers extend a shared registration point instead
-  of replacing one another's settings.
-- Give the editable flow-authoring model an explicit virtual URI and associate
-  only that model with the composed flow-root schema. Keep read-only flow JSON
-  and unrelated JSON editors unaffected.
-- Add a flow-specific editor wrapper rather than making the shared
-  `CodeEditor` know about the flow contract. Extend the shared component only
-  as needed to accept a model URI and compose a narrowly scoped pre-mount
-  configuration callback.
+  helper. Its registration is safe when the authoring panel remounts, and later
+  JSON consumers extend that one registration point rather than replacing one
+  another's settings.
+- Give the editable flow-authoring model the internal virtual URI
+  `inmemory://lcase/flows/new-flow.json` and associate only that model with the
+  composed flow-root schema. Keep read-only flow JSON and unrelated JSON
+  editors unaffected. This URI is a Monaco model identity, not a public URL or
+  a decision about the schema `$id` namespace.
+- Keep flow-specific configuration at the authoring panel. Extend the shared
+  `CodeEditor` only as needed to accept a model URI and compose a narrowly
+  scoped pre-mount configuration callback; do not introduce a new general
+  editor abstraction.
 - Deliver Monaco-provided inline structural markers, hover text, and
   completion. Verify root fields, discriminated step variants, shared fields
-  such as `on`, and an error from a referenced schema.
+  such as `on`, and an error from a referenced schema. Configure comments and
+  trailing commas as errors, matching the runtime `JSON.parse` boundary.
 - Replace the raw serialized schema-issue array in the authoring Problems tab
   with a concise pointer to the inline editor errors. Do not add semantic
-  analysis markers or redesign diagnostics in this Change.
+  analysis markers or redesign diagnostics in this Change. The authoring
+  surface continues to retain its last valid flow for preview and semantic
+  analysis while Monaco reports syntax and structural issues for the live,
+  possibly unparseable draft.
 
 **Deferred direction:**
 
@@ -119,3 +126,29 @@ After the initial integration is observable, enrich the authored schemas with
 descriptions, examples, defaults, enum help, or snippets only where Monaco
 demonstrably makes them useful. This remains schema-authoring work, not an
 editor-only parallel metadata layer.
+
+### What actually landed
+
+- The authored flow-schema document graph is registered with Monaco under the
+  existing `$id`s. Only the editable flow-authoring model, identified by its
+  internal `inmemory://` URI, is associated with the composed flow root; other
+  JSON editors retain their existing generic behavior.
+- The shared `CodeEditor` gained only optional model-URI and pre-mount
+  configuration seams. Flow-specific schema setup remains at the authoring
+  panel, and reapplying the complete registration is safe when that panel
+  remounts.
+- Monaco now supplies the live draft's JSON syntax and structural-schema
+  markers, hover, and completion. Comments and trailing commas are errors to
+  match the runtime parser. The authoring and preview Problems tabs retain the
+  last valid flow's semantic problems but replace raw structural-error text
+  with a pointer to the editor highlights.
+- This did not create a general application diagnostics representation or copy
+  Monaco markers into the Problems UI; that remains deferred.
+
+## Change C11 - Flow-schema authoring annotations - not started
+
+After C10 makes the baseline editor behavior observable, selectively enrich
+the authored schemas with descriptions, examples, defaults, enum help, or
+snippets that materially improve Monaco completion and hover text. Keep this
+metadata in the JSON Schema documents, and avoid speculative annotation of
+every field.

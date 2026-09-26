@@ -35,6 +35,10 @@ type Props = {
   // beyond display, e.g. programmatic reveal/selection (see
   // json-definition-panel/Content.tsx's revealPath handling).
   onMount?: (editor: Parameters<OnMount>[0]) => void;
+  /** Identifies this editor's model for language-service configuration. */
+  path?: string;
+  /** Lets a specialized caller configure Monaco before its model mounts. */
+  beforeMount?: (monaco: typeof monacoEditor) => void;
   fontSize?: number;
   lineHeight?: number;
   folding?: boolean;
@@ -55,6 +59,8 @@ export function CodeEditor({
   folding = true,
   lineNumbersMinChars = 5,
   onMount,
+  path,
+  beforeMount,
 }: Props) {
   const { resolvedTheme } = useTheme();
   const [contentHeight, setContentHeight] = useState(minHeight);
@@ -91,11 +97,13 @@ export function CodeEditor({
       rules: [],
       colors: { "editor.background": "#1c1c1c" },
     });
+    beforeMount?.(monaco);
   };
   return (
     <Editor
       height={autoHeight ? contentHeight : height}
       language={language}
+      path={path}
       value={value}
       onChange={(value) => onChange?.(value ?? "")}
       theme={resolvedTheme === "dark" ? "lowercase-dark" : "vs"}
