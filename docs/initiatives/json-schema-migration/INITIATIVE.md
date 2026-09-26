@@ -24,13 +24,13 @@ Make JSON Schema the durable authored contract for flow definitions and, later, 
 | C4     | Shared capability-field schemas and generated types | merged (PR #411) | [A1]  |
 | C5     | HTTP JSON step schema and generated types           | merged (PR #412) | [A1]  |
 | C6     | MCP step schema and generated types                 | merged (PR #413) | [A1]  |
-| C7     | Composed flow schema and generated root types       | in review        | [A1]  |
-| C8     | AJV flow-parser cutover                             | not started      | [A2]  |
+| C7     | Composed flow schema and generated root types       | merged (PR #414) | [A1]  |
+| C8     | AJV flow-parser cutover                             | in review        | [A2]  |
 | C9     | Flow diagnostics and editor readiness               | not started      | [A2]  |
 
 ## Next up
 
-- C7 — Composed flow schema and generated root types.
+- C9 — Flow diagnostics and editor readiness.
 
 ## Not yet scoped
 

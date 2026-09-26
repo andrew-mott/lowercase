@@ -13,7 +13,7 @@ import type {
   Result,
   RunDetail,
 } from "@lcase/types";
-import { FlowSchema } from "@lcase/specs";
+import { parseFlow } from "@lcase/specs";
 
 type EvalServiceDeps = {
   runService: RunServicePort;
@@ -139,10 +139,10 @@ export class EvalService implements EvalServicePort {
     );
     if (!flowDefResult.ok) return;
 
-    const parsedFlow = FlowSchema.safeParse(flowDefResult.value);
-    if (!parsedFlow.success) return;
+    const parsedFlow = parseFlow(flowDefResult.value);
+    if (!parsedFlow.ok) return;
 
-    const step = parsedFlow.data.steps[target.stepId];
+    const step = parsedFlow.value.steps[target.stepId];
     const exportDecl =
       step?.type === "httpjson" ? step.exports?.[target.exportName] : undefined;
     const evalContext = exportDecl?.evalContext;

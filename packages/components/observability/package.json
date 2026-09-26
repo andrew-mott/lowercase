@@ -20,8 +20,8 @@
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
     "ws": "^8.18.3",
-    "@lcase/run-history": "workspace:*",
-    "@lcase/specs": "workspace:*"
+    "zod": "3.25.76",
+    "@lcase/run-history": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

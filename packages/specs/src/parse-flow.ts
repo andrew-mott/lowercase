@@ -1,23 +1,25 @@
 import type { FlowDefinition, Result } from "@lcase/types";
-import { FlowSchema } from "./flow.types.js";
+import {
+  flowValidationIssues,
+  validateFlowDefinition,
+} from "./flow-validator.js";
 
 /**
- * Simple wrapper around zod schema, returns a Result type, discriminated object
- * union where ok: true gives the flow definition, ok: false has the error string
+ * Validates an unknown value as a flow and returns the established Result
+ * boundary. The error remains a string so callers do not depend on AJV.
  *
  * @param data unknown, usually an object
  * @returns { ok: true, value: FlowDefinition } | { ok: false, error: string }
  */
 export function parseFlow(data: unknown): Result<FlowDefinition, string> {
-  const result = FlowSchema.safeParse(data);
-  if (result.error) {
+  if (!validateFlowDefinition(data)) {
     return {
       ok: false,
-      error: result.error.message,
+      error: JSON.stringify(flowValidationIssues()),
     };
   }
   return {
     ok: true,
-    value: result.data,
+    value: data,
   };
 }

@@ -725,12 +725,12 @@ importers:
       '@lcase/run-history':
         specifier: workspace:*
         version: link:../../use-cases/run-history
-      '@lcase/specs':
-        specifier: workspace:*
-        version: link:../../specs
       ws:
         specifier: ^8.18.3
         version: 8.18.3(bufferutil@4.0.9)(utf-8-validate@6.0.5)
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
@@ -1078,9 +1078,6 @@ importers:
       ajv:
         specifier: ^8.17.1
         version: 8.17.1
-      zod:
-        specifier: 3.25.76
-        version: 3.25.76
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1

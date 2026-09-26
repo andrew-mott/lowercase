@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FlowSchema } from "@lcase/specs";
+import { flowValidationIssues, validateFlowDefinition } from "@lcase/specs";
 import type {
   FlowCompletedData,
   FlowDescriptor,
@@ -8,7 +8,23 @@ import type {
   FlowStartedData,
   FlowSubmittedData,
   FlowAnalyzedData,
+  FlowDefinition,
 } from "@lcase/types";
+
+// Event envelopes remain Zod-owned. Their flow field delegates structural
+// validation to AJV rather than recreating the flow contract in Zod.
+const FlowDefinitionEventValueSchema = z
+  .custom<FlowDefinition>()
+  .superRefine((value, ctx) => {
+    if (validateFlowDefinition(value)) return;
+    for (const issue of flowValidationIssues()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: issue.path,
+        message: issue.message,
+      });
+    }
+  }) satisfies z.ZodType<FlowDefinition>;
 
 export const FlowDescriptorSchema = z
   .object({
@@ -27,7 +43,7 @@ export const FlowQueuedDataSchema = z
     flowName: z.string(),
     inputs: z.record(z.string(), z.unknown()),
     outfile: z.string(),
-    definition: FlowSchema,
+    definition: FlowDefinitionEventValueSchema,
   })
   .strict() satisfies z.ZodType<FlowQueuedData>;
 
@@ -35,7 +51,7 @@ export const FlowSubmittedDataSchema = z
   .object({
     ...FlowDescriptorSchema.shape,
     inputs: z.record(z.string(), z.unknown()),
-    definition: FlowSchema,
+    definition: FlowDefinitionEventValueSchema,
   })
   .strict() satisfies z.ZodType<FlowSubmittedData>;
 

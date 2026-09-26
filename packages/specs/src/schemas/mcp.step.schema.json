@@ -28,7 +28,8 @@
         },
         "name": { "type": "string" }
       },
-      "required": ["primitive", "name"]
+      "required": ["primitive", "name"],
+      "additionalProperties": false
     }
   },
   "required": ["type", "url", "transport", "feature"],

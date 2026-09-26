@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import fs from "fs";
 import { resolveCliPath } from "../../resolve-path.js";
 
-import { FlowSchema } from "@lcase/specs";
+import { parseFlow } from "@lcase/specs";
 import type { ServicesPort } from "@lcase/ports";
 
 export function cliValidateAction(flowPath: string) {
@@ -11,10 +11,10 @@ export function cliValidateAction(flowPath: string) {
 
   try {
     const json = JSON.parse(raw);
-    const result = FlowSchema.safeParse(json);
-    if (result.error) {
+    const result = parseFlow(json);
+    if (!result.ok) {
       console.log("Invalid");
-      console.log("Reason:", result.error.errors);
+      console.log("Reason:", result.error);
       return;
     }
     console.log("Valid");

@@ -5,7 +5,7 @@ import type {
   RunQueryPort,
 } from "@lcase/ports";
 import type { AnyEvent, RunStepExportRecord } from "@lcase/types";
-import { EvalScorePayloadSchema } from "@lcase/specs";
+import { EvalScorePayloadSchema } from "../schemas/eval-score-payload.schema.js";
 
 const JUDGE_STEP_ID = "judge";
 const JUDGE_EXPORT_NAME = "score";

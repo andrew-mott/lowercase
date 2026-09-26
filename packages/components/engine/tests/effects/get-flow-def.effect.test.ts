@@ -114,17 +114,7 @@ describe("getFlowDefFx()", () => {
     } as unknown as FlowDefinition;
     const message: FlowDefResultMsg = {
       ok: false,
-      error: `[
-  {
-    "code": "invalid_type",
-    "expected": "string",
-    "received": "undefined",
-    "path": [
-      "start"
-    ],
-    "message": "Required"
-  }
-]`,
+      error: '[{"path":[],"message":"missing required field \\"start\\""}]',
       runId: "test-runid",
       type: "FlowDefResult",
     };
