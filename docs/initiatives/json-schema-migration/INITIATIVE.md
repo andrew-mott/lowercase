@@ -25,12 +25,13 @@ Make JSON Schema the durable authored contract for flow definitions and, later, 
 | C5     | HTTP JSON step schema and generated types           | merged (PR #412) | [A1]  |
 | C6     | MCP step schema and generated types                 | merged (PR #413) | [A1]  |
 | C7     | Composed flow schema and generated root types       | merged (PR #414) | [A1]  |
-| C8     | AJV flow-parser cutover                             | in review        | [A2]  |
-| C9     | Flow diagnostics and editor readiness               | not started      | [A2]  |
+| C8     | AJV flow-parser cutover                             | merged (PR #415) | [A2]  |
+| C9     | Flow schema registry and editor readiness           | in review        | [A2]  |
+| C10    | Monaco flow authoring                               | not started      | [A2]  |
 
 ## Next up
 
-- C9 — Flow diagnostics and editor readiness.
+- C9 — Flow schema registry and editor readiness.
 
 ## Not yet scoped
 
@@ -39,6 +40,9 @@ Make JSON Schema the durable authored contract for flow definitions and, later, 
 - **Message taxonomy.** Settle the enduring Message/event vocabulary and ownership boundaries before encoding it into a shared schema composition.
 - **Event and Message schema migration.** Move the existing event/data contracts and their registry wiring to JSON Schema and AJV in coherent slices.
 - **Diagnostics.** Establish useful, consistent schema-validation errors for runtime callers and authoring tools.
+- **Flow authoring annotations.** After Monaco exposes the current flow schema,
+  selectively add descriptions, examples, defaults, or snippets where they
+  materially improve authoring without changing structural meaning.
 - **Legacy `httpjson` eval context.** Preserve `httpjson`'s current `evalContext` support during this flow work. Do not add it to `http`; remove it from `httpjson` only when its eval-design replacement is ready.
 - **Final cleanup.** Retire superseded Zod definitions, bridges, and hand-written types only after their JSON Schema replacements are fully adopted.
 
