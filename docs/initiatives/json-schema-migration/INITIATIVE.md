@@ -26,12 +26,13 @@ Make JSON Schema the durable authored contract for flow definitions and, later, 
 | C6     | MCP step schema and generated types                 | merged (PR #413) | [A1]  |
 | C7     | Composed flow schema and generated root types       | merged (PR #414) | [A1]  |
 | C8     | AJV flow-parser cutover                             | merged (PR #415) | [A2]  |
-| C9     | Flow schema registry and editor readiness           | in review        | [A2]  |
-| C10    | Monaco flow authoring                               | not started      | [A2]  |
+| C9     | Flow schema registry and editor readiness           | merged (PR #416) | [A2]  |
+| C10    | Monaco flow authoring                               | in review        | [A2]  |
+| C11    | Flow-schema authoring annotations                   | not started      | [A2]  |
 
 ## Next up
 
-- C9 — Flow schema registry and editor readiness.
+- C10 — Monaco flow authoring.
 
 ## Not yet scoped
 

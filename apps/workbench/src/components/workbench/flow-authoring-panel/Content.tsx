@@ -23,6 +23,10 @@ import {
 import { ProblemsTab } from "@/components/workbench/shared/flow-graph/side-panel/ProblemsTab";
 import { ParametersTab } from "@/components/workbench/shared/flow-graph/side-panel/ParametersTab";
 import { useFlowAuthoringPanel } from "./use-flow-authoring-panel";
+import {
+  configureFlowJsonSchema,
+  FLOW_AUTHORING_MODEL_URI,
+} from "@/lib/flow-json-schema";
 
 // Only Problems and Parameters -- both pure flowDef-derived, no interaction
 // needed. Unlike the preview panel, there's no graph here to click a node
@@ -79,9 +83,9 @@ export function Content({
             {showParseError && (
               <p className="mb-2 text-xs text-error-foreground">
                 {isEmptySnapshot
-                  ? "Nothing valid yet -- "
-                  : "Showing problems from the last valid version -- current edits don't parse: "}
-                {parseError}
+                  ? "Nothing valid yet. "
+                  : "Showing problems from the last valid version. "}
+                Fix errors highlighted in the editor.
               </p>
             )}
             {(!(saveError || showParseError) || problems.length > 0) && (
@@ -101,6 +105,8 @@ export function Content({
       height="100%"
       value={content}
       language="json"
+      path={FLOW_AUTHORING_MODEL_URI}
+      beforeMount={configureFlowJsonSchema}
       onChange={debouncedContentChange}
     />
   );
