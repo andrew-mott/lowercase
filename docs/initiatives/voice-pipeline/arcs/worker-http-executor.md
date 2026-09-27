@@ -4,7 +4,7 @@
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change log, split out to keep that doc scannable. This arc builds the worker's execution logic for `http` — by widening `httpjson`'s existing executor rather than building a second one beside it. That unification is scoped to exactly one layer: the flow step types (`httpjson`, `http`) and the event families (`job.httpjson.*`, `job.http.*`) both stay separate, exactly as Change C3 decided. Only the worker's request-building/response-handling implementation is shared.
 
-**Not in this arc:** retiring `httpjson` as a step type, or unifying its events with `http`'s — a separate, undecided question at a different layer than this arc touches. Engine planning/dispatch for `http`, including flipping `RunService`'s `STEP_TYPES_WITHOUT_EXECUTOR` gate — that's C7, not yet scoped in detail. Any events-layer schema-first/AJV migration — left to `json-schema-migration` (I7).
+**Not in this arc:** retiring `httpjson` as a step type, or unifying its events with `http`'s — a separate, undecided question at a different layer than this arc touches. Engine planning/dispatch for `http`, including flipping `RunService`'s `STEP_TYPES_WITHOUT_EXECUTOR` gate — that's C7, not yet scoped in detail. Any events-layer schema-first/AJV migration — left to `event-contracts` (I12).
 
 ## Change C4 - A shared executor for http and httpjson - merged (#396)
 

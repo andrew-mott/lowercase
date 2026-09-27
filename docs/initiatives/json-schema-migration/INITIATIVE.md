@@ -1,8 +1,10 @@
-# Events + Specs: JSON Schema Migration
+# Flow Definition Schema Migration
+
+**Status: Complete — Changes C1–C10 merged (PRs #408–#417).**
 
 ## Summary
 
-Make JSON Schema the durable authored contract for flow definitions and, later, event and Message shapes: TypeScript types are generated and committed from those schemas, AJV validates the runtime boundary, and the same flow schema can eventually drive Monaco validation and autocomplete. Flow definitions and event/Message schemas stay in this one longer Initiative because they share the contract pipeline and migration decisions, while their work remains divided into small, coherent Changes.
+Flow definitions are authored as JSON Schema, with committed generated TypeScript types and AJV validation at the runtime boundary. The same composed schema graph now powers Monaco's structural validation, hover text, and completion in the flow authoring editor.
 
 ## Design principles
 
@@ -10,9 +12,8 @@ Make JSON Schema the durable authored contract for flow definitions and, later, 
 - **Compose schemas deliberately.** Use draft 2020-12 and stable `$id` values. Independently owned contracts compose through `$ref`; private reusable pieces stay in the owning schema's `$defs`.
 - **Make unions explicit.** Model variants with `oneOf` and a required `const` discriminator, so generated types, AJV, and editor tooling share one unambiguous branch selection rule.
 - **Keep structural and semantic validation separate.** JSON Schema establishes shape and local constraints. Flow analysis remains responsible for cross-step references, reachability, and other semantic rules.
-- **Migrate runtime boundaries incrementally.** A schema may coexist with the current Zod-facing parser while callers still need it; a Change does not rewrite the parser merely because it introduces a schema.
+- **Migrate runtime boundaries deliberately.** A schema may coexist with a current parser while callers still need it; cut over once the contract and compatibility boundary are complete.
 - **Author once for runtime and tooling.** The flow schema must be usable by AJV now and by Monaco validation/autocomplete later, without a tooling-specific parallel contract.
-- **Keep an intentional, revisable runway.** Pre-number and discuss enough small Changes, grouped by Arc, to make the likely next path clear. Reorder, renumber, split, combine, or skip planned work when understanding changes; do not turn the index into a speculative whole-migration inventory.
 
 ## Change index
 
@@ -27,25 +28,14 @@ Make JSON Schema the durable authored contract for flow definitions and, later, 
 | C7     | Composed flow schema and generated root types       | merged (PR #414) | [A1]  |
 | C8     | AJV flow-parser cutover                             | merged (PR #415) | [A2]  |
 | C9     | Flow schema registry and editor readiness           | merged (PR #416) | [A2]  |
-| C10    | Monaco flow authoring                               | in review        | [A2]  |
-| C11    | Flow-schema authoring annotations                   | not started      | [A2]  |
-
-## Next up
-
-- C10 — Monaco flow authoring.
+| C10    | Monaco flow authoring                               | merged (PR #417) | [A2]  |
 
 ## Not yet scoped
 
-- **AJV flow-parser cutover.** Replace the remaining Zod-facing flow parsing path only after the schema and generated public types are complete and its compatibility boundary is understood.
-- **Monaco integration.** Use the authored flow schema for editor diagnostics, validation, and autocomplete.
-- **Message taxonomy.** Settle the enduring Message/event vocabulary and ownership boundaries before encoding it into a shared schema composition.
-- **Event and Message schema migration.** Move the existing event/data contracts and their registry wiring to JSON Schema and AJV in coherent slices.
-- **Diagnostics.** Establish useful, consistent schema-validation errors for runtime callers and authoring tools.
-- **Flow authoring annotations.** After Monaco exposes the current flow schema,
-  selectively add descriptions, examples, defaults, or snippets where they
-  materially improve authoring without changing structural meaning.
-- **Legacy `httpjson` eval context.** Preserve `httpjson`'s current `evalContext` support during this flow work. Do not add it to `http`; remove it from `httpjson` only when its eval-design replacement is ready.
-- **Final cleanup.** Retire superseded Zod definitions, bridges, and hand-written types only after their JSON Schema replacements are fully adopted.
+No further I7 work is planned. Flow-schema authoring annotations remain a
+possible future enhancement, but are deliberately deferred until an observed
+editor need justifies them. Event and Message contracts now have their own
+future Initiative, [`event-contracts`](../event-contracts/INITIATIVE.md).
 
 [A1]: ./arcs/flow-schema.md
 [A2]: ./arcs/flow-adoption.md

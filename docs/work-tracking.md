@@ -65,6 +65,11 @@ skipped as understanding changes. Prefer whole integer `C#` values rather than
 suffixes such as `C2a`. Once implementation has been committed, keep that
 Change's number stable; merge makes it permanent historical identity.
 
+An unstarted, scaffolded Initiative may likewise be reordered and renumbered to
+keep the Initiative index in intended-start order. Update direct `I#`
+references at the same time. Once work has started or another active document
+depends on its number, keep the Initiative ID stable.
+
 Do not pre-enumerate work merely to fill a roadmap. Add enough planned Changes
 to make the likely next path clear, and revise the runway deliberately when the
 work changes.
