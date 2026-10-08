@@ -1,6 +1,6 @@
 {
   "name": "summarize-history",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Folds new conversation turns into the running summary, so a caller running a long conversation can replace what it's been sending as converse's history param before it grows past the model's context size. Takes the previous summary (empty on the first pass) and the raw turns since, and returns one new summary that replaces both — the caller doesn't need to keep the raw turns once this returns. One step: an LLM combines the two against a caller-supplied prompt.",
   "start": "summarize",
   "params": {
@@ -23,6 +23,9 @@
       "type": "text/plain"
     },
     "temperature": {
+      "type": "application/json"
+    },
+    "maxTokens": {
       "type": "application/json"
     }
   },
@@ -52,7 +55,8 @@
               "content": "Previous summary:\n{{params.previousSummary}}\n\nNew turns since:\n{{params.recentTurns}}"
             }
           ],
-          "temperature": "{{params.temperature}}"
+          "temperature": "{{params.temperature}}",
+          "max_tokens": "{{params.maxTokens}}"
         }
       },
       "exports": {

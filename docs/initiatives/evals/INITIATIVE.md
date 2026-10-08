@@ -8,6 +8,19 @@ User's own framing for why this matters, not a bolt-on: "the premise behind my p
 
 Scaffolded now, work not yet started — this directory exists so the `docs/initiatives/` pattern has a second real example, per the [`ui-workspace`](../ui-workspace/INITIATIVE.md) initiative's own Change C36.
 
+## Research
+
+[Artifact model evolution for evaluations](./research/artifact-model.md)
+records the current requirements, storage and revision tradeoffs, API/UI
+dependencies, and a staged migration recommendation. It revisits the earlier
+scaffold ideas; implementation scope and Change numbers remain open.
+
+The catalog foundation is now tracked in the separate
+[Artifact Model Initiative](../artifact-model/INITIATIVE.md). Its initial scope
+is stable saved items and normalized relationships, with revisions deferred.
+Eval composition and launch remain here; worker deployment cleanup is not a
+prerequisite for all Eval work.
+
 ## Not yet scoped
 
 - **Move eval context out of the flow definition entirely, into its own specialized artifact type**, with template-variable references pointing at a specific flow definition — decoupled, not embedded. Concrete architecture direction volunteered by the user, not yet designed further.
