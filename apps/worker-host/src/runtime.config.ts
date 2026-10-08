@@ -6,8 +6,8 @@ import type { WorkerHostConfig } from "./profile/worker-host.config.js";
 export const config = {
   worker: {
     maxConcurrentJobs: 4,
-    protocolTimeoutMs: 60_000,
-    maxConcurrencyPerKey: 2,
+    protocolTimeoutMs: 120_000,
+    maxConcurrencyPerKey: 4,
   },
 
   // No `url`: omitting it defers to `defaultPostgresUrl()`, which is what the

@@ -1,4 +1,4 @@
-# JSON Schema Migration — Arc A2: Flow adoption (Changes C8–C11)
+# Flow Definition Schema Migration — Arc A2: Flow adoption (Changes C8–C10)
 
 Part of the [`INITIATIVE.md`](../INITIATIVE.md) Change index. This Arc adopts
 the completed flow contract at runtime and later in authoring tools. It does
@@ -87,7 +87,7 @@ explicit `$id` migration before publishing schemas for third-party use.
 - The existing filename `$id`s remain unchanged while the owned HTTPS namespace
   decision is deferred; C9 does not introduce a provisional URL.
 
-## Change C10 - Monaco flow authoring - in review
+## Change C10 - Monaco flow authoring - merged (PR #417)
 
 Use the authored flow schema graph in the editable flow-authoring editor for
 structural validation and assistance.
@@ -144,11 +144,3 @@ editor-only parallel metadata layer.
   with a pointer to the editor highlights.
 - This did not create a general application diagnostics representation or copy
   Monaco markers into the Problems UI; that remains deferred.
-
-## Change C11 - Flow-schema authoring annotations - not started
-
-After C10 makes the baseline editor behavior observable, selectively enrich
-the authored schemas with descriptions, examples, defaults, enum help, or
-snippets that materially improve Monaco completion and hover text. Keep this
-metadata in the JSON Schema documents, and avoid speculative annotation of
-every field.

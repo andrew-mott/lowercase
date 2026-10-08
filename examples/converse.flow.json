@@ -1,6 +1,6 @@
 {
   "name": "converse",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A spoken conversation, one turn per run. Speech to text, an LLM reply that takes a system prompt and the conversation so far as params, then a text-to-speech step speaks the reply. The caller keeps the history and sends it back each turn, and supplies the system prompt (a default is available for callers that don't need to customize it). Returns what was heard, the reply text and the reply audio.",
   "start": "transcribe",
   "params": {
@@ -17,6 +17,9 @@
       "type": "text/plain"
     },
     "temperature": {
+      "type": "application/json"
+    },
+    "maxTokens": {
       "type": "application/json"
     },
     "speachesUrl": {
@@ -96,7 +99,8 @@
               "content": "{{steps.transcribe.exports.text}}"
             }
           ],
-          "temperature": "{{params.temperature}}"
+          "temperature": "{{params.temperature}}",
+          "max_tokens": "{{params.maxTokens}}"
         }
       },
       "exports": {
